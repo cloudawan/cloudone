@@ -16,8 +16,8 @@ package configuration
 
 import (
 	"code.google.com/p/log4go"
-	"github.com/cloudawan/kubernetes_management_utility/configuration"
 	"github.com/cloudawan/kubernetes_management/utility/logger"
+	"github.com/cloudawan/kubernetes_management_utility/configuration"
 )
 
 var configurationContent = `
@@ -27,7 +27,7 @@ var configurationContent = `
 	"cassandraClusterIp": ["127.0.0.1"],
 	"cassandraClusterPort": 9042,
 	"cassandraKeyspace": "kubernetes_management",
-	"cassandraReplicationStrategy": "{'class': 'SimpleStrategy', 'replication_factor' : 3}",
+	"cassandraReplicationStrategy": "{'class': 'SimpleStrategy', 'replication_factor' : 1}",
 	"kubeapiHost": "127.0.0.1",
 	"kubeapiPort": 8080,
 	"emailSenderAccount": "cloudawanemailtest@gmail.com",
@@ -36,7 +36,7 @@ var configurationContent = `
 	"emailSenderPort": 587,
 	"smsNexmoURL": "https://rest.nexmo.com/sms/json",
 	"smsNexmoAPIKey": "2045d69e",
-	"smsNexmoAPISecret" "fcaf0b59"
+	"smsNexmoAPISecret": "fcaf0b59"
 }
 `
 
