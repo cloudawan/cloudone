@@ -29,8 +29,25 @@ var tableSchemaStatelessApplication = `
 	PRIMARY KEY (name));
 	`
 
+var tableSchemaClusterApplication = `
+	CREATE TABLE IF NOT EXISTS cluster_application (
+	name varchar,
+	description varchar,
+	replication_controller_json blob,
+	service_json blob,
+	environment map<varchar, varchar>,
+	script_type varchar,
+	script_content blob,
+	PRIMARY KEY (name));
+	`
+
 func init() {
 	err := cassandra.CassandraClient.CreateTableIfNotExist(tableSchemaStatelessApplication, 3, time.Second*3)
+	if err != nil {
+		panic(err)
+	}
+
+	err = cassandra.CassandraClient.CreateTableIfNotExist(tableSchemaClusterApplication, 3, time.Second*3)
 	if err != nil {
 		panic(err)
 	}
@@ -102,4 +119,78 @@ func LoadAllStatelessApplication() ([]Stateless, error) {
 	}
 
 	return statelessSlice, nil
+}
+
+func DeleteClusterApplication(name string) error {
+	session := cassandra.CassandraClient.GetSession()
+	if err := session.Query("DELETE FROM cluster_application WHERE name = ?", name).Exec(); err != nil {
+		log.Error("Delete cluster application with name %s error: %s", name, err)
+		return err
+	}
+	return nil
+}
+
+func SaveClusterApplication(cluster *Cluster) error {
+	session := cassandra.CassandraClient.GetSession()
+	if err := session.Query("INSERT INTO cluster_application (name, description, replication_controller_json, service_json, environment, script_type, script_content) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		cluster.Name,
+		cluster.Description,
+		cluster.ReplicationControllerJson,
+		cluster.ServiceJson,
+		cluster.Environment,
+		cluster.ScriptType,
+		cluster.ScriptContent,
+	).Exec(); err != nil {
+		log.Error("Save cluster application %s error: %s", cluster, err)
+		return err
+	}
+	return nil
+}
+
+func LoadClusterApplication(name string) (*Cluster, error) {
+	cluster := new(Cluster)
+
+	session := cassandra.CassandraClient.GetSession()
+	err := session.Query("SELECT name, description, replication_controller_json, service_json, environment, script_type, script_content FROM cluster_application WHERE name = ?", name).Scan(
+		&cluster.Name,
+		&cluster.Description,
+		&cluster.ReplicationControllerJson,
+		&cluster.ServiceJson,
+		&cluster.Environment,
+		&cluster.ScriptType,
+		&cluster.ScriptContent,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return cluster, nil
+}
+
+func LoadAllClusterApplication() ([]Cluster, error) {
+	session := cassandra.CassandraClient.GetSession()
+	iter := session.Query("SELECT name, description, replication_controller_json, service_json, environment, script_type, script_content FROM cluster_application").Iter()
+
+	clusterSlice := make([]Cluster, 0)
+	cluster := new(Cluster)
+
+	for iter.Scan(
+		&cluster.Name,
+		&cluster.Description,
+		&cluster.ReplicationControllerJson,
+		&cluster.ServiceJson,
+		&cluster.Environment,
+		&cluster.ScriptType,
+		&cluster.ScriptContent,
+	) {
+		clusterSlice = append(clusterSlice, *cluster)
+		cluster = new(Cluster)
+	}
+
+	err := iter.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return clusterSlice, nil
 }
