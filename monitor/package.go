@@ -15,11 +15,10 @@
 package monitor
 
 import (
-	"code.google.com/p/log4go"
 	"github.com/cloudawan/kubernetes_management/utility/logger"
 )
 
-var log log4go.Logger = logger.GetLogger("monitor")
+var log = logger.GetLog("monitor")
 
 const (
 	// No Captial is allowed in index name

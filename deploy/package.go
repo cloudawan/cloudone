@@ -15,8 +15,7 @@
 package deploy
 
 import (
-	"code.google.com/p/log4go"
 	"github.com/cloudawan/kubernetes_management/utility/logger"
 )
 
-var log log4go.Logger = logger.GetLogger("deploy")
+var log = logger.GetLog("deploy")

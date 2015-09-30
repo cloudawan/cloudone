@@ -15,13 +15,12 @@
 package main
 
 import (
-	"code.google.com/p/log4go"
 	_ "github.com/cloudawan/kubernetes_management/execute"
 	"github.com/cloudawan/kubernetes_management/restapi"
 	"github.com/cloudawan/kubernetes_management/utility/logger"
 )
 
-var log log4go.Logger = logger.GetLogger("default")
+var log = logger.GetLog("default")
 
 func main() {
 	restapi.StartRestAPIServer()

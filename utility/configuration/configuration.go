@@ -15,10 +15,11 @@
 package configuration
 
 import (
-	"code.google.com/p/log4go"
 	"github.com/cloudawan/kubernetes_management/utility/logger"
 	"github.com/cloudawan/kubernetes_management_utility/configuration"
 )
+
+var log = logger.GetLog("utility")
 
 var configurationContent = `
 {
@@ -39,8 +40,6 @@ var configurationContent = `
 	"smsNexmoAPISecret": "fcaf0b59"
 }
 `
-
-var log log4go.Logger = logger.GetLogger("utility")
 
 var LocalConfiguration *configuration.Configuration
 

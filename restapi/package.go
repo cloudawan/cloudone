@@ -15,8 +15,7 @@
 package restapi
 
 import (
-	"code.google.com/p/log4go"
 	"github.com/cloudawan/kubernetes_management/utility/logger"
 )
 
-var log log4go.Logger = logger.GetLogger("restapi")
+var log = logger.GetLog("restapi")

@@ -15,13 +15,12 @@
 package cassandra
 
 import (
-	"code.google.com/p/log4go"
 	"github.com/cloudawan/kubernetes_management/utility/configuration"
-	"github.com/cloudawan/kubernetes_management_utility/database/cassandra"
 	"github.com/cloudawan/kubernetes_management/utility/logger"
+	"github.com/cloudawan/kubernetes_management_utility/database/cassandra"
 )
 
-var log log4go.Logger = logger.GetLogger("utility")
+var log = logger.GetLog("utility")
 
 var CassandraClient *cassandra.CassandraClient
 

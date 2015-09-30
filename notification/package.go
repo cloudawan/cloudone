@@ -15,8 +15,7 @@
 package notification
 
 import (
-	"code.google.com/p/log4go"
 	"github.com/cloudawan/kubernetes_management/utility/logger"
 )
 
-var log log4go.Logger = logger.GetLogger("notification")
+var log = logger.GetLog("notification")
