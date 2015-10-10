@@ -50,15 +50,17 @@ func LaunchClusterApplication(kubeapiHost string, kubeapiPort int, namespace str
 
 	// Add environment variable
 	if environmentSlice != nil {
-		containerSlice := replicationControllerJsonMap["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["containers"].([]interface{})
-		for i := 0; i < len(containerSlice); i++ {
-			_, ok := containerSlice[i].(map[string]interface{})["env"].([]interface{})
-			if ok {
-				for _, environment := range environmentSlice {
-					containerSlice[i].(map[string]interface{})["env"] = append(containerSlice[i].(map[string]interface{})["env"].([]interface{}), environment)
+		if replicationControllerJsonMap["spec"] != nil {
+			containerSlice := replicationControllerJsonMap["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["containers"].([]interface{})
+			for i := 0; i < len(containerSlice); i++ {
+				_, ok := containerSlice[i].(map[string]interface{})["env"].([]interface{})
+				if ok {
+					for _, environment := range environmentSlice {
+						containerSlice[i].(map[string]interface{})["env"] = append(containerSlice[i].(map[string]interface{})["env"].([]interface{}), environment)
+					}
+				} else {
+					containerSlice[i].(map[string]interface{})["env"] = environmentSlice
 				}
-			} else {
-				containerSlice[i].(map[string]interface{})["env"] = environmentSlice
 			}
 		}
 	}
@@ -69,11 +71,18 @@ func LaunchClusterApplication(kubeapiHost string, kubeapiPort int, namespace str
 		return err
 	}
 
+	environmentByteSlice, err := json.Marshal(environmentSlice)
+	if err != nil {
+		log.Error("Marshal environment json for cluster application error %s", err)
+		return err
+	}
+
 	// Generate random work space
 	workingDirectory := "/tmp/tmp_" + random.UUID()
 	replicationControllerFileName := "replication-controller.json"
 	serviceFileName := "service.json"
 	scriptFileName := "script"
+	environmentFileName := "environment.json"
 
 	// Check working space
 	if _, err := os.Stat(workingDirectory); os.IsNotExist(err) {
@@ -82,6 +91,12 @@ func LaunchClusterApplication(kubeapiHost string, kubeapiPort int, namespace str
 			log.Error("Create non-existing directory %s error: %s", workingDirectory, err)
 			return err
 		}
+	}
+
+	err = ioutil.WriteFile(workingDirectory+string(os.PathSeparator)+environmentFileName, environmentByteSlice, os.ModePerm)
+	if err != nil {
+		log.Error("Write environment json file for cluster application error %s", err)
+		return err
 	}
 
 	err = ioutil.WriteFile(workingDirectory+string(os.PathSeparator)+replicationControllerFileName, replicationControllerByteSlice, os.ModePerm)
@@ -106,8 +121,10 @@ func LaunchClusterApplication(kubeapiHost string, kubeapiPort int, namespace str
 	case "python":
 		command := exec.Command("python", scriptFileName,
 			"--application_name="+name, "--namespace="+namespace,
+			"--size="+strconv.Itoa(size),
 			"--replication_controller_file_name="+replicationControllerFileName,
-			"--service_file_name="+serviceFileName, "--size="+strconv.Itoa(size),
+			"--service_file_name="+serviceFileName,
+			"--environment_file_name="+environmentFileName,
 			"--kubeapi_host_and_port=http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort),
 			"--timeout_in_second=120", "--action=create")
 		command.Dir = workingDirectory
