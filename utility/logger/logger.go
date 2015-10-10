@@ -28,6 +28,6 @@ func init() {
 	}
 }
 
-func GetLog(moduleName string) logger.Log {
-	return logManager.GetLog(moduleName)
+func GetLogManager() *logger.LogManager {
+	return logManager
 }

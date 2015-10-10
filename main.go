@@ -20,7 +20,7 @@ import (
 	"github.com/cloudawan/kubernetes_management/utility/logger"
 )
 
-var log = logger.GetLog("default")
+var log = logger.GetLogManager().GetLogger("default")
 
 func main() {
 	restapi.StartRestAPIServer()

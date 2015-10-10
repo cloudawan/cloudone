@@ -18,4 +18,4 @@ import (
 	"github.com/cloudawan/kubernetes_management/utility/logger"
 )
 
-var log = logger.GetLog("execute")
+var log = logger.GetLogManager().GetLogger("execute")
