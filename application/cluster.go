@@ -120,13 +120,15 @@ func LaunchClusterApplication(kubeapiHost string, kubeapiPort int, namespace str
 	switch cluster.ScriptType {
 	case "python":
 		command := exec.Command("python", scriptFileName,
-			"--application_name="+name, "--namespace="+namespace,
-			"--size="+strconv.Itoa(size),
-			"--replication_controller_file_name="+replicationControllerFileName,
-			"--service_file_name="+serviceFileName,
-			"--environment_file_name="+environmentFileName,
+			"--application_name="+name,
 			"--kubeapi_host_and_port=http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort),
-			"--timeout_in_second=120", "--action=create")
+			"--namespace="+namespace,
+			"--size="+strconv.Itoa(size),
+			"--service_file_name="+serviceFileName,
+			"--replication_controller_file_name="+replicationControllerFileName,
+			"--environment_file_name="+environmentFileName,
+			"--timeout_in_second=120",
+			"--action=create")
 		command.Dir = workingDirectory
 		out, err := command.CombinedOutput()
 		command.CombinedOutput()

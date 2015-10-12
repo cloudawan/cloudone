@@ -22,7 +22,7 @@ import (
 	"strconv"
 )
 
-func registerWebServiceImageDeploy() {
+func registerWebServiceDeployBlueGreen() {
 	ws := new(restful.WebService)
 	ws.Path("/api/v1/deploybluegreens")
 	ws.Consumes(restful.MIME_JSON)
