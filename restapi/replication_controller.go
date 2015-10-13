@@ -33,7 +33,7 @@ func registerWebServiceKubernetesService() {
 	ws.Produces(restful.MIME_JSON)
 	restful.Add(ws)
 
-	ws.Route(ws.GET("/{namespace}").To(getReplicationController).
+	ws.Route(ws.GET("/{namespace}").To(getAllReplicationController).
 		Doc("Get all replication controllers in the namespace").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
@@ -48,6 +48,14 @@ func registerWebServiceKubernetesService() {
 		Do(returns200, returns400, returns404, returns500).
 		Reads(control.ReplicationController{}))
 
+	ws.Route(ws.GET("/{namespace}/{replicationcontroller}").To(getReplicationController).
+		Doc("Get replication controllers in the namespace").
+		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
+		Param(ws.PathParameter("replicationcontroller", "Kubernetes replication controller name").DataType("string")).
+		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
+		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
+		Do(returns200ReplicationController, returns400, returns404, returns500))
+
 	ws.Route(ws.DELETE("/{namespace}/{replicationcontroller}").To(deleteReplicationController).
 		Doc("Delete the replication controller in the namespace").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
@@ -56,7 +64,7 @@ func registerWebServiceKubernetesService() {
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
 		Do(returns200, returns400, returns404, returns500))
 
-	ws.Route(ws.PUT("/size/{namespace}/{replicationcontroller}").To(postReplicationControllerSize).
+	ws.Route(ws.PUT("/size/{namespace}/{replicationcontroller}").To(putReplicationControllerSize).
 		Doc("Configure the replication controller replica amount").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("replicationcontroller", "Kubernetes replication controller name").DataType("string")).
@@ -74,7 +82,7 @@ func registerWebServiceKubernetesService() {
 		Reads(new(struct{})))
 }
 
-func getReplicationController(request *restful.Request, response *restful.Response) {
+func getAllReplicationController(request *restful.Request, response *restful.Response) {
 	kubeapiHost := request.QueryParameter("kubeapihost")
 	kubeapiPortText := request.QueryParameter("kubeapiport")
 	namespace := request.PathParameter("namespace")
@@ -141,6 +149,36 @@ func postReplicationController(request *restful.Request, response *restful.Respo
 	}
 }
 
+func getReplicationController(request *restful.Request, response *restful.Response) {
+	kubeapiHost := request.QueryParameter("kubeapihost")
+	kubeapiPortText := request.QueryParameter("kubeapiport")
+	namespace := request.PathParameter("namespace")
+	replicationcontroller := request.PathParameter("replicationcontroller")
+	if kubeapiHost == "" || kubeapiPortText == "" || namespace == "" {
+		errorText := fmt.Sprintf("Input text is incorrect kubeapiHost %s kubeapiPort %s namespace %s", kubeapiHost, kubeapiPortText, namespace)
+		log.Error(errorText)
+		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		return
+	}
+	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
+	if err != nil {
+		errorText := fmt.Sprintf("Could not parse kubeapiPortText %s with error %s", kubeapiPortText, err)
+		log.Error(errorText)
+		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	replicationController, err := control.GetReplicationController(kubeapiHost, kubeapiPort, namespace, replicationcontroller)
+	if err != nil {
+		errorText := fmt.Sprintf("Could not get replication controller %s with kubeapiHost %s kubeapiPort %d namespace %s error %s", replicationcontroller, kubeapiHost, kubeapiPort, namespace, err)
+		log.Error(errorText)
+		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	response.WriteJson(replicationController, "[]ReplicationController")
+}
+
 func deleteReplicationController(request *restful.Request, response *restful.Response) {
 	kubeapiHost := request.QueryParameter("kubeapihost")
 	kubeapiPortText := request.QueryParameter("kubeapiport")
@@ -170,7 +208,7 @@ func deleteReplicationController(request *restful.Request, response *restful.Res
 	}
 }
 
-func postReplicationControllerSize(request *restful.Request, response *restful.Response) {
+func putReplicationControllerSize(request *restful.Request, response *restful.Response) {
 	kubeapiHost := request.QueryParameter("kubeapihost")
 	kubeapiPortText := request.QueryParameter("kubeapiport")
 	namespace := request.PathParameter("namespace")
@@ -204,7 +242,7 @@ func postReplicationControllerSize(request *restful.Request, response *restful.R
 	if err != nil {
 		errorText := fmt.Sprintf("Fail to resize to size %d namespace %s replicationcontroller %s kubeapiHost %s kubeapiPort %s failure with error %s", sizeInput.Size, namespace, replicationcontroller, kubeapiHost, kubeapiPort, err)
 		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
 		return
 	}
 }
@@ -248,5 +286,9 @@ func postReplicationControllerFromJson(request *restful.Request, response *restf
 }
 
 func returns200AllReplicationController(b *restful.RouteBuilder) {
-	b.Returns(http.StatusOK, "OK", control.ReplicationControllerAndRelatedPod{})
+	b.Returns(http.StatusOK, "OK", []control.ReplicationControllerAndRelatedPod{})
+}
+
+func returns200ReplicationController(b *restful.RouteBuilder) {
+	b.Returns(http.StatusOK, "OK", control.ReplicationController{})
 }

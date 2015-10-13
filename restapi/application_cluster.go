@@ -65,7 +65,7 @@ func registerWebServiceClusterApplication() {
 		Param(ws.PathParameter("clusterapplication", "cluster application").DataType("string")).
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
-		Param(ws.QueryParameter("size", "how many instances to launch").DataType("int")).
+		Param(ws.QueryParameter("size", "How many instances to launch").DataType("int")).
 		Do(returns200, returns400, returns404, returns500).
 		Reads(new(struct{})))
 }

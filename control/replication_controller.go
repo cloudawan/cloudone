@@ -202,17 +202,24 @@ func GetReplicationController(kubeapiHost string, kubeapiPort int, namespace str
 				replicationControllerContainer := ReplicationControllerContainer{}
 				replicationControllerContainer.Name, _ = container.(map[string]interface{})["name"].(string)
 				replicationControllerContainer.Image, _ = container.(map[string]interface{})["image"].(string)
-				portSlice := container.(map[string]interface{})["ports"]
-				if portSlice != nil {
-					replicationControllerContainer.PortSlice = make([]ReplicationControllerContainerPort, 0)
-					for _, port := range portSlice.([]interface{}) {
-						replicationControllerContainerPort := ReplicationControllerContainerPort{}
-						replicationControllerContainerPort.Name, _ = port.(map[string]interface{})["name"].(string)
-						containerPort, _ := jsonparse.ConvertToInt64(port.(map[string]interface{})["containerPort"])
-						replicationControllerContainerPort.ContainerPort = int(containerPort)
-						replicationControllerContainer.PortSlice = append(replicationControllerContainer.PortSlice, replicationControllerContainerPort)
-					}
+				portSlice, _ := container.(map[string]interface{})["ports"].([]interface{})
+				replicationControllerContainer.PortSlice = make([]ReplicationControllerContainerPort, 0)
+				for _, port := range portSlice {
+					replicationControllerContainerPort := ReplicationControllerContainerPort{}
+					replicationControllerContainerPort.Name, _ = port.(map[string]interface{})["name"].(string)
+					containerPort, _ := jsonparse.ConvertToInt64(port.(map[string]interface{})["containerPort"])
+					replicationControllerContainerPort.ContainerPort = int(containerPort)
+					replicationControllerContainer.PortSlice = append(replicationControllerContainer.PortSlice, replicationControllerContainerPort)
 				}
+
+				environmentSlice, _ := container.(map[string]interface{})["env"].([]interface{})
+				replicationControllerContainer.EnvironmentSlice = make([]ReplicationControllerContainerEnvironment, 0)
+				for _, environment := range environmentSlice {
+					name := environment.(map[string]interface{})["name"].(string)
+					value := environment.(map[string]interface{})["value"].(string)
+					replicationControllerContainer.EnvironmentSlice = append(replicationControllerContainer.EnvironmentSlice, ReplicationControllerContainerEnvironment{name, value})
+				}
+
 				replicationController.ContainerSlice = append(replicationController.ContainerSlice, replicationControllerContainer)
 			}
 		}

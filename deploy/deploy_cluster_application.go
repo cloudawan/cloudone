@@ -15,6 +15,7 @@
 package deploy
 
 import (
+	"encoding/json"
 	"errors"
 	"github.com/cloudawan/kubernetes_management/application"
 	"github.com/cloudawan/kubernetes_management/control"
@@ -80,6 +81,116 @@ func GetAllDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespa
 	}
 
 	return deployClusterApplicationSlice, nil
+}
+
+func ResizeDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespace string, name string, environmentSlice []interface{}, size int) error {
+	cluster, err := application.LoadClusterApplication(name)
+	if err != nil {
+		log.Error("Load cluster application error %s", err)
+		return err
+	}
+
+	replicationControllerJsonMap := make(map[string]interface{})
+	err = json.Unmarshal([]byte(cluster.ReplicationControllerJson), &replicationControllerJsonMap)
+	if err != nil {
+		log.Error("Unmarshal replication controller json for cluster application error %s", err)
+		return err
+	}
+
+	// Add environment variable
+	if environmentSlice != nil {
+		if replicationControllerJsonMap["spec"] != nil {
+			containerSlice := replicationControllerJsonMap["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["containers"].([]interface{})
+			for i := 0; i < len(containerSlice); i++ {
+				_, ok := containerSlice[i].(map[string]interface{})["env"].([]interface{})
+				if ok {
+					for _, environment := range environmentSlice {
+						containerSlice[i].(map[string]interface{})["env"] = append(containerSlice[i].(map[string]interface{})["env"].([]interface{}), environment)
+					}
+				} else {
+					containerSlice[i].(map[string]interface{})["env"] = environmentSlice
+				}
+			}
+		}
+	}
+
+	replicationControllerByteSlice, err := json.Marshal(replicationControllerJsonMap)
+	if err != nil {
+		log.Error("Marshal replication controller json for cluster application error %s", err)
+		return err
+	}
+
+	environmentByteSlice, err := json.Marshal(environmentSlice)
+	if err != nil {
+		log.Error("Marshal environment json for cluster application error %s", err)
+		return err
+	}
+
+	// Generate random work space
+	workingDirectory := "/tmp/tmp_" + random.UUID()
+	replicationControllerFileName := "replication-controller.json"
+	scriptFileName := "script"
+	environmentFileName := "environment.json"
+
+	// Check working space
+	if _, err := os.Stat(workingDirectory); os.IsNotExist(err) {
+		err := os.MkdirAll(workingDirectory, os.ModePerm)
+		if err != nil {
+			log.Error("Create non-existing directory %s error: %s", workingDirectory, err)
+			return err
+		}
+	}
+
+	err = ioutil.WriteFile(workingDirectory+string(os.PathSeparator)+environmentFileName, environmentByteSlice, os.ModePerm)
+	if err != nil {
+		log.Error("Write environment json file for cluster application error %s", err)
+		return err
+	}
+
+	err = ioutil.WriteFile(workingDirectory+string(os.PathSeparator)+replicationControllerFileName, replicationControllerByteSlice, os.ModePerm)
+	if err != nil {
+		log.Error("Write replication controller json file for cluster application error %s", err)
+		return err
+	}
+
+	err = ioutil.WriteFile(workingDirectory+string(os.PathSeparator)+scriptFileName, []byte(cluster.ScriptContent), os.ModePerm)
+	if err != nil {
+		log.Error("Write script file for cluster application error %s", err)
+		return err
+	}
+
+	switch cluster.ScriptType {
+	case "python":
+		command := exec.Command("python", scriptFileName,
+			"--application_name="+name,
+			"--kubeapi_host_and_port=http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort),
+			"--namespace="+namespace,
+			"--size="+strconv.Itoa(size),
+			"--replication_controller_file_name="+replicationControllerFileName,
+			"--environment_file_name="+environmentFileName,
+			"--timeout_in_second=120",
+			"--action=resize")
+		command.Dir = workingDirectory
+		out, err := command.CombinedOutput()
+		command.CombinedOutput()
+		log.Debug(string(out))
+		if err != nil {
+			log.Error("Run python script file for cluster application error %s", err)
+			return err
+		}
+	default:
+		log.Error("No such script type: %s", cluster.ScriptType)
+		return errors.New("No such script type: " + cluster.ScriptType)
+	}
+
+	// Remove working space
+	err = os.RemoveAll(workingDirectory)
+	if err != nil {
+		log.Error("Remove the working directory for cluster application error %s", err)
+		return err
+	}
+
+	return nil
 }
 
 func DeleteDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespace string, name string) error {
