@@ -37,7 +37,9 @@ var configurationContent = `
 	"emailSenderPort": 587,
 	"smsNexmoURL": "https://rest.nexmo.com/sms/json",
 	"smsNexmoAPIKey": "2045d69e",
-	"smsNexmoAPISecret": "fcaf0b59"
+	"smsNexmoAPISecret": "fcaf0b59",
+	"glusterfsClusterIP": ["127.0.0.1"],
+	"glusterfsPath": "/data/glusterfs"
 }
 `
 
