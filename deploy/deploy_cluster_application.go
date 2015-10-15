@@ -172,7 +172,6 @@ func ResizeDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespa
 			"--action=resize")
 		command.Dir = workingDirectory
 		out, err := command.CombinedOutput()
-		command.CombinedOutput()
 		log.Debug(string(out))
 		if err != nil {
 			log.Error("Run python script file for cluster application error %s", err)
@@ -229,7 +228,6 @@ func DeleteDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespa
 			"--action=delete")
 		command.Dir = workingDirectory
 		out, err := command.CombinedOutput()
-		command.CombinedOutput()
 		log.Debug(string(out))
 		if err != nil {
 			log.Error("Run python script file for cluster application error %s", err)

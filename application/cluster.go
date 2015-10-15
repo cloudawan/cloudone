@@ -17,6 +17,7 @@ package application
 import (
 	"encoding/json"
 	"errors"
+	"github.com/cloudawan/kubernetes_management/control"
 	"github.com/cloudawan/kubernetes_management_utility/random"
 	"io/ioutil"
 	"os"
@@ -41,8 +42,69 @@ func LaunchClusterApplication(kubeapiHost string, kubeapiPort int, namespace str
 		return err
 	}
 
+	switch cluster.ScriptType {
+	case "none":
+		return LaunchClusterApplicationNoScript(kubeapiHost, kubeapiPort, namespace, cluster, environmentSlice, size)
+	case "python":
+		return LaunchClusterApplicationPython(kubeapiHost, kubeapiPort, namespace, cluster, environmentSlice, size)
+	default:
+		log.Error("No such script type: %s", cluster.ScriptType)
+		return errors.New("No such script type: " + cluster.ScriptType)
+	}
+}
+
+func LaunchClusterApplicationNoScript(kubeapiHost string, kubeapiPort int, namespace string, cluster *Cluster, environmentSlice []interface{}, size int) error {
 	replicationControllerJsonMap := make(map[string]interface{})
-	err = json.Unmarshal([]byte(cluster.ReplicationControllerJson), &replicationControllerJsonMap)
+	err := json.Unmarshal([]byte(cluster.ReplicationControllerJson), &replicationControllerJsonMap)
+	if err != nil {
+		log.Error("Unmarshal replication controller json for cluster application error %s", err)
+		return err
+	}
+
+	serviceJsonMap := make(map[string]interface{})
+	err = json.Unmarshal([]byte(cluster.ServiceJson), &serviceJsonMap)
+	if err != nil {
+		log.Error("Unmarshal service json for cluster application error %s", err)
+		return err
+	}
+
+	// Add environment variable
+	if environmentSlice != nil {
+		if replicationControllerJsonMap["spec"] != nil {
+			containerSlice := replicationControllerJsonMap["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["containers"].([]interface{})
+			for i := 0; i < len(containerSlice); i++ {
+				_, ok := containerSlice[i].(map[string]interface{})["env"].([]interface{})
+				if ok {
+					for _, environment := range environmentSlice {
+						containerSlice[i].(map[string]interface{})["env"] = append(containerSlice[i].(map[string]interface{})["env"].([]interface{}), environment)
+					}
+				} else {
+					containerSlice[i].(map[string]interface{})["env"] = environmentSlice
+				}
+			}
+		}
+	}
+
+	// Change size
+	replicationControllerJsonMap["spec"].(map[string]interface{})["replicas"] = size
+
+	err = control.CreateReplicationControllerWithJson(kubeapiHost, kubeapiPort, namespace, replicationControllerJsonMap)
+	if err != nil {
+		log.Error("CreateReplicationControllerWithJson error %s", err)
+		return err
+	}
+	err = control.CreateServiceWithJson(kubeapiHost, kubeapiPort, namespace, serviceJsonMap)
+	if err != nil {
+		log.Error("CreateReplicationControllerWithJson error %s", err)
+		return err
+	}
+
+	return nil
+}
+
+func LaunchClusterApplicationPython(kubeapiHost string, kubeapiPort int, namespace string, cluster *Cluster, environmentSlice []interface{}, size int) error {
+	replicationControllerJsonMap := make(map[string]interface{})
+	err := json.Unmarshal([]byte(cluster.ReplicationControllerJson), &replicationControllerJsonMap)
 	if err != nil {
 		log.Error("Unmarshal replication controller json for cluster application error %s", err)
 		return err
@@ -117,29 +179,22 @@ func LaunchClusterApplication(kubeapiHost string, kubeapiPort int, namespace str
 		return err
 	}
 
-	switch cluster.ScriptType {
-	case "python":
-		command := exec.Command("python", scriptFileName,
-			"--application_name="+name,
-			"--kubeapi_host_and_port=http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort),
-			"--namespace="+namespace,
-			"--size="+strconv.Itoa(size),
-			"--service_file_name="+serviceFileName,
-			"--replication_controller_file_name="+replicationControllerFileName,
-			"--environment_file_name="+environmentFileName,
-			"--timeout_in_second=120",
-			"--action=create")
-		command.Dir = workingDirectory
-		out, err := command.CombinedOutput()
-		command.CombinedOutput()
-		log.Debug(string(out))
-		if err != nil {
-			log.Error("Run python script file for cluster application error %s", err)
-			return err
-		}
-	default:
-		log.Error("No such script type: %s", cluster.ScriptType)
-		return errors.New("No such script type: " + cluster.ScriptType)
+	command := exec.Command("python", scriptFileName,
+		"--application_name="+cluster.Name,
+		"--kubeapi_host_and_port=http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort),
+		"--namespace="+namespace,
+		"--size="+strconv.Itoa(size),
+		"--service_file_name="+serviceFileName,
+		"--replication_controller_file_name="+replicationControllerFileName,
+		"--environment_file_name="+environmentFileName,
+		"--timeout_in_second=120",
+		"--action=create")
+	command.Dir = workingDirectory
+	out, err := command.CombinedOutput()
+	log.Debug(string(out))
+	if err != nil {
+		log.Error("Run python script file for cluster application error %s", err)
+		return err
 	}
 
 	// Remove working space
