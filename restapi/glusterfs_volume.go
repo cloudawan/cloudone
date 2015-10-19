@@ -26,7 +26,7 @@ type GlusterfsVolumeInput struct {
 	Stripe    int
 	Replica   int
 	Transport string
-	IpList    []string
+	HostSlice []string
 }
 
 func registerWebServiceGlusterfsVolume() {
@@ -97,7 +97,7 @@ func postGlusterfsVolume(request *restful.Request, response *restful.Response) {
 
 	err = glusterfsVolumeControl.CreateVolume(glusterfsVolumeInput.Name,
 		glusterfsVolumeInput.Stripe, glusterfsVolumeInput.Replica,
-		glusterfsVolumeInput.Transport, glusterfsVolumeInput.IpList)
+		glusterfsVolumeInput.Transport, glusterfsVolumeInput.HostSlice)
 
 	if err != nil {
 		errorText := fmt.Sprintf("Create glusterfs volume %s error %s", glusterfsVolumeInput, err)

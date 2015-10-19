@@ -38,8 +38,13 @@ var configurationContent = `
 	"smsNexmoURL": "https://rest.nexmo.com/sms/json",
 	"smsNexmoAPIKey": "2045d69e",
 	"smsNexmoAPISecret": "fcaf0b59",
-	"glusterfsClusterIP": ["127.0.0.1"],
-	"glusterfsPath": "/data/glusterfs"
+	"glusterfsHost": ["127.0.0.1"],
+	"glusterfsPath": "/data/glusterfs",
+	"glusterfsSSHTimeoutInSecond": 10,
+	"glusterfsSSHHost": ["127.0.0.1"],
+	"glusterfsSSHPort": 22,
+	"glusterfsSSHUser": "user",
+	"glusterfsSSHPassword": "password"
 }
 `
 
