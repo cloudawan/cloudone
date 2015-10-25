@@ -124,6 +124,7 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 	sourceCodeProject := imageInformation.BuildParameter["sourceCodeProject"]       // "test"
 	sourceCodeDirectory := imageInformation.BuildParameter["sourceCodeDirectory"]   // "src"
 	sourceCodeMakeScript := imageInformation.BuildParameter["sourceCodeMakeScript"] // ""
+	versionFile := imageInformation.BuildParameter["versionFile"]                   // "version"
 	environmentFile := imageInformation.BuildParameter["environmentFile"]           // "environment"
 
 	// Check working space
@@ -159,8 +160,23 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 		return nil, string(outputByteSlice), err
 	}
 
+	command = exec.Command("git", "log")
+	command.Dir = workingDirectory + string(os.PathSeparator) + sourceCodeProject
+	out, err = command.CombinedOutput()
+	outputByteSlice = append(outputByteSlice, out...)
+	if err != nil {
+		log.Error("Git log %s error: %s", imageInformation, err)
+		return nil, string(outputByteSlice), err
+	}
+	gitVersionSlice, err := parseGitVersion(string(out))
+
 	if sourceCodeMakeScript != "" {
-		command = exec.Command(sourceCodeMakeScript)
+		commandSlice := strings.Split(sourceCodeMakeScript, " ")
+		if len(commandSlice) == 1 {
+			command = exec.Command(sourceCodeMakeScript)
+		} else {
+			command = exec.Command(commandSlice[0], commandSlice[1:]...)
+		}
 		command.Dir = workingDirectory + string(os.PathSeparator) + sourceCodeProject
 		out, err = command.CombinedOutput()
 		outputByteSlice = append(outputByteSlice, out...)
@@ -170,13 +186,34 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 		}
 	}
 
-	command = exec.Command("git", "log")
-	command.Dir = workingDirectory + string(os.PathSeparator) + sourceCodeProject
-	out, err = command.CombinedOutput()
-	outputByteSlice = append(outputByteSlice, out...)
-	if err != nil {
-		log.Error("Git log %s error: %s", imageInformation, err)
-		return nil, string(outputByteSlice), err
+	version := ""
+	if versionFile != "" {
+		// open input file
+		inputFile, err := os.Open(workingDirectory + string(os.PathSeparator) +
+			sourceCodeProject + string(os.PathSeparator) + versionFile)
+		if err != nil {
+			log.Error("Open version file error: %s", err)
+			return nil, string(outputByteSlice), err
+		}
+		defer inputFile.Close()
+
+		byteSlice := make([]byte, 0)
+		buffer := make([]byte, 1024)
+		for {
+			// read a chunk
+			n, err := inputFile.Read(buffer)
+			if err != nil && err != io.EOF {
+				log.Error("Read version file error: %s", err)
+				return nil, string(outputByteSlice), err
+			}
+			if n == 0 {
+				break
+			}
+
+			byteSlice = append(byteSlice, buffer[0:n]...)
+		}
+
+		version = string(byteSlice)
 	}
 
 	environmentMap := make(map[string]string)
@@ -222,13 +259,13 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 	}
 
 	imageRecord := ImageRecord{}
-	gitVersionSlice, err := parseGitVersion(string(out))
 	currentGitVersion := gitVersionSlice[0]
 	imageRecord.ImageInformation = imageInformation.Name
 	imageRecord.VersionInfo = make(map[string]string)
 	imageRecord.VersionInfo["Commit"] = currentGitVersion.Commit
 	imageRecord.VersionInfo["Autor"] = currentGitVersion.Autor
 	imageRecord.VersionInfo["Date"] = currentGitVersion.Date
+	imageRecord.VersionInfo["Version"] = version
 	imageRecord.CreatedTime = time.Now()
 	imageRecord.Version = imageRecord.CreatedTime.Format("2006-01-02-15-04-05")
 	imageRecord.Path = repositoryPath + ":" + imageRecord.Version
@@ -407,7 +444,7 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 			// read a chunk
 			n, err := inputFile.Read(buffer)
 			if err != nil && err != io.EOF {
-				log.Error("Read version file error: %s", err)
+				log.Error("Read environment file error: %s", err)
 				return nil, string(outputByteSlice), err
 			}
 			if n == 0 {
@@ -556,7 +593,7 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 			// read a chunk
 			n, err := inputFile.Read(buffer)
 			if err != nil && err != io.EOF {
-				log.Error("Read version file error: %s", err)
+				log.Error("Read environment file error: %s", err)
 				return nil, string(outputByteSlice), err
 			}
 			if n == 0 {
