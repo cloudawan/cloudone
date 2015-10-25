@@ -1,0 +1,9 @@
+{
+  "name": "kubernetes_management",
+  "private": true,
+  "version": "0.0.1",
+  "description": "kubernetes_management",
+  "author": "Yu-Chen Chang <ycchang@cloudawan.com>",
+  "dependencies": {
+  }
+}
