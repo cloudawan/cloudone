@@ -24,7 +24,6 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
-	"strings"
 )
 
 type DeployClusterApplication struct {
@@ -41,7 +40,7 @@ func GetAllDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespa
 		return nil, err
 	}
 
-	replicationControllerNameSlice, err := control.GetAllReplicationControllerName(kubeapiHost, kubeapiPort, namespace)
+	replicationControllerAndRelatedPodSlice, err := control.GetAllReplicationControllerAndRelatedPodSlice(kubeapiHost, kubeapiPort, namespace)
 	if err != nil {
 		log.Error("Fail to get all replication controller name error %s", err)
 		return nil, err
@@ -55,24 +54,40 @@ func GetAllDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespa
 
 	deployClusterApplicationSlice := make([]DeployClusterApplication, 0)
 	for _, cluster := range clusterSlice {
-		owningReplicationControllerNameSlice := make([]string, 0)
-		for _, replicationControllerName := range replicationControllerNameSlice {
-			if strings.HasPrefix(replicationControllerName, cluster.Name+"-instance-") {
-				owningReplicationControllerNameSlice = append(owningReplicationControllerNameSlice, replicationControllerName)
-			}
-		}
-		size := len(owningReplicationControllerNameSlice)
+		// Service
 		serviceExist := false
+		selectorMap := make(map[string]interface{})
 		for _, service := range serviceSlice {
 			if service.Name == cluster.Name {
 				serviceExist = true
+				for key, value := range service.Selector {
+					selectorMap[key] = value
+				}
+			}
+		}
+		// Replication Controller
+		owningReplicationControllerNameSlice := make([]string, 0)
+		if len(selectorMap) > 0 {
+			for _, replicationControllerAndRelatedPod := range replicationControllerAndRelatedPodSlice {
+				// if all selectors in service are in the replication controller, the service owns the replication controller
+				allFit := true
+				for key, value := range selectorMap {
+					if value != replicationControllerAndRelatedPod.Selector[key] {
+						allFit = false
+						break
+					}
+				}
+				if allFit {
+					owningReplicationControllerNameSlice = append(owningReplicationControllerNameSlice, replicationControllerAndRelatedPod.Name)
+				}
 			}
 		}
 
+		// Service is must since it is used to provide endpoint for others to use
 		if serviceExist {
 			deployClusterApplication := DeployClusterApplication{
 				cluster.Name,
-				size,
+				len(owningReplicationControllerNameSlice),
 				cluster.Name,
 				owningReplicationControllerNameSlice,
 			}
