@@ -70,23 +70,35 @@ func LaunchClusterApplicationNoScript(kubeapiHost string, kubeapiPort int, names
 
 	// Add environment variable
 	if environmentSlice != nil {
-		if replicationControllerJsonMap["spec"] != nil {
-			containerSlice := replicationControllerJsonMap["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["containers"].([]interface{})
-			for i := 0; i < len(containerSlice); i++ {
-				_, ok := containerSlice[i].(map[string]interface{})["env"].([]interface{})
+		specJsonMap, ok := replicationControllerJsonMap["spec"].(map[string]interface{})
+		if ok {
+			templateJsonMap, ok := specJsonMap["template"].(map[string]interface{})
+			if ok {
+				specJsonMap, ok := templateJsonMap["spec"].(map[string]interface{})
 				if ok {
-					for _, environment := range environmentSlice {
-						containerSlice[i].(map[string]interface{})["env"] = append(containerSlice[i].(map[string]interface{})["env"].([]interface{}), environment)
+					containerSlice, ok := specJsonMap["containers"].([]interface{})
+					if ok {
+						for i := 0; i < len(containerSlice); i++ {
+							_, ok := containerSlice[i].(map[string]interface{})["env"].([]interface{})
+							if ok {
+								for _, environment := range environmentSlice {
+									containerSlice[i].(map[string]interface{})["env"] = append(containerSlice[i].(map[string]interface{})["env"].([]interface{}), environment)
+								}
+							} else {
+								containerSlice[i].(map[string]interface{})["env"] = environmentSlice
+							}
+						}
 					}
-				} else {
-					containerSlice[i].(map[string]interface{})["env"] = environmentSlice
 				}
 			}
 		}
 	}
 
 	// Change size
-	replicationControllerJsonMap["spec"].(map[string]interface{})["replicas"] = size
+	specJsonMap, ok := replicationControllerJsonMap["spec"].(map[string]interface{})
+	if ok {
+		specJsonMap["replicas"] = size
+	}
 
 	err = control.CreateReplicationControllerWithJson(kubeapiHost, kubeapiPort, namespace, replicationControllerJsonMap)
 	if err != nil {
@@ -112,16 +124,25 @@ func LaunchClusterApplicationPython(kubeapiHost string, kubeapiPort int, namespa
 
 	// Add environment variable
 	if environmentSlice != nil {
-		if replicationControllerJsonMap["spec"] != nil {
-			containerSlice := replicationControllerJsonMap["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["containers"].([]interface{})
-			for i := 0; i < len(containerSlice); i++ {
-				_, ok := containerSlice[i].(map[string]interface{})["env"].([]interface{})
+		specJsonMap, ok := replicationControllerJsonMap["spec"].(map[string]interface{})
+		if ok {
+			templateJsonMap, ok := specJsonMap["template"].(map[string]interface{})
+			if ok {
+				specJsonMap, ok := templateJsonMap["spec"].(map[string]interface{})
 				if ok {
-					for _, environment := range environmentSlice {
-						containerSlice[i].(map[string]interface{})["env"] = append(containerSlice[i].(map[string]interface{})["env"].([]interface{}), environment)
+					containerSlice, ok := specJsonMap["containers"].([]interface{})
+					if ok {
+						for i := 0; i < len(containerSlice); i++ {
+							_, ok := containerSlice[i].(map[string]interface{})["env"].([]interface{})
+							if ok {
+								for _, environment := range environmentSlice {
+									containerSlice[i].(map[string]interface{})["env"] = append(containerSlice[i].(map[string]interface{})["env"].([]interface{}), environment)
+								}
+							} else {
+								containerSlice[i].(map[string]interface{})["env"] = environmentSlice
+							}
+						}
 					}
-				} else {
-					containerSlice[i].(map[string]interface{})["env"] = environmentSlice
 				}
 			}
 		}
