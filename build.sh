@@ -1,5 +1,5 @@
 # Install HG for one of go package to use
-sudo apt-get install mercurial
+sudo apt-get install -y mercurial
 
 # Install Go 1.5.1
 wget https://storage.googleapis.com/golang/go1.5.1.linux-amd64.tar.gz
