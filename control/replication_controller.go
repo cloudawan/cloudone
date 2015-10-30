@@ -89,6 +89,15 @@ func CreateReplicationController(kubeapiHost string, kubeapiPort int, namespace 
 		}
 		containerJsonMap["env"] = environmentJsonMapSlice
 
+		// FIXME temporarily to use nested docker
+		volumeMountJsonMap := make(map[string]interface{})
+		volumeMountJsonMap["name"] = "docker"
+		volumeMountJsonMap["readOnly"] = true
+		volumeMountJsonMap["mountPath"] = "/var/run/docker.sock"
+		volumeMountJsonMapSlice := make([]interface{}, 0)
+		volumeMountJsonMapSlice = append(volumeMountJsonMapSlice, volumeMountJsonMap)
+		containerJsonMap["volumeMounts"] = volumeMountJsonMapSlice
+
 		containerJsonMapSlice = append(containerJsonMapSlice, containerJsonMap)
 	}
 
@@ -111,6 +120,15 @@ func CreateReplicationController(kubeapiHost string, kubeapiPort int, namespace 
 	bodyJsonMap["spec"].(map[string]interface{})["template"].(map[string]interface{})["metadata"].(map[string]interface{})["labels"].(map[string]interface{})["version"] = replicationController.Selector.Version
 	bodyJsonMap["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"] = make(map[string]interface{})
 	bodyJsonMap["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["containers"] = containerJsonMapSlice
+
+	// FIXME temporarily to use nested docker
+	volumeJsonMap := make(map[string]interface{})
+	volumeJsonMap["name"] = "docker"
+	volumeJsonMap["hostPath"] = make(map[string]interface{})
+	volumeJsonMap["hostPath"].(map[string]interface{})["path"] = "/var/run/docker.sock"
+	volumeJsonMapSlice := make([]interface{}, 0)
+	volumeJsonMapSlice = append(volumeJsonMapSlice, volumeJsonMap)
+	bodyJsonMap["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["volumes"] = volumeJsonMapSlice
 
 	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/replicationcontrollers/"
 	_, err := restclient.RequestPost(url, bodyJsonMap, true)
