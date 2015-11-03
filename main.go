@@ -15,9 +15,9 @@
 package main
 
 import (
-	_ "github.com/cloudawan/kubernetes_management/execute"
-	"github.com/cloudawan/kubernetes_management/restapi"
-	"github.com/cloudawan/kubernetes_management/utility/logger"
+	_ "github.com/cloudawan/cloudone/execute"
+	"github.com/cloudawan/cloudone/restapi"
+	"github.com/cloudawan/cloudone/utility/logger"
 )
 
 var log = logger.GetLogManager().GetLogger("default")

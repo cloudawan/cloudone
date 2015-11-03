@@ -16,7 +16,7 @@ package restapi
 
 import (
 	"fmt"
-	"github.com/cloudawan/kubernetes_management/control/glusterfs"
+	"github.com/cloudawan/cloudone/control/glusterfs"
 	"github.com/emicklei/go-restful"
 	"net/http"
 )

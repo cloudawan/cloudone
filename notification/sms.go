@@ -17,8 +17,8 @@ package notification
 import (
 	"bytes"
 	"errors"
-	"github.com/cloudawan/kubernetes_management/utility/configuration"
-	"github.com/cloudawan/kubernetes_management_utility/restclient"
+	"github.com/cloudawan/cloudone/utility/configuration"
+	"github.com/cloudawan/cloudone_utility/restclient"
 	"net/url"
 )
 

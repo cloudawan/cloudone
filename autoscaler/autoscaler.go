@@ -17,8 +17,8 @@ package autoscaler
 import (
 	"bytes"
 	"errors"
-	"github.com/cloudawan/kubernetes_management/control"
-	"github.com/cloudawan/kubernetes_management/monitor"
+	"github.com/cloudawan/cloudone/control"
+	"github.com/cloudawan/cloudone/monitor"
 	"time"
 )
 

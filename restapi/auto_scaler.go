@@ -16,9 +16,9 @@ package restapi
 
 import (
 	"fmt"
-	"github.com/cloudawan/kubernetes_management/autoscaler"
-	"github.com/cloudawan/kubernetes_management/execute"
-	"github.com/cloudawan/kubernetes_management/monitor"
+	"github.com/cloudawan/cloudone/autoscaler"
+	"github.com/cloudawan/cloudone/execute"
+	"github.com/cloudawan/cloudone/monitor"
 	"github.com/emicklei/go-restful"
 	"net/http"
 )

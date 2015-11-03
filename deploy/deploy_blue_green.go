@@ -15,7 +15,7 @@
 package deploy
 
 import (
-	"github.com/cloudawan/kubernetes_management/control"
+	"github.com/cloudawan/cloudone/control"
 	"strconv"
 )
 

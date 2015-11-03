@@ -16,7 +16,7 @@ package application
 
 import (
 	"encoding/json"
-	"github.com/cloudawan/kubernetes_management/control"
+	"github.com/cloudawan/cloudone/control"
 )
 
 type Stateless struct {

@@ -18,7 +18,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/cloudawan/kubernetes_management/monitor"
+	"github.com/cloudawan/cloudone/monitor"
 	"strconv"
 	"strings"
 	"time"

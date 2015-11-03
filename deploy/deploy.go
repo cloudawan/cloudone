@@ -15,8 +15,8 @@
 package deploy
 
 import (
-	"github.com/cloudawan/kubernetes_management/control"
-	"github.com/cloudawan/kubernetes_management/image"
+	"github.com/cloudawan/cloudone/control"
+	"github.com/cloudawan/cloudone/image"
 	"time"
 )
 

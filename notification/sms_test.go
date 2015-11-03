@@ -17,7 +17,7 @@ package notification
 /*
 import (
 	"fmt"
-	"github.com/cloudawan/kubernetes_management/utility/restclient"
+	"github.com/cloudawan/cloudone/utility/restclient"
 	"testing"
 )
 

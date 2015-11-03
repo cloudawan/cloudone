@@ -53,7 +53,7 @@ func TestLoadImageInformation(t *testing.T) {
 
 func TestBuildSCP(t *testing.T) {
 	buildParameter := make(map[string]string)
-	buildParameter["workingDirectory"] = "/var/lib/kubernetes_management"
+	buildParameter["workingDirectory"] = "/var/lib/cloudone"
 	buildParameter["repositoryPath"] = "private-repository:31000/tp"
 	buildParameter["hostAndPort"] = "172.16.0.113:22"
 	buildParameter["username"] = "cloudawan"
@@ -83,7 +83,7 @@ func TestBuild(t *testing.T) {
 	imageInformation := &ImageInformation{
 		"test",
 		"git",
-		"/var/lib/kubernetes_management",
+		"/var/lib/cloudone",
 		"private-repository:31000/test",
 		"https://github.com/cloudawan/test.git",
 		"test",

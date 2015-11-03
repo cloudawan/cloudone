@@ -17,8 +17,8 @@ package application
 import (
 	"encoding/json"
 	"errors"
-	"github.com/cloudawan/kubernetes_management/control"
-	"github.com/cloudawan/kubernetes_management_utility/random"
+	"github.com/cloudawan/cloudone/control"
+	"github.com/cloudawan/cloudone_utility/random"
 	"io/ioutil"
 	"os"
 	"os/exec"

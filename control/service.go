@@ -16,8 +16,8 @@ package control
 
 import (
 	"encoding/json"
-	"github.com/cloudawan/kubernetes_management_utility/logger"
-	"github.com/cloudawan/kubernetes_management_utility/restclient"
+	"github.com/cloudawan/cloudone_utility/logger"
+	"github.com/cloudawan/cloudone_utility/restclient"
 	"strconv"
 )
 

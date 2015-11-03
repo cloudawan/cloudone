@@ -18,7 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/cloudawan/kubernetes_management_utility/filetransfer/sftp"
+	"github.com/cloudawan/cloudone_utility/filetransfer/sftp"
 	"github.com/sfreiberg/simplessh"
 	"io"
 	"os"
@@ -118,7 +118,7 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 	outputByteSlice := make([]byte, 0)
 
 	// Build parameter
-	workingDirectory := imageInformation.BuildParameter["workingDirectory"]         // "/var/lib/kubernetes_management"
+	workingDirectory := imageInformation.BuildParameter["workingDirectory"]         // "/var/lib/cloudone"
 	repositoryPath := imageInformation.BuildParameter["repositoryPath"]             // "private-repository:31000/test"
 	sourceCodeURL := imageInformation.BuildParameter["sourceCodeURL"]               // "https://github.com/cloudawan/test.git"
 	sourceCodeProject := imageInformation.BuildParameter["sourceCodeProject"]       // "test"
@@ -337,7 +337,7 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 	outputByteSlice := make([]byte, 0)
 
 	// Build parameter
-	workingDirectory := imageInformation.BuildParameter["workingDirectory"]         // "/var/lib/kubernetes_management"
+	workingDirectory := imageInformation.BuildParameter["workingDirectory"]         // "/var/lib/cloudone"
 	repositoryPath := imageInformation.BuildParameter["repositoryPath"]             // "private-repository:31000/test"
 	hostAndPort := imageInformation.BuildParameter["hostAndPort"]                   // "172.16.0.113:22"
 	username := imageInformation.BuildParameter["username"]                         // "cloudawan"
@@ -507,7 +507,7 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 	outputByteSlice := make([]byte, 0)
 
 	// Build parameter
-	workingDirectory := imageInformation.BuildParameter["workingDirectory"]         // "/var/lib/kubernetes_management"
+	workingDirectory := imageInformation.BuildParameter["workingDirectory"]         // "/var/lib/cloudone"
 	repositoryPath := imageInformation.BuildParameter["repositoryPath"]             // "private-repository:31000/test"
 	hostAndPort := imageInformation.BuildParameter["hostAndPort"]                   // "172.16.0.113:22"
 	username := imageInformation.BuildParameter["username"]                         // "cloudawan"

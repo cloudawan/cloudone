@@ -15,7 +15,7 @@
 package image
 
 import (
-	"github.com/cloudawan/kubernetes_management/utility/database/cassandra"
+	"github.com/cloudawan/cloudone/utility/database/cassandra"
 	"github.com/gocql/gocql"
 	"time"
 )

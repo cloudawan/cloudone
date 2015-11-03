@@ -15,7 +15,7 @@
 package deploy
 
 import (
-	"github.com/cloudawan/kubernetes_management/utility/database/cassandra"
+	"github.com/cloudawan/cloudone/utility/database/cassandra"
 	"time"
 )
 

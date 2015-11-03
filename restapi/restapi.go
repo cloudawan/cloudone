@@ -15,7 +15,7 @@
 package restapi
 
 import (
-	"github.com/cloudawan/kubernetes_management/utility/configuration"
+	"github.com/cloudawan/cloudone/utility/configuration"
 	"github.com/emicklei/go-restful"
 	"github.com/emicklei/go-restful/swagger"
 	"net/http"

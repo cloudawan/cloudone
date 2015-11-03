@@ -15,7 +15,7 @@
 package execute
 
 import (
-	"github.com/cloudawan/kubernetes_management/notification"
+	"github.com/cloudawan/cloudone/notification"
 	"time"
 )
 

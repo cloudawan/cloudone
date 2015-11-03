@@ -17,7 +17,7 @@ package deploy
 /*
 import (
 	"fmt"
-	"github.com/cloudawan/kubernetes_management/control"
+	"github.com/cloudawan/cloudone/control"
 	"testing"
 )
 
@@ -33,7 +33,7 @@ func TestDeployFirst(t *testing.T) {
 	imageInformation := &ImageInformation{
 		"test",
 		"git",
-		"/var/lib/kubernetes_management",
+		"/var/lib/cloudone",
 		"private-repository:31000/test",
 		"https://github.com/cloudawan/test.git",
 		"test",

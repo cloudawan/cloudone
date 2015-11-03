@@ -15,9 +15,9 @@
 package cassandra
 
 import (
-	"github.com/cloudawan/kubernetes_management/utility/configuration"
-	"github.com/cloudawan/kubernetes_management/utility/logger"
-	"github.com/cloudawan/kubernetes_management_utility/database/cassandra"
+	"github.com/cloudawan/cloudone/utility/configuration"
+	"github.com/cloudawan/cloudone/utility/logger"
+	"github.com/cloudawan/cloudone_utility/database/cassandra"
 )
 
 var log = logger.GetLogManager().GetLogger("utility")

@@ -16,7 +16,7 @@ package notification
 
 import (
 	"errors"
-	"github.com/cloudawan/kubernetes_management/utility/configuration"
+	"github.com/cloudawan/cloudone/utility/configuration"
 	"net/smtp"
 	"strconv"
 )

@@ -25,7 +25,7 @@ func TestSave(t *testing.T) {
 	imageInformation := &ImageInformation{
 		"test",
 		"git",
-		"/var/lib/kubernetes_management",
+		"/var/lib/cloudone",
 		"private-repository:31000/test",
 		"https://github.com/cloudawan/test.git",
 		"test",

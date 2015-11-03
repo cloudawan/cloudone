@@ -15,7 +15,7 @@
 package monitor
 
 import (
-	"github.com/cloudawan/kubernetes_management/utility/logger"
+	"github.com/cloudawan/cloudone/utility/logger"
 )
 
 var log = logger.GetLogManager().GetLogger("monitor")

@@ -16,9 +16,9 @@ package execute
 
 /*
 import (
-	"github.com/cloudawan/kubernetes_management/autoscaler"
-	"github.com/cloudawan/kubernetes_management/monitor"
-	"github.com/cloudawan/kubernetes_management/notification"
+	"github.com/cloudawan/cloudone/autoscaler"
+	"github.com/cloudawan/cloudone/monitor"
+	"github.com/cloudawan/cloudone/notification"
 	"testing"
 	"time"
 )

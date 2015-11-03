@@ -15,19 +15,19 @@
 package configuration
 
 import (
-	"github.com/cloudawan/kubernetes_management/utility/logger"
-	"github.com/cloudawan/kubernetes_management_utility/configuration"
+	"github.com/cloudawan/cloudone/utility/logger"
+	"github.com/cloudawan/cloudone_utility/configuration"
 )
 
 var log = logger.GetLogManager().GetLogger("utility")
 
 var configurationContent = `
 {
-	"certificate": "/etc/kubernetes_management/development_cert.pem",
-	"key": "/etc/kubernetes_management/development_key.pem",
+	"certificate": "/etc/cloudone/development_cert.pem",
+	"key": "/etc/cloudone/development_key.pem",
 	"cassandraClusterIp": ["127.0.0.1"],
 	"cassandraClusterPort": 9042,
-	"cassandraKeyspace": "kubernetes_management",
+	"cassandraKeyspace": "cloudone",
 	"cassandraReplicationStrategy": "{'class': 'SimpleStrategy', 'replication_factor' : 1}",
 	"kubeapiHost": "127.0.0.1",
 	"kubeapiPort": 8080,
@@ -52,7 +52,7 @@ var LocalConfiguration *configuration.Configuration
 
 func init() {
 	var err error
-	LocalConfiguration, err = configuration.CreateConfiguration("kubernetes_management", configurationContent)
+	LocalConfiguration, err = configuration.CreateConfiguration("cloudone", configurationContent)
 	if err != nil {
 		log.Critical(err)
 		panic(err)

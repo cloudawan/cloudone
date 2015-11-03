@@ -16,8 +16,8 @@ package restapi
 
 import (
 	"fmt"
-	"github.com/cloudawan/kubernetes_management/control"
-	"github.com/cloudawan/kubernetes_management/monitor"
+	"github.com/cloudawan/cloudone/control"
+	"github.com/cloudawan/cloudone/monitor"
 	"github.com/emicklei/go-restful"
 	"net/http"
 	"strconv"
