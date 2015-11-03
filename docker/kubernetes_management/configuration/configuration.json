@@ -1,4 +1,3 @@
-
 {
     "certificate": "/etc/kubernetes_management/development_cert.pem",
     "key": "/etc/kubernetes_management/development_key.pem",
@@ -17,9 +16,9 @@
     "smsNexmoAPISecret": "{{SMS_NEXMO_API_SECRET}}",
     "glusterfsHost": [{{GLUSTERFS_HOST}}],
     "glusterfsPath": "{{GLUSTERFS_MOUNT_PATH}}",
-	"glusterfsSSHTimeoutInSecond": 10,
-	"glusterfsSSHHost": [{{GLUSTERFS_HOST}}],
-	"glusterfsSSHPort": 22,
-	"glusterfsSSHUser": "{{GLUSTERFS_SSH_USER}}",
-	"glusterfsSSHPassword": "{{GLUSTERFS_SSH_PASSWORD}}"
+    "glusterfsSSHTimeoutInSecond": 10,
+    "glusterfsSSHHost": [{{GLUSTERFS_HOST}}],
+    "glusterfsSSHPort": 22,
+    "glusterfsSSHUser": "{{GLUSTERFS_SSH_USER}}",
+    "glusterfsSSHPassword": "{{GLUSTERFS_SSH_PASSWORD}}"
 }
