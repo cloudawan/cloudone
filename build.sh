@@ -1,6 +1,6 @@
 is_go_existing() {
   go_version_response=$(go version)
-  if [[ $go_version_response == *"go version"* ]]; then
+  if [ $go_version_response -eq *"go version"* ]; then
     return 1
   else
     return 0
@@ -42,7 +42,7 @@ build_and_package() {
 }
 
 is_go_existing
-if [ $? == 0 ]; then
+if [ $? -eq 0 ]; then
   install_go
 fi
 
