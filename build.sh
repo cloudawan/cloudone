@@ -31,11 +31,11 @@ unset_temporarily_go_path() {
 
 build_and_package() {
   # Get self and dependent packagess
-  go get github.com/cloudawan/kubernetes_management
+  go get github.com/cloudawan/cloudone
 
   # Build
   go build
-  mv kubernetes_management docker/kubernetes_management/
+  mv cloudone docker/cloudone/
   find ! -wholename './docker/*' ! -wholename './docker' ! -wholename '.' -exec rm -rf {} +
   mv docker/version version
   mv docker/environment environment

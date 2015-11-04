@@ -1,8 +1,8 @@
 {
-    "certificate": "/etc/kubernetes_management/development_cert.pem",
-    "key": "/etc/kubernetes_management/development_key.pem",
+    "certificate": "/etc/cloudone/development_cert.pem",
+    "key": "/etc/cloudone/development_key.pem",
     "cassandraClusterIp": [{{CASSANDRA_CLUSTER_HOST}}],
-    "cassandraKeyspace": "kubernetes_management",
+    "cassandraKeyspace": "cloudone",
     "cassandraClusterPort": {{CASSANDRA_CLUSTER_PORT}},
     "cassandraReplicationStrategy": "{{CASSANDRA_CLUSTER_REPLICATION_STRATEGY}}",
     "kubeapiHost": {{KUBEAPI_HOST}},

@@ -43,27 +43,27 @@ fi
 
 
 # Use environment
-sed -i "s/{{KUBEAPI_HOST}}/$KUBEAPI_HOST/g" /etc/kubernetes_management/configuration.json
-sed -i "s/{{KUBEAPI_PORT}}/$KUBEAPI_PORT/g" /etc/kubernetes_management/configuration.json
-sed -i "s/{{CASSANDRA_CLUSTER_HOST}}/$CASSANDRA_CLUSTER_HOST/g" /etc/kubernetes_management/configuration.json
-sed -i "s/{{CASSANDRA_CLUSTER_PORT}}/$CASSANDRA_CLUSTER_PORT/g" /etc/kubernetes_management/configuration.json
-sed -i "s/{{CASSANDRA_CLUSTER_REPLICATION_STRATEGY}}/$CASSANDRA_CLUSTER_REPLICATION_STRATEGY/g" /etc/kubernetes_management/configuration.json
-sed -i "s/{{EMAIL_SENDER_ACCOUNT}}/$EMAIL_SENDER_ACCOUNT/g" /etc/kubernetes_management/configuration.json
-sed -i "s/{{EMAIL_SENDER_PASSWORD}}/$EMAIL_SENDER_PASSWORD/g" /etc/kubernetes_management/configuration.json
-sed -i "s/{{EMAIL_SENDER_HOST}}/$EMAIL_SENDER_HOST/g" /etc/kubernetes_management/configuration.json
-sed -i "s/{{EMAIL_SENDER_PORT}}/$EMAIL_SENDER_PORT/g" /etc/kubernetes_management/configuration.json
+sed -i "s/{{KUBEAPI_HOST}}/$KUBEAPI_HOST/g" /etc/cloudone/configuration.json
+sed -i "s/{{KUBEAPI_PORT}}/$KUBEAPI_PORT/g" /etc/cloudone/configuration.json
+sed -i "s/{{CASSANDRA_CLUSTER_HOST}}/$CASSANDRA_CLUSTER_HOST/g" /etc/cloudone/configuration.json
+sed -i "s/{{CASSANDRA_CLUSTER_PORT}}/$CASSANDRA_CLUSTER_PORT/g" /etc/cloudone/configuration.json
+sed -i "s/{{CASSANDRA_CLUSTER_REPLICATION_STRATEGY}}/$CASSANDRA_CLUSTER_REPLICATION_STRATEGY/g" /etc/cloudone/configuration.json
+sed -i "s/{{EMAIL_SENDER_ACCOUNT}}/$EMAIL_SENDER_ACCOUNT/g" /etc/cloudone/configuration.json
+sed -i "s/{{EMAIL_SENDER_PASSWORD}}/$EMAIL_SENDER_PASSWORD/g" /etc/cloudone/configuration.json
+sed -i "s/{{EMAIL_SENDER_HOST}}/$EMAIL_SENDER_HOST/g" /etc/cloudone/configuration.json
+sed -i "s/{{EMAIL_SENDER_PORT}}/$EMAIL_SENDER_PORT/g" /etc/cloudone/configuration.json
 # Use different delimiter since URL contains slash
-sed -i "s#{{SMS_NEXMO_URL}}#$SMS_NEXMO_URL#g" /etc/kubernetes_management/configuration.json
-sed -i "s/{{SMS_NEXMO_API_KEY}}/$SMS_NEXMO_API_KEY/g" /etc/kubernetes_management/configuration.json
-sed -i "s/{{SMS_NEXMO_API_SECRET}}/$SMS_NEXMO_API_SECRET/g" /etc/kubernetes_management/configuration.json
-sed -i "s/{{GLUSTERFS_HOST}}/$GLUSTERFS_HOST/g" /etc/kubernetes_management/configuration.json
+sed -i "s#{{SMS_NEXMO_URL}}#$SMS_NEXMO_URL#g" /etc/cloudone/configuration.json
+sed -i "s/{{SMS_NEXMO_API_KEY}}/$SMS_NEXMO_API_KEY/g" /etc/cloudone/configuration.json
+sed -i "s/{{SMS_NEXMO_API_SECRET}}/$SMS_NEXMO_API_SECRET/g" /etc/cloudone/configuration.json
+sed -i "s/{{GLUSTERFS_HOST}}/$GLUSTERFS_HOST/g" /etc/cloudone/configuration.json
 # Use different delimiter since URL contains slash
-sed -i "s#{{GLUSTERFS_MOUNT_PATH}}#$GLUSTERFS_MOUNT_PATH#g" /etc/kubernetes_management/configuration.json
-sed -i "s/{{GLUSTERFS_SSH_USER}}/$GLUSTERFS_SSH_USER/g" /etc/kubernetes_management/configuration.json
-sed -i "s/{{GLUSTERFS_SSH_PASSWORD}}/$GLUSTERFS_SSH_PASSWORD/g" /etc/kubernetes_management/configuration.json
+sed -i "s#{{GLUSTERFS_MOUNT_PATH}}#$GLUSTERFS_MOUNT_PATH#g" /etc/cloudone/configuration.json
+sed -i "s/{{GLUSTERFS_SSH_USER}}/$GLUSTERFS_SSH_USER/g" /etc/cloudone/configuration.json
+sed -i "s/{{GLUSTERFS_SSH_PASSWORD}}/$GLUSTERFS_SSH_PASSWORD/g" /etc/cloudone/configuration.json
 
-cd /src/kubernetes_management
-./kubernetes_management &
+cd /src/cloudone
+./cloudone &
 
 while :
 do

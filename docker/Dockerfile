@@ -14,7 +14,7 @@ RUN apt-get install -y lxc-docker-1.6.1
 # Install git
 RUN apt-get install -y git
 
-# Install git
+# Install curl
 RUN apt-get install -y curl
 
 # Install python
@@ -30,13 +30,13 @@ RUN pip install httplib2
 COPY . /src
 
 # Copy configuration
-RUN mkdir -p /etc/kubernetes_management
-RUN mkdir -p /var/log/kubernetes_management
-RUN cp /src/kubernetes_management/configuration/* /etc/kubernetes_management/
+RUN mkdir -p /etc/cloudone
+RUN mkdir -p /var/log/cloudone
+RUN cp /src/cloudone/configuration/* /etc/cloudone/
 
 # Priviledge
 RUN chmod a+x /src/run.sh
-RUN chmod a+x /src/kubernetes_management/kubernetes_management
+RUN chmod a+x /src/cloudone/cloudone
 
 EXPOSE  8081
 CMD ["/src/run.sh"]
