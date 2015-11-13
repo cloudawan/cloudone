@@ -105,6 +105,33 @@ type GlusterfsVolumeControl struct {
 	GlusterfsSSHPassword        string
 }
 
+func parseSize(field string) (returnedSize int, returnedError error) {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Error("Parse size error: %s", err)
+			log.Error(logger.GetStackTrace(4096, false))
+			returnedSize = -1
+			returnedError = err.(error)
+		}
+	}()
+
+	var value string
+	if strings.Contains(field, "=") {
+		value = strings.Split(field, "=")[1]
+	} else {
+		value = field
+	}
+
+	size, err := strconv.Atoi(strings.TrimSpace(value))
+
+	if err != nil {
+		log.Error("Parse size error %s", err)
+		return -1, err
+	} else {
+		return size, nil
+	}
+}
+
 func parseVolumeInfo(text string) (returnedGlusterfsVolumeSlice []GlusterfsVolume, returnedError error) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -136,12 +163,7 @@ func parseVolumeInfo(text string) (returnedGlusterfsVolumeSlice []GlusterfsVolum
 			glusterfsVolume.Status = line[len("Status: "):]
 		} else if strings.HasPrefix(line, "Number of Bricks: ") {
 			glusterfsVolume.NumberOfBricks = line[len("Number of Bricks: "):]
-			var err error
-			glusterfsVolume.Size, err = strconv.Atoi(strings.TrimSpace(strings.Split(line, "=")[1]))
-			if err != nil {
-				log.Error("Parse brick error %s", err)
-				return nil, err
-			}
+			glusterfsVolume.Size, _ = parseSize(glusterfsVolume.NumberOfBricks)
 		} else if strings.HasPrefix(line, "Transport-type: ") {
 			glusterfsVolume.TransportType = line[len("Transport-type: "):]
 		} else if line == "Bricks:" {
