@@ -5,6 +5,7 @@
     "cassandraKeyspace": "cloudone",
     "cassandraClusterPort": {{CASSANDRA_CLUSTER_PORT}},
     "cassandraReplicationStrategy": "{{CASSANDRA_CLUSTER_REPLICATION_STRATEGY}}",
+    "cassandraTimeoutInMilliSecond": 3000,
     "kubeapiHost": {{KUBEAPI_HOST}},
     "kubeapiPort": {{KUBEAPI_PORT}},
     "emailSenderAccount": "{{EMAIL_SENDER_ACCOUNT}}",
