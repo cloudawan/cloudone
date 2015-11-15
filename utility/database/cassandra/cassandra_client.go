@@ -18,6 +18,7 @@ import (
 	"github.com/cloudawan/cloudone/utility/configuration"
 	"github.com/cloudawan/cloudone/utility/logger"
 	"github.com/cloudawan/cloudone_utility/database/cassandra"
+	"time"
 )
 
 var log = logger.GetLogManager().GetLogger("utility")
@@ -49,5 +50,16 @@ func init() {
 		panic("Can't load cassandraReplicationStrategy")
 	}
 
-	CassandraClient = cassandra.CreateCassandraClient(cassandraClusterIp, cassandraClusterPort, cassandraKeyspace, cassandraReplicationStrategy)
+	cassandraTimeoutInMilliSecond, ok := configuration.LocalConfiguration.GetInt("cassandraTimeoutInMilliSecond")
+	if ok == false {
+		log.Critical("Can't load cassandraTimeoutInMilliSecond")
+		panic("Can't load cassandraTimeoutInMilliSecond")
+	}
+
+	CassandraClient = cassandra.CreateCassandraClient(
+		cassandraClusterIp,
+		cassandraClusterPort,
+		cassandraKeyspace,
+		cassandraReplicationStrategy,
+		time.Millisecond*time.Duration(cassandraTimeoutInMilliSecond))
 }

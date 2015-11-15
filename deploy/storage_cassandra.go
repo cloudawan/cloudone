@@ -39,18 +39,24 @@ var tableSchemaDeployBlueGreen = `
 	`
 
 func init() {
-	err := cassandra.CassandraClient.CreateTableIfNotExist(tableSchemaDeployInformation, 3, time.Second*3)
+	err := cassandra.CassandraClient.CreateTableIfNotExist(tableSchemaDeployInformation, 3, time.Second*5)
 	if err != nil {
+		log.Critical("Fail to create table with schema %s", tableSchemaDeployInformation)
 		panic(err)
 	}
-	err = cassandra.CassandraClient.CreateTableIfNotExist(tableSchemaDeployBlueGreen, 3, time.Second*3)
+	err = cassandra.CassandraClient.CreateTableIfNotExist(tableSchemaDeployBlueGreen, 3, time.Second*5)
 	if err != nil {
+		log.Critical("Fail to create table with schema %s", tableSchemaDeployBlueGreen)
 		panic(err)
 	}
 }
 
 func DeleteDeployInformation(namespace string, imageInformation string) error {
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return err
+	}
 	if err := session.Query("DELETE FROM deploy_information WHERE namespace = ? AND image_information = ?",
 		namespace, imageInformation).Exec(); err != nil {
 		log.Error("Delete DeployInformation with namespace %s imageInformation %s error: %s", namespace, imageInformation, err)
@@ -60,7 +66,11 @@ func DeleteDeployInformation(namespace string, imageInformation string) error {
 }
 
 func saveDeployInformation(deployInformation *DeployInformation) error {
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return err
+	}
 	if err := session.Query("INSERT INTO deploy_information (namespace, image_information, current_version, description) VALUES (?, ?, ?, ?)",
 		deployInformation.Namespace,
 		deployInformation.ImageInformationName,
@@ -74,9 +84,13 @@ func saveDeployInformation(deployInformation *DeployInformation) error {
 }
 
 func LoadDeployInformation(namespace string, imageInformation string) (*DeployInformation, error) {
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return nil, err
+	}
 	deployInformation := new(DeployInformation)
-	err := session.Query("SELECT namespace, image_information, current_version, description FROM deploy_information WHERE namespace = ? AND image_information = ?", namespace, imageInformation).Scan(
+	err = session.Query("SELECT namespace, image_information, current_version, description FROM deploy_information WHERE namespace = ? AND image_information = ?", namespace, imageInformation).Scan(
 		&deployInformation.Namespace,
 		&deployInformation.ImageInformationName,
 		&deployInformation.CurrentVersion,
@@ -91,7 +105,11 @@ func LoadDeployInformation(namespace string, imageInformation string) (*DeployIn
 }
 
 func LoadAllDeployInformation() ([]DeployInformation, error) {
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return nil, err
+	}
 	iter := session.Query("SELECT namespace, image_information, current_version, description FROM deploy_information").Iter()
 
 	deployInformationSlice := make([]DeployInformation, 0)
@@ -107,7 +125,7 @@ func LoadAllDeployInformation() ([]DeployInformation, error) {
 		deployInformation = new(DeployInformation)
 	}
 
-	err := iter.Close()
+	err = iter.Close()
 	if err != nil {
 		log.Error("Load all DeployInformation error: %s", err)
 		return nil, err
@@ -117,7 +135,11 @@ func LoadAllDeployInformation() ([]DeployInformation, error) {
 }
 
 func DeleteDeployBlueGreen(imageInformation string) error {
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return err
+	}
 	if err := session.Query("DELETE FROM deploy_blue_green WHERE image_information = ?",
 		imageInformation).Exec(); err != nil {
 		log.Error("Delete DeleteDeployBlueGreen with imageInformation %s error: %s", imageInformation, err)
@@ -127,7 +149,11 @@ func DeleteDeployBlueGreen(imageInformation string) error {
 }
 
 func saveDeployBlueGreen(deployBlueGreen *DeployBlueGreen) error {
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return err
+	}
 	if err := session.Query("INSERT INTO deploy_blue_green ( image_information, current_namespace, node_port, description, session_affinity) VALUES (?, ?, ?, ?, ?)",
 		deployBlueGreen.ImageInformation,
 		deployBlueGreen.Namespace,
@@ -142,9 +168,13 @@ func saveDeployBlueGreen(deployBlueGreen *DeployBlueGreen) error {
 }
 
 func LoadDeployBlueGreen(imageInformation string) (*DeployBlueGreen, error) {
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return nil, err
+	}
 	deployBlueGreen := new(DeployBlueGreen)
-	err := session.Query("SELECT image_information, current_namespace, node_port, description, session_affinity FROM deploy_blue_green WHERE image_information = ?", imageInformation).Scan(
+	err = session.Query("SELECT image_information, current_namespace, node_port, description, session_affinity FROM deploy_blue_green WHERE image_information = ?", imageInformation).Scan(
 		&deployBlueGreen.ImageInformation,
 		&deployBlueGreen.Namespace,
 		&deployBlueGreen.NodePort,
@@ -160,7 +190,11 @@ func LoadDeployBlueGreen(imageInformation string) (*DeployBlueGreen, error) {
 }
 
 func LoadAllDeployBlueGreen() ([]DeployBlueGreen, error) {
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return nil, err
+	}
 	iter := session.Query("SELECT image_information, current_namespace, node_port, description, session_affinity FROM deploy_blue_green").Iter()
 
 	deployBlueGreenSlice := make([]DeployBlueGreen, 0)
@@ -177,7 +211,7 @@ func LoadAllDeployBlueGreen() ([]DeployBlueGreen, error) {
 		deployBlueGreen = new(DeployBlueGreen)
 	}
 
-	err := iter.Close()
+	err = iter.Close()
 	if err != nil {
 		log.Error("Load all DeployBlueGreen error: %s", err)
 		return nil, err

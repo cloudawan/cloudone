@@ -43,18 +43,24 @@ var tableSchemaImageRecord = `
 	`
 
 func init() {
-	err := cassandra.CassandraClient.CreateTableIfNotExist(tableSchemaImageInformation, 3, time.Second*3)
+	err := cassandra.CassandraClient.CreateTableIfNotExist(tableSchemaImageInformation, 3, time.Second*5)
 	if err != nil {
+		log.Critical("Fail to create table with schema %s", tableSchemaImageInformation)
 		panic(err)
 	}
-	err = cassandra.CassandraClient.CreateTableIfNotExist(tableSchemaImageRecord, 3, time.Second*3)
+	err = cassandra.CassandraClient.CreateTableIfNotExist(tableSchemaImageRecord, 3, time.Second*5)
 	if err != nil {
+		log.Critical("Fail to create table with schema %s", tableSchemaImageRecord)
 		panic(err)
 	}
 }
 
 func DeleteImageInformationAndRelatedRecord(name string) error {
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return err
+	}
 	if err := session.Query("DELETE FROM image_information WHERE name = ?", name).Exec(); err != nil {
 		log.Error("Delete ImageInformation with name %s error: %s", name, err)
 		return err
@@ -63,7 +69,11 @@ func DeleteImageInformationAndRelatedRecord(name string) error {
 }
 
 func saveImageInformation(imageInformation *ImageInformation) error {
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return err
+	}
 	if err := session.Query("INSERT INTO image_information (name, kind, description, current_version, build_parameter) VALUES (?, ?, ?, ?, ?)",
 		imageInformation.Name,
 		imageInformation.Kind,
@@ -78,9 +88,13 @@ func saveImageInformation(imageInformation *ImageInformation) error {
 }
 
 func LoadImageInformation(name string) (*ImageInformation, error) {
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return nil, err
+	}
 	imageInformation := new(ImageInformation)
-	err := session.Query("SELECT name, kind, description, current_version, build_parameter FROM image_information WHERE name = ?", name).Scan(
+	err = session.Query("SELECT name, kind, description, current_version, build_parameter FROM image_information WHERE name = ?", name).Scan(
 		&imageInformation.Name,
 		&imageInformation.Kind,
 		&imageInformation.Description,
@@ -96,7 +110,11 @@ func LoadImageInformation(name string) (*ImageInformation, error) {
 }
 
 func LoadAllImageInformation() ([]ImageInformation, error) {
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return nil, err
+	}
 	iter := session.Query("SELECT name, kind, description, current_version, build_parameter FROM image_information").Iter()
 
 	imageInformationSlice := make([]ImageInformation, 0)
@@ -113,7 +131,7 @@ func LoadAllImageInformation() ([]ImageInformation, error) {
 		imageInformation = new(ImageInformation)
 	}
 
-	err := iter.Close()
+	err = iter.Close()
 	if err != nil {
 		log.Error("Load all ImageInformation error: %s", err)
 		return nil, err
@@ -123,7 +141,11 @@ func LoadAllImageInformation() ([]ImageInformation, error) {
 }
 
 func saveImageRecord(imageRecord *ImageRecord) error {
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return err
+	}
 	if err := session.Query("INSERT INTO image_record (image_information, version, path, version_info, environment, description, created_time) VALUES (?, ?, ?, ?, ?, ?, ?)",
 		imageRecord.ImageInformation, imageRecord.Version, imageRecord.Path, imageRecord.VersionInfo, imageRecord.Environment, imageRecord.Description, gocql.UUIDFromTime(imageRecord.CreatedTime)).Exec(); err != nil {
 		log.Error("Save ImageRecord %s error: %s", imageRecord, err)
@@ -133,7 +155,11 @@ func saveImageRecord(imageRecord *ImageRecord) error {
 }
 
 func DeleteImageRecord(imageInformationName string, version string) error {
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return err
+	}
 	if err := session.Query("DELETE FROM image_record WHERE image_information = ? AND version = ?", imageInformationName, version).Exec(); err != nil {
 		log.Error("Delete ImageRecord with image information name %s, version %s error: %s", imageInformationName, version, err)
 		return err
@@ -142,7 +168,11 @@ func DeleteImageRecord(imageInformationName string, version string) error {
 }
 
 func deleteImageRecordWithImageInformationName(imageInformationName string) error {
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return err
+	}
 	if err := session.Query("DELETE FROM image_record WHERE image_information = ?", imageInformationName).Exec(); err != nil {
 		log.Error("Delete ImageRecord with image information name %s error: %s", imageInformationName, err)
 		return err
@@ -151,10 +181,14 @@ func deleteImageRecordWithImageInformationName(imageInformationName string) erro
 }
 
 func LoadImageRecord(imageInformationName string, version string) (*ImageRecord, error) {
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return nil, err
+	}
 	imageRecord := new(ImageRecord)
 	var uuid gocql.UUID
-	err := session.Query("SELECT image_information, version, path, version_info, environment, description, created_time FROM image_record WHERE image_information = ? AND version = ?", imageInformationName, version).Scan(
+	err = session.Query("SELECT image_information, version, path, version_info, environment, description, created_time FROM image_record WHERE image_information = ? AND version = ?", imageInformationName, version).Scan(
 		&imageRecord.ImageInformation,
 		&imageRecord.Version,
 		&imageRecord.Path,
@@ -173,7 +207,11 @@ func LoadImageRecord(imageInformationName string, version string) (*ImageRecord,
 }
 
 func LoadImageRecordWithImageInformationName(imageInformationName string) ([]ImageRecord, error) {
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return nil, err
+	}
 	iter := session.Query("SELECT image_information, version, path, version_info, environment, description, created_time FROM image_record WHERE image_information = ?", imageInformationName).Iter()
 
 	imageRecordSlice := make([]ImageRecord, 0)
@@ -186,7 +224,7 @@ func LoadImageRecordWithImageInformationName(imageInformationName string) ([]Ima
 		imageRecord = new(ImageRecord)
 	}
 
-	err := iter.Close()
+	err = iter.Close()
 	if err != nil {
 		log.Error("Load ImageRecord %s error: %s", imageInformationName, err)
 		return nil, err

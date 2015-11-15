@@ -36,14 +36,19 @@ var tableSchemaNotifier = `
 	`
 
 func init() {
-	err := cassandra.CassandraClient.CreateTableIfNotExist(tableSchemaNotifier, 3, time.Second*3)
+	err := cassandra.CassandraClient.CreateTableIfNotExist(tableSchemaNotifier, 3, time.Second*5)
 	if err != nil {
+		log.Critical("Fail to create table with schema %s", tableSchemaNotifier)
 		panic(err)
 	}
 }
 
 func DeleteReplicationControllerNotifierSerializable(namespace string, kind string, name string) error {
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return err
+	}
 	if err := session.Query("DELETE FROM notifier WHERE namespace = ? AND kind = ? AND name = ?", namespace, kind, name).Exec(); err != nil {
 		log.Error("Delete notifier with namespace %s kind %s name %s error: %s", namespace, kind, name, err)
 		return err
@@ -63,7 +68,11 @@ func SaveReplicationControllerNotifierSerializable(replicationControllerNotifier
 		return err
 	}
 
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return err
+	}
 	if err := session.Query("INSERT INTO notifier (check, cool_down_duration, remaining_cool_down, kubeapi_host, kubeapi_port, namespace, kind, name, notifier_slice, indicator_slice) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		replicationControllerNotifierSerializable.Check,
 		replicationControllerNotifierSerializable.CoolDownDuration,
@@ -87,8 +96,12 @@ func LoadReplicationControllerNotifierSerializable(namespace string, kind string
 	indicatorSliceByteSlice := make([]byte, 0)
 	replicationControllerNotifierSerializable := new(ReplicationControllerNotifierSerializable)
 
-	session := cassandra.CassandraClient.GetSession()
-	err := session.Query("SELECT check, cool_down_duration, remaining_cool_down, kubeapi_host, kubeapi_port, namespace, kind, name, notifier_slice, indicator_slice FROM notifier WHERE namespace = ? AND kind = ? AND name = ?", namespace, kind, name).Scan(
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return nil, err
+	}
+	err = session.Query("SELECT check, cool_down_duration, remaining_cool_down, kubeapi_host, kubeapi_port, namespace, kind, name, notifier_slice, indicator_slice FROM notifier WHERE namespace = ? AND kind = ? AND name = ?", namespace, kind, name).Scan(
 		&replicationControllerNotifierSerializable.Check,
 		&replicationControllerNotifierSerializable.CoolDownDuration,
 		&replicationControllerNotifierSerializable.RemainingCoolDown,
@@ -119,7 +132,11 @@ func LoadReplicationControllerNotifierSerializable(namespace string, kind string
 }
 
 func LoadAllReplicationControllerNotifierSerializable() ([]ReplicationControllerNotifierSerializable, error) {
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return nil, err
+	}
 	iter := session.Query("SELECT check, cool_down_duration, remaining_cool_down, kubeapi_host, kubeapi_port, namespace, kind, name, notifier_slice, indicator_slice FROM notifier").Iter()
 
 	replicationControllerNotifierSerializableSlice := make([]ReplicationControllerNotifierSerializable, 0)
@@ -156,7 +173,7 @@ func LoadAllReplicationControllerNotifierSerializable() ([]ReplicationController
 		indicatorSliceByteSlice = make([]byte, 0)
 	}
 
-	err := iter.Close()
+	err = iter.Close()
 	if err != nil {
 		return nil, err
 	}

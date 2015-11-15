@@ -42,19 +42,25 @@ var tableSchemaClusterApplication = `
 	`
 
 func init() {
-	err := cassandra.CassandraClient.CreateTableIfNotExist(tableSchemaStatelessApplication, 3, time.Second*3)
+	err := cassandra.CassandraClient.CreateTableIfNotExist(tableSchemaStatelessApplication, 3, time.Second*5)
 	if err != nil {
+		log.Critical("Fail to create table with schema %s", tableSchemaStatelessApplication)
 		panic(err)
 	}
 
-	err = cassandra.CassandraClient.CreateTableIfNotExist(tableSchemaClusterApplication, 3, time.Second*3)
+	err = cassandra.CassandraClient.CreateTableIfNotExist(tableSchemaClusterApplication, 3, time.Second*5)
 	if err != nil {
+		log.Critical("Fail to create table with schema %s", tableSchemaClusterApplication)
 		panic(err)
 	}
 }
 
 func DeleteStatelessApplication(name string) error {
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return err
+	}
 	if err := session.Query("DELETE FROM stateless_application WHERE name = ?", name).Exec(); err != nil {
 		log.Error("Delete stateless application with name %s error: %s", name, err)
 		return err
@@ -63,7 +69,11 @@ func DeleteStatelessApplication(name string) error {
 }
 
 func saveStatelessApplication(stateless *Stateless) error {
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return err
+	}
 	if err := session.Query("INSERT INTO stateless_application (name, description, replication_controller_json, service_json, environment) VALUES (?, ?, ?, ?, ?)",
 		stateless.Name,
 		stateless.Description,
@@ -80,8 +90,12 @@ func saveStatelessApplication(stateless *Stateless) error {
 func LoadStatelessApplication(name string) (*Stateless, error) {
 	stateless := new(Stateless)
 
-	session := cassandra.CassandraClient.GetSession()
-	err := session.Query("SELECT name, description, replication_controller_json, service_json, environment FROM stateless_application WHERE name = ?", name).Scan(
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return nil, err
+	}
+	err = session.Query("SELECT name, description, replication_controller_json, service_json, environment FROM stateless_application WHERE name = ?", name).Scan(
 		&stateless.Name,
 		&stateless.Description,
 		&stateless.replicationControllerJson,
@@ -96,7 +110,11 @@ func LoadStatelessApplication(name string) (*Stateless, error) {
 }
 
 func LoadAllStatelessApplication() ([]Stateless, error) {
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return nil, err
+	}
 	iter := session.Query("SELECT name, description, replication_controller_json, service_json, environment FROM stateless_application").Iter()
 
 	statelessSlice := make([]Stateless, 0)
@@ -113,7 +131,7 @@ func LoadAllStatelessApplication() ([]Stateless, error) {
 		stateless = new(Stateless)
 	}
 
-	err := iter.Close()
+	err = iter.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +140,11 @@ func LoadAllStatelessApplication() ([]Stateless, error) {
 }
 
 func DeleteClusterApplication(name string) error {
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return err
+	}
 	if err := session.Query("DELETE FROM cluster_application WHERE name = ?", name).Exec(); err != nil {
 		log.Error("Delete cluster application with name %s error: %s", name, err)
 		return err
@@ -131,7 +153,11 @@ func DeleteClusterApplication(name string) error {
 }
 
 func SaveClusterApplication(cluster *Cluster) error {
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return err
+	}
 	if err := session.Query("INSERT INTO cluster_application (name, description, replication_controller_json, service_json, environment, script_type, script_content) VALUES (?, ?, ?, ?, ?, ?, ?)",
 		cluster.Name,
 		cluster.Description,
@@ -150,8 +176,12 @@ func SaveClusterApplication(cluster *Cluster) error {
 func LoadClusterApplication(name string) (*Cluster, error) {
 	cluster := new(Cluster)
 
-	session := cassandra.CassandraClient.GetSession()
-	err := session.Query("SELECT name, description, replication_controller_json, service_json, environment, script_type, script_content FROM cluster_application WHERE name = ?", name).Scan(
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return nil, err
+	}
+	err = session.Query("SELECT name, description, replication_controller_json, service_json, environment, script_type, script_content FROM cluster_application WHERE name = ?", name).Scan(
 		&cluster.Name,
 		&cluster.Description,
 		&cluster.ReplicationControllerJson,
@@ -168,7 +198,11 @@ func LoadClusterApplication(name string) (*Cluster, error) {
 }
 
 func LoadAllClusterApplication() ([]Cluster, error) {
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return nil, err
+	}
 	iter := session.Query("SELECT name, description, replication_controller_json, service_json, environment, script_type, script_content FROM cluster_application").Iter()
 
 	clusterSlice := make([]Cluster, 0)
@@ -187,7 +221,7 @@ func LoadAllClusterApplication() ([]Cluster, error) {
 		cluster = new(Cluster)
 	}
 
-	err := iter.Close()
+	err = iter.Close()
 	if err != nil {
 		return nil, err
 	}

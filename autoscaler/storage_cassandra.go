@@ -37,14 +37,19 @@ var tableSchemaAutoscaler = `
 	`
 
 func init() {
-	err := cassandra.CassandraClient.CreateTableIfNotExist(tableSchemaAutoscaler, 3, time.Second*3)
+	err := cassandra.CassandraClient.CreateTableIfNotExist(tableSchemaAutoscaler, 3, time.Second*5)
 	if err != nil {
+		log.Critical("Fail to create table with schema %s", tableSchemaAutoscaler)
 		panic(err)
 	}
 }
 
 func DeleteReplicationControllerAutoScaler(namespace string, kind string, name string) error {
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return err
+	}
 	if err := session.Query("DELETE FROM auto_scaler WHERE namespace = ? AND kind = ? AND name = ?", namespace, kind, name).Exec(); err != nil {
 		log.Error("Delete auto_scaler with namespace %s kind %s name %s error: %s", namespace, kind, name, err)
 		return err
@@ -59,7 +64,11 @@ func SaveReplicationControllerAutoScaler(replicationControllerAutoScaler *Replic
 		return err
 	}
 
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return err
+	}
 	if err := session.Query("INSERT INTO auto_scaler (check, cool_down_duration, remaining_cool_down, kubeapi_host, kubeapi_port, namespace, kind, name, maximum_replica, minimum_replica, indicator_slice) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		replicationControllerAutoScaler.Check,
 		replicationControllerAutoScaler.CoolDownDuration,
@@ -83,8 +92,12 @@ func LoadReplicationControllerAutoScaler(namespace string, kind string, name str
 	indicatorSliceByteSlice := make([]byte, 0)
 	replicationControllerAutoScaler := new(ReplicationControllerAutoScaler)
 
-	session := cassandra.CassandraClient.GetSession()
-	err := session.Query("SELECT check, cool_down_duration, remaining_cool_down, kubeapi_host, kubeapi_port, namespace, kind, name, maximum_replica, minimum_replica, indicator_slice FROM auto_scaler WHERE namespace = ? AND kind = ? AND name = ?", namespace, kind, name).Scan(
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return nil, err
+	}
+	err = session.Query("SELECT check, cool_down_duration, remaining_cool_down, kubeapi_host, kubeapi_port, namespace, kind, name, maximum_replica, minimum_replica, indicator_slice FROM auto_scaler WHERE namespace = ? AND kind = ? AND name = ?", namespace, kind, name).Scan(
 		&replicationControllerAutoScaler.Check,
 		&replicationControllerAutoScaler.CoolDownDuration,
 		&replicationControllerAutoScaler.RemainingCoolDown,
@@ -111,7 +124,11 @@ func LoadReplicationControllerAutoScaler(namespace string, kind string, name str
 }
 
 func LoadAllReplicationControllerAutoScaler() ([]ReplicationControllerAutoScaler, error) {
-	session := cassandra.CassandraClient.GetSession()
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return nil, err
+	}
 	iter := session.Query("SELECT check, cool_down_duration, remaining_cool_down, kubeapi_host, kubeapi_port, namespace, kind, name, maximum_replica, minimum_replica, indicator_slice FROM auto_scaler").Iter()
 
 	replicationControllerAutoScalerSlice := make([]ReplicationControllerAutoScaler, 0)
@@ -142,7 +159,7 @@ func LoadAllReplicationControllerAutoScaler() ([]ReplicationControllerAutoScaler
 		indicatorSliceByteSlice = make([]byte, 0)
 	}
 
-	err := iter.Close()
+	err = iter.Close()
 	if err != nil {
 		return nil, err
 	}
