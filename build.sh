@@ -3,20 +3,16 @@ contains() {
   substring="$2"
   if test "${string#*$substring}" != "$string"
   then
-    return 0
-  else
     return 1
+  else
+    return 0
   fi
 }
 
 is_go_existing() {
   go_version_response=$(go version)
-  contains $go_version_response "go version"
-  if [ $? -eq 1 ]; then
-    return 1
-  else
-    return 0
-  fi
+  contains "$go_version_response" "go version"
+  return $?
 }
 
 install_go() {
