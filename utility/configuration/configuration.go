@@ -30,8 +30,6 @@ var configurationContent = `
 	"cassandraKeyspace": "cloudone",
 	"cassandraReplicationStrategy": "{'class': 'SimpleStrategy', 'replication_factor' : 1}",
 	"cassandraTimeoutInMilliSecond": 3000,
-	"kubeapiHost": "127.0.0.1",
-	"kubeapiPort": 8080,
 	"emailSenderAccount": "cloudawanemailtest@gmail.com",
 	"emailSenderPassword": "cloudawan4test",
 	"emailSenderHost": "smtp.gmail.com",
