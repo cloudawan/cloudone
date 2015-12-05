@@ -15,7 +15,6 @@
 package monitor
 
 import (
-	"errors"
 	"github.com/cloudawan/cloudone_utility/jsonparse"
 	"github.com/cloudawan/cloudone_utility/logger"
 	"github.com/cloudawan/cloudone_utility/restclient"
@@ -62,6 +61,7 @@ func MonitorNode(kubeapiHost string, kubeapiPort int) (returnedNodeMetricSlice [
 		if errorSlice[index] != nil {
 			errorMessage = errorMessage + errorSlice[index].Error()
 			nodeMetricSlice[index].Valid = false
+			nodeMetricSlice[index].KubeletHost = addressSlice[index]
 			errorHappened = true
 		} else {
 			nodeMetricSlice[index].Valid = true
@@ -106,7 +106,7 @@ func MonitorNode(kubeapiHost string, kubeapiPort int) (returnedNodeMetricSlice [
 
 	if errorHappened {
 		log.Error("Fail to get all node inofrmation with host %s, port: %d, error %s", kubeapiHost, kubeapiPort, errorMessage)
-		return nodeMetricSlice, errors.New(errorMessage)
+		return nodeMetricSlice, nil
 	} else {
 		return nodeMetricSlice, nil
 	}
