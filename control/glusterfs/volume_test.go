@@ -19,7 +19,12 @@ import (
 	"testing"
 )
 
-func TestCreateGlusterfsVolumeControl(t *testing.T) {
+func TestGetAllVolume(t *testing.T) {
 	glusterfsVolumeControl, _ := CreateGlusterfsVolumeControl()
 	fmt.Println(glusterfsVolumeControl.GetAllVolume())
+}
+
+func TestGetAvailableHost(t *testing.T) {
+	glusterfsVolumeControl, _ := CreateGlusterfsVolumeControl()
+	fmt.Println(glusterfsVolumeControl.getAvailableHost())
 }
