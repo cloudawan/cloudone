@@ -249,19 +249,6 @@ func (glusterfsVolumeControl *GlusterfsVolumeControl) GetAllVolume() ([]Glusterf
 
 func (glusterfsVolumeControl *GlusterfsVolumeControl) CreateVolume(name string,
 	stripe int, replica int, transport string, hostSlice []string) error {
-	if stripe == 0 {
-		if replica != len(hostSlice) {
-			return errors.New("Replica amount is not the same as ip amount")
-		}
-	} else if replica == 0 {
-		if stripe != len(hostSlice) {
-			return errors.New("Stripe amount is not the same as ip amount")
-		}
-	} else {
-		if stripe*replica != len(hostSlice) {
-			return errors.New("Replica * Stripe amount is not the same as ip amount")
-		}
-	}
 
 	host, err := glusterfsVolumeControl.getAvailableHost()
 	if err != nil {
