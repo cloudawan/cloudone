@@ -473,7 +473,7 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 	imageRecord.ImageInformation = imageInformation.Name
 	imageRecord.VersionInfo = make(map[string]string)
 	imageRecord.VersionInfo["Version"] = version
-	imageRecord.CreatedTime = time.Now().UTC()
+	imageRecord.CreatedTime = time.Now()
 	imageRecord.Version = imageRecord.CreatedTime.Format("2006-01-02-15-04-05")
 	imageRecord.Path = repositoryPath + ":" + imageRecord.Version
 	imageRecord.Description = description
@@ -622,7 +622,7 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 	imageRecord.ImageInformation = imageInformation.Name
 	imageRecord.VersionInfo = make(map[string]string)
 	imageRecord.VersionInfo["Version"] = version
-	imageRecord.CreatedTime = time.Now().UTC()
+	imageRecord.CreatedTime = time.Now()
 	imageRecord.Version = imageRecord.CreatedTime.Format("2006-01-02-15-04-05")
 	imageRecord.Path = repositoryPath + ":" + imageRecord.Version
 	imageRecord.Description = description
