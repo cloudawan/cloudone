@@ -43,8 +43,6 @@ fi
 
 
 # Use environment
-sed -i "s/{{KUBEAPI_HOST}}/$KUBEAPI_HOST/g" /etc/cloudone/configuration.json
-sed -i "s/{{KUBEAPI_PORT}}/$KUBEAPI_PORT/g" /etc/cloudone/configuration.json
 sed -i "s/{{CASSANDRA_CLUSTER_HOST}}/$CASSANDRA_CLUSTER_HOST/g" /etc/cloudone/configuration.json
 sed -i "s/{{CASSANDRA_CLUSTER_PORT}}/$CASSANDRA_CLUSTER_PORT/g" /etc/cloudone/configuration.json
 sed -i "s/{{CASSANDRA_CLUSTER_REPLICATION_STRATEGY}}/$CASSANDRA_CLUSTER_REPLICATION_STRATEGY/g" /etc/cloudone/configuration.json
@@ -69,4 +67,5 @@ while :
 do
 	sleep 1
 done
+
 
