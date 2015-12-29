@@ -20,7 +20,10 @@ import (
 	"strings"
 )
 
-func GetAllNodeStatus() (map[string]interface{}, error) {
+func GetAllStatus() (map[string]interface{}, error) {
+	jsonMap := make(map[string]interface{})
+	// Kubernetes
+	jsonMap["kubernetes"] = make(map[string]interface{})
 	kubernetesNodeControl, err := CreateKubernetesNodeControl()
 	if err != nil {
 		log.Error(err)
@@ -36,17 +39,6 @@ func GetAllNodeStatus() (map[string]interface{}, error) {
 		log.Error(err)
 		return nil, err
 	}
-
-	glusterfsVolumeControl, err := glusterfs.CreateGlusterfsVolumeControl()
-	if err != nil {
-		log.Error(err)
-		return nil, err
-	}
-	hostStatusMap := glusterfsVolumeControl.GetHostStatus()
-
-	jsonMap := make(map[string]interface{})
-	jsonMap["kubernetes"] = make(map[string]interface{})
-
 	for _, data := range kubernetesNodeJsonMap["node"].(map[string]interface{})["nodes"].([]interface{}) {
 		dataJsonMap, _ := data.(map[string]interface{})
 		key, _ := dataJsonMap["key"].(string)
@@ -68,7 +60,13 @@ func GetAllNodeStatus() (map[string]interface{}, error) {
 			jsonMap["kubernetes"].(map[string]interface{})[ip].(map[string]interface{})["active"] = true
 		}
 	}
-
+	// Glusterfs
+	glusterfsVolumeControl, err := glusterfs.CreateGlusterfsVolumeControl()
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+	hostStatusMap := glusterfsVolumeControl.GetHostStatus()
 	jsonMap["glusterfs"] = make(map[string]interface{})
 	for key, value := range hostStatusMap {
 		jsonMap["glusterfs"].(map[string]interface{})[key] = make(map[string]interface{})
@@ -76,5 +74,13 @@ func GetAllNodeStatus() (map[string]interface{}, error) {
 		jsonMap["glusterfs"].(map[string]interface{})[key].(map[string]interface{})["service"] = make(map[string]interface{})
 		jsonMap["glusterfs"].(map[string]interface{})[key].(map[string]interface{})["service"].(map[string]interface{})["glusterfs"] = value
 	}
+	// CloudOne
+	cloudoneControl, err := CreateCloudoneControl()
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+	jsonMap["cloudone"] = cloudoneControl.GetStatus()
+
 	return jsonMap, nil
 }

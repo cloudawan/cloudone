@@ -28,14 +28,13 @@ func registerWebServiceHealthCheck() {
 	ws.Produces(restful.MIME_JSON)
 	restful.Add(ws)
 
-	ws.Route(ws.GET("/").To(getAllNodeStatus).
-		Doc("Get all the status of all nodes").
+	ws.Route(ws.GET("/").To(getAllStatus).
+		Doc("Get all status").
 		Do(returns200Map, returns400, returns404, returns500))
 }
 
-func getAllNodeStatus(request *restful.Request, response *restful.Response) {
-
-	jsonMap, err := healthcheck.GetAllNodeStatus()
+func getAllStatus(request *restful.Request, response *restful.Response) {
+	jsonMap, err := healthcheck.GetAllStatus()
 	if err != nil {
 		errorText := fmt.Sprintf("Fail to get the status of all nodes with error %s", err)
 		log.Error(errorText)
