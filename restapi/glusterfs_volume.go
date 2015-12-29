@@ -129,12 +129,14 @@ func deleteGlusterfsVolume(request *restful.Request, response *restful.Response)
 
 	err = glusterfsVolumeControl.StopVolume(volume)
 
-	if err != nil {
-		errorText := fmt.Sprintf("Stop glusterfs volume %s error %s", volume, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
-		return
-	}
+	/*
+		if err != nil {
+			errorText := fmt.Sprintf("Stop glusterfs volume %s error %s", volume, err)
+			log.Error(errorText)
+			response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+			return
+		}
+	*/
 
 	err = glusterfsVolumeControl.DeleteVolume(volume)
 

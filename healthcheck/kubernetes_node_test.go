@@ -12,26 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package glusterfs
+package healthcheck
 
+/*
 import (
 	"fmt"
 	"testing"
 )
 
-/*
-func TestGetAllVolume(t *testing.T) {
-	glusterfsVolumeControl, _ := CreateGlusterfsVolumeControl()
-	fmt.Println(glusterfsVolumeControl.GetAllVolume())
+func TestGetHostWithinFlannelNetwork(t *testing.T) {
+	kubernetesNodeControl, err := CreateKubernetesNodeControl()
+	if err != nil {
+		t.Error(err)
+	}
+	ipSlice, err := kubernetesNodeControl.GetHostWithinFlannelNetwork()
+	if err != nil {
+		t.Error(err)
+	} else {
+		fmt.Println(ipSlice)
+	}
 }
 
-func TestGetAvailableHost(t *testing.T) {
-	glusterfsVolumeControl, _ := CreateGlusterfsVolumeControl()
-	fmt.Println(glusterfsVolumeControl.getAvailableHost())
+func TestGetStatus(t *testing.T) {
+	kubernetesNodeControl, err := CreateKubernetesNodeControl()
+	if err != nil {
+		t.Error(err)
+	}
+	jsonMap, err := kubernetesNodeControl.GetStatus()
+	if err != nil {
+		t.Error(err)
+	} else {
+		fmt.Println(jsonMap)
+	}
 }
 */
-
-func TestGetHostStatus(t *testing.T) {
-	glusterfsVolumeControl, _ := CreateGlusterfsVolumeControl()
-	fmt.Println(glusterfsVolumeControl.getHostStatus())
-}

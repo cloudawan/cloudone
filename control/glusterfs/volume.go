@@ -196,6 +196,9 @@ func parseVolumeInfo(text string) (returnedGlusterfsVolumeSlice []GlusterfsVolum
 }
 
 func (glusterfsVolumeControl *GlusterfsVolumeControl) getAvailableHost() (*string, error) {
+	commandSlice := make([]string, 0)
+	commandSlice = append(commandSlice, "exit\n")
+
 	for _, host := range glusterfsVolumeControl.GlusterfsClusterHostSlice {
 		_, err := sshclient.InteractiveSSH(
 			time.Duration(glusterfsVolumeControl.GlusterfsSSHDialTimeoutInMilliSecond)*time.Millisecond,
@@ -204,7 +207,7 @@ func (glusterfsVolumeControl *GlusterfsVolumeControl) getAvailableHost() (*strin
 			glusterfsVolumeControl.GlusterfsSSHPort,
 			glusterfsVolumeControl.GlusterfsSSHUser,
 			glusterfsVolumeControl.GlusterfsSSHPassword,
-			nil,
+			commandSlice,
 			nil)
 		if err == nil {
 			return &host, nil
@@ -214,6 +217,33 @@ func (glusterfsVolumeControl *GlusterfsVolumeControl) getAvailableHost() (*strin
 	}
 
 	return nil, errors.New("No available host")
+}
+
+func (glusterfsVolumeControl *GlusterfsVolumeControl) GetHostStatus() map[string]bool {
+	commandSlice := make([]string, 0)
+	commandSlice = append(commandSlice, "exit\n")
+
+	hostStatusMap := make(map[string]bool)
+
+	for _, host := range glusterfsVolumeControl.GlusterfsClusterHostSlice {
+		_, err := sshclient.InteractiveSSH(
+			time.Duration(glusterfsVolumeControl.GlusterfsSSHDialTimeoutInMilliSecond)*time.Millisecond,
+			time.Duration(glusterfsVolumeControl.GlusterfsSSHSessionTimeoutInMilliSecond)*time.Millisecond,
+			host,
+			glusterfsVolumeControl.GlusterfsSSHPort,
+			glusterfsVolumeControl.GlusterfsSSHUser,
+			glusterfsVolumeControl.GlusterfsSSHPassword,
+			commandSlice,
+			nil)
+		if err == nil {
+			hostStatusMap[host] = true
+		} else {
+			hostStatusMap[host] = false
+			log.Error(err)
+		}
+	}
+
+	return hostStatusMap
 }
 
 func (glusterfsVolumeControl *GlusterfsVolumeControl) GetAllVolume() ([]GlusterfsVolume, error) {

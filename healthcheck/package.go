@@ -12,26 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package glusterfs
+package healthcheck
 
 import (
-	"fmt"
-	"testing"
+	"github.com/cloudawan/cloudone/utility/logger"
 )
 
-/*
-func TestGetAllVolume(t *testing.T) {
-	glusterfsVolumeControl, _ := CreateGlusterfsVolumeControl()
-	fmt.Println(glusterfsVolumeControl.GetAllVolume())
-}
-
-func TestGetAvailableHost(t *testing.T) {
-	glusterfsVolumeControl, _ := CreateGlusterfsVolumeControl()
-	fmt.Println(glusterfsVolumeControl.getAvailableHost())
-}
-*/
-
-func TestGetHostStatus(t *testing.T) {
-	glusterfsVolumeControl, _ := CreateGlusterfsVolumeControl()
-	fmt.Println(glusterfsVolumeControl.getHostStatus())
-}
+var log = logger.GetLogManager().GetLogger("restapi")

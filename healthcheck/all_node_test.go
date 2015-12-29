@@ -12,26 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package glusterfs
+package healthcheck
 
 import (
 	"fmt"
 	"testing"
 )
 
-/*
-func TestGetAllVolume(t *testing.T) {
-	glusterfsVolumeControl, _ := CreateGlusterfsVolumeControl()
-	fmt.Println(glusterfsVolumeControl.GetAllVolume())
-}
-
-func TestGetAvailableHost(t *testing.T) {
-	glusterfsVolumeControl, _ := CreateGlusterfsVolumeControl()
-	fmt.Println(glusterfsVolumeControl.getAvailableHost())
-}
-*/
-
-func TestGetHostStatus(t *testing.T) {
-	glusterfsVolumeControl, _ := CreateGlusterfsVolumeControl()
-	fmt.Println(glusterfsVolumeControl.getHostStatus())
+func TestGetAllNodeStatus(t *testing.T) {
+	jsonMap, err := GetAllNodeStatus()
+	if err != nil {
+		t.Error(err)
+	} else {
+		fmt.Println(jsonMap)
+	}
+	fmt.Println(jsonMap["kubernetes"])
+	a, ok := jsonMap["kubernetes"].(map[string]interface{})
+	fmt.Println(ok)
+	fmt.Println(a["192.168.0.31"])
+	b, ok := a["192.168.0.31"].(string)
+	fmt.Println(ok)
+	fmt.Println(b)
 }
