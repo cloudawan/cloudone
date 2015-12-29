@@ -19,6 +19,7 @@ import (
 	"github.com/emicklei/go-restful"
 	"github.com/emicklei/go-restful/swagger"
 	"net/http"
+	"strconv"
 )
 
 func StartRestAPIServer() {
@@ -53,7 +54,13 @@ func StartRestAPIServer() {
 		SwaggerFilePath: "swaggerui"}
 	swagger.RegisterSwaggerService(config, restful.DefaultContainer)
 
-	server := &http.Server{Addr: ":8081", Handler: restful.DefaultContainer}
+	restapiPort, ok := configuration.LocalConfiguration.GetInt("restapiPort")
+	if ok == false {
+		log.Error("Can't find restapiPort")
+		panic("Can't find restapiPort")
+	}
+
+	server := &http.Server{Addr: ":" + strconv.Itoa(restapiPort), Handler: restful.DefaultContainer}
 
 	certificate, ok := configuration.LocalConfiguration.GetString("certificate")
 	if ok == false {

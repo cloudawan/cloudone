@@ -36,7 +36,7 @@ func registerWebServiceHealthCheck() {
 func getAllStatus(request *restful.Request, response *restful.Response) {
 	jsonMap, err := healthcheck.GetAllStatus()
 	if err != nil {
-		errorText := fmt.Sprintf("Fail to get the status of all nodes with error %s", err)
+		errorText := fmt.Sprintf("Fail to get the all status with error %s", err)
 		log.Error(errorText)
 		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
 		return

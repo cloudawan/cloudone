@@ -14,11 +14,22 @@
 
 package healthcheck
 
-/*
 import (
 	"testing"
 )
 
+func TestRestAPI(t *testing.T) {
+	cloudoneControl, err := CreateCloudoneControl()
+	if err != nil {
+		t.Error(err)
+	}
+	result := cloudoneControl.testRestAPI()
+	if result == false {
+		t.Error(err)
+	}
+}
+
+/*
 func TestDocker(t *testing.T) {
 	cloudoneControl, err := CreateCloudoneControl()
 	if err != nil {

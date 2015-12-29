@@ -15,16 +15,35 @@
 package healthcheck
 
 import (
+	"errors"
+	"github.com/cloudawan/cloudone/utility/configuration"
+	"github.com/cloudawan/cloudone_utility/restclient"
 	"os/exec"
+	"strconv"
 	"time"
 )
 
 func CreateCloudoneControl() (*CloudoneControl, error) {
-	cloudoneControl := &CloudoneControl{}
+	restapiPort, ok := configuration.LocalConfiguration.GetInt("restapiPort")
+	if ok == false {
+		log.Error("Can't find restapiPort")
+		return nil, errors.New("Can't find restapiPort")
+	}
+	cloudoneControl := &CloudoneControl{
+		restapiPort,
+	}
 	return cloudoneControl, nil
 }
 
 type CloudoneControl struct {
+	RestapiPort int
+}
+
+func (cloudoneControl *CloudoneControl) testRestAPI() bool {
+	result, _ := restclient.HealthCheck(
+		"https://127.0.0.1:"+strconv.Itoa(cloudoneControl.RestapiPort)+"/apidocs.json",
+		time.Millisecond*300)
+	return result
 }
 
 func (cloudoneControl *CloudoneControl) testStorageCassandra() bool {
@@ -49,6 +68,7 @@ func (cloudoneControl *CloudoneControl) testDocker() bool {
 
 func (cloudoneControl *CloudoneControl) GetStatus() map[string]interface{} {
 	jsonMap := make(map[string]interface{})
+	jsonMap["restapi"] = cloudoneControl.testRestAPI()
 	jsonMap["cassandra"] = cloudoneControl.testStorageCassandra()
 	jsonMap["docker"] = cloudoneControl.testDocker()
 	return jsonMap

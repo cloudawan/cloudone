@@ -25,6 +25,7 @@ var configurationContent = `
 {
 	"certificate": "/etc/cloudone/development_cert.pem",
 	"key": "/etc/cloudone/development_key.pem",
+	"restapiPort": 8081,
 	"cassandraClusterIp": ["127.0.0.1"],
 	"cassandraClusterPort": 9042,
 	"cassandraKeyspace": "cloudone",

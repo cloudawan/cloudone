@@ -20,7 +20,7 @@ import (
 	"testing"
 )
 
-func TestGetAllNodeStatus(t *testing.T) {
+func TestGetAllStatus(t *testing.T) {
 	jsonMap, err := GetAllStatus()
 	if err != nil {
 		t.Error(err)
