@@ -54,10 +54,18 @@ var configurationContent = `
 var LocalConfiguration *configuration.Configuration
 
 func init() {
-	var err error
-	LocalConfiguration, err = configuration.CreateConfiguration("cloudone", configurationContent)
+	err := Reload()
 	if err != nil {
 		log.Critical(err)
 		panic(err)
 	}
+}
+
+func Reload() error {
+	localConfiguration, err := configuration.CreateConfiguration("cloudone", configurationContent)
+	if err == nil {
+		LocalConfiguration = localConfiguration
+	}
+
+	return err
 }
