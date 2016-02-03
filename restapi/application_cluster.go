@@ -71,7 +71,7 @@ func registerWebServiceClusterApplication() {
 }
 
 func getAllClusterApplication(request *restful.Request, response *restful.Response) {
-	clusterSlice, err := application.LoadAllClusterApplication()
+	clusterSlice, err := application.GetStorage().LoadAllClusterApplication()
 	if err != nil {
 		errorText := fmt.Sprintf("Get read database fail with error %s", err)
 		log.Error(errorText)
@@ -84,7 +84,7 @@ func getAllClusterApplication(request *restful.Request, response *restful.Respon
 func getClusterApplication(request *restful.Request, response *restful.Response) {
 	name := request.PathParameter("clusterapplication")
 
-	cluster, err := application.LoadClusterApplication(name)
+	cluster, err := application.GetStorage().LoadClusterApplication(name)
 	if err != nil {
 		errorText := fmt.Sprintf("Get read database fail with error %s", err)
 		log.Error(errorText)
@@ -106,7 +106,7 @@ func postClusterApplication(request *restful.Request, response *restful.Response
 		return
 	}
 
-	err = application.SaveClusterApplication(cluster)
+	err = application.GetStorage().SaveClusterApplication(cluster)
 	if err != nil {
 		errorText := fmt.Sprintf("POST fail to save %s to database with error %s", cluster, err)
 		log.Error(errorText)
@@ -117,7 +117,7 @@ func postClusterApplication(request *restful.Request, response *restful.Response
 
 func deleteClusterApplication(request *restful.Request, response *restful.Response) {
 	name := request.PathParameter("clusterapplication")
-	err := application.DeleteClusterApplication(name)
+	err := application.GetStorage().DeleteClusterApplication(name)
 	if err != nil {
 		errorText := fmt.Sprintf("Delete cluster application %s fail with error %s", name, err)
 		log.Error(errorText)

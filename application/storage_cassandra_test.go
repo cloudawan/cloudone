@@ -18,10 +18,27 @@ package application
 import (
 	"fmt"
 	"testing"
+	"time"
 )
 
+func TestLoadAllCluster(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		storageCassandra := &StorageCassandra{}
+		clusterSlice, err := storageCassandra.LoadAllClusterApplication()
+		if err != nil {
+			fmt.Println(err)
+		} else {
+			for _, cluster := range clusterSlice {
+				fmt.Println(cluster.Name)
+			}
+		}
+		time.Sleep(time.Second)
+	}
+}
+
 func TestLoadAll(t *testing.T) {
-	statelessSlice, _ := LoadAllStatelessApplication()
+	storageCassandra := &StorageCassandra{}
+	statelessSlice, _ := storageCassandra.LoadAllStatelessApplication()
 	for _, stateless := range statelessSlice {
 		fmt.Println(string(stateless.replicationControllerJson))
 		fmt.Println(string(stateless.serviceJson))

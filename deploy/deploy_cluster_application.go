@@ -34,7 +34,7 @@ type DeployClusterApplication struct {
 }
 
 func GetAllDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespace string) ([]DeployClusterApplication, error) {
-	clusterSlice, err := application.LoadAllClusterApplication()
+	clusterSlice, err := application.GetStorage().LoadAllClusterApplication()
 	if err != nil {
 		log.Error("Fail to load all cluster application error %s", err)
 		return nil, err
@@ -102,7 +102,7 @@ func GetAllDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespa
 }
 
 func ResizeDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespace string, name string, environmentSlice []interface{}, size int) error {
-	cluster, err := application.LoadClusterApplication(name)
+	cluster, err := application.GetStorage().LoadClusterApplication(name)
 	if err != nil {
 		log.Error("Load cluster application error %s", err)
 		return err
@@ -228,7 +228,7 @@ func ResizeDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespa
 }
 
 func DeleteDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespace string, name string) error {
-	cluster, err := application.LoadClusterApplication(name)
+	cluster, err := application.GetStorage().LoadClusterApplication(name)
 	if err != nil {
 		log.Error("Load cluster application error %s", err)
 		return err

@@ -19,7 +19,11 @@ import (
 	"time"
 )
 
-var tableSchemaStatelessApplication = `
+type StorageCassandra struct {
+}
+
+func (storageCassandra *StorageCassandra) initialize() error {
+	tableSchemaStatelessApplication := `
 	CREATE TABLE IF NOT EXISTS stateless_application (
 	name varchar,
 	description varchar,
@@ -29,7 +33,7 @@ var tableSchemaStatelessApplication = `
 	PRIMARY KEY (name));
 	`
 
-var tableSchemaClusterApplication = `
+	tableSchemaClusterApplication := `
 	CREATE TABLE IF NOT EXISTS cluster_application (
 	name varchar,
 	description varchar,
@@ -41,21 +45,22 @@ var tableSchemaClusterApplication = `
 	PRIMARY KEY (name));
 	`
 
-func init() {
 	err := cassandra.CassandraClient.CreateTableIfNotExist(tableSchemaStatelessApplication, 3, time.Second*5)
 	if err != nil {
 		log.Critical("Fail to create table with schema %s", tableSchemaStatelessApplication)
-		panic(err)
+		return err
 	}
 
 	err = cassandra.CassandraClient.CreateTableIfNotExist(tableSchemaClusterApplication, 3, time.Second*5)
 	if err != nil {
 		log.Critical("Fail to create table with schema %s", tableSchemaClusterApplication)
-		panic(err)
+		return err
 	}
+
+	return nil
 }
 
-func DeleteStatelessApplication(name string) error {
+func (storageCassandra *StorageCassandra) DeleteStatelessApplication(name string) error {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)
@@ -68,7 +73,7 @@ func DeleteStatelessApplication(name string) error {
 	return nil
 }
 
-func saveStatelessApplication(stateless *Stateless) error {
+func (storageCassandra *StorageCassandra) saveStatelessApplication(stateless *Stateless) error {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)
@@ -87,7 +92,7 @@ func saveStatelessApplication(stateless *Stateless) error {
 	return nil
 }
 
-func LoadStatelessApplication(name string) (*Stateless, error) {
+func (storageCassandra *StorageCassandra) LoadStatelessApplication(name string) (*Stateless, error) {
 	stateless := new(Stateless)
 
 	session, err := cassandra.CassandraClient.GetSession()
@@ -109,7 +114,7 @@ func LoadStatelessApplication(name string) (*Stateless, error) {
 	return stateless, nil
 }
 
-func LoadAllStatelessApplication() ([]Stateless, error) {
+func (storageCassandra *StorageCassandra) LoadAllStatelessApplication() ([]Stateless, error) {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)
@@ -139,7 +144,7 @@ func LoadAllStatelessApplication() ([]Stateless, error) {
 	return statelessSlice, nil
 }
 
-func DeleteClusterApplication(name string) error {
+func (storageCassandra *StorageCassandra) DeleteClusterApplication(name string) error {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)
@@ -152,7 +157,7 @@ func DeleteClusterApplication(name string) error {
 	return nil
 }
 
-func SaveClusterApplication(cluster *Cluster) error {
+func (storageCassandra *StorageCassandra) SaveClusterApplication(cluster *Cluster) error {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)
@@ -173,7 +178,7 @@ func SaveClusterApplication(cluster *Cluster) error {
 	return nil
 }
 
-func LoadClusterApplication(name string) (*Cluster, error) {
+func (storageCassandra *StorageCassandra) LoadClusterApplication(name string) (*Cluster, error) {
 	cluster := new(Cluster)
 
 	session, err := cassandra.CassandraClient.GetSession()
@@ -197,7 +202,7 @@ func LoadClusterApplication(name string) (*Cluster, error) {
 	return cluster, nil
 }
 
-func LoadAllClusterApplication() ([]Cluster, error) {
+func (storageCassandra *StorageCassandra) LoadAllClusterApplication() ([]Cluster, error) {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)

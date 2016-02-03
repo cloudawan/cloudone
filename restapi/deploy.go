@@ -76,7 +76,7 @@ func registerWebServiceDeploy() {
 }
 
 func getAllDeployInformation(request *restful.Request, response *restful.Response) {
-	deployInformationSlice, err := deploy.LoadAllDeployInformation()
+	deployInformationSlice, err := deploy.GetStorage().LoadAllDeployInformation()
 	if err != nil {
 		errorText := fmt.Sprintf("Get all deploy information failure %s", err)
 		log.Error(errorText)
@@ -107,7 +107,7 @@ func deleteDeployInformation(request *restful.Request, response *restful.Respons
 
 	imageInformation := request.PathParameter("imageinformation")
 
-	deployInformation, err := deploy.LoadDeployInformation(namespace, imageInformation)
+	deployInformation, err := deploy.GetStorage().LoadDeployInformation(namespace, imageInformation)
 	if err != nil {
 		errorText := fmt.Sprintf("Can't find deploy information namespace %s imageInformation %s failure %s", namespace, imageInformation, err)
 		log.Error(errorText)
@@ -115,7 +115,7 @@ func deleteDeployInformation(request *restful.Request, response *restful.Respons
 		return
 	}
 
-	err = deploy.DeleteDeployInformation(namespace, imageInformation)
+	err = deploy.GetStorage().DeleteDeployInformation(namespace, imageInformation)
 	if err != nil {
 		errorText := fmt.Sprintf("Delete deploy information namespace %s imageInformation %s failure %s", namespace, imageInformation, err)
 		log.Error(errorText)

@@ -47,7 +47,7 @@ func StoreStatelessApplication(name string, description string,
 		log.Error("Marshal service json for stateless application error %s", err)
 		return err
 	}
-	err = saveStatelessApplication(&Stateless{name, description, replicationControllerByteSlice, serviceByteSlice, environment})
+	err = GetStorage().saveStatelessApplication(&Stateless{name, description, replicationControllerByteSlice, serviceByteSlice, environment})
 	if err != nil {
 		log.Error("Store statelss application error %s", err)
 		return err
@@ -56,7 +56,7 @@ func StoreStatelessApplication(name string, description string,
 }
 
 func RetrieveStatelessApplication(name string) (*StatelessSerializable, error) {
-	stateless, err := LoadStatelessApplication(name)
+	stateless, err := GetStorage().LoadStatelessApplication(name)
 	if err != nil {
 		log.Error("Load stateless application error %s", err)
 		return nil, err
@@ -87,7 +87,7 @@ func RetrieveStatelessApplication(name string) (*StatelessSerializable, error) {
 }
 
 func LaunchStatelessApplication(kubeapiHost string, kubeapiPort int, namespace string, name string, environmentSlice []interface{}) error {
-	stateless, err := LoadStatelessApplication(name)
+	stateless, err := GetStorage().LoadStatelessApplication(name)
 	if err != nil {
 		log.Error("Load stateless application error %s", err)
 		return err

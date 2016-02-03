@@ -20,22 +20,27 @@ import (
 	"time"
 )
 
-var tableSchemaTest = `
+type StorageCassandra struct {
+}
+
+func (storageCassandra *StorageCassandra) initialize() error {
+	tableSchemaTest := `
 	CREATE TABLE IF NOT EXISTS test (
 	name varchar,
 	updated_time timeuuid,
 	PRIMARY KEY (name));
 	`
 
-func init() {
 	err := cassandra.CassandraClient.CreateTableIfNotExist(tableSchemaTest, 3, time.Second*5)
 	if err != nil {
 		log.Critical("Fail to create table with schema %s", tableSchemaTest)
-		panic(err)
+		return err
 	}
+
+	return nil
 }
 
-func saveTest(name string, updatedTime time.Time) error {
+func (storageCassandra *StorageCassandra) saveTest(name string, updatedTime time.Time) error {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)

@@ -62,7 +62,7 @@ func registerWebServiceImageInformation() {
 }
 
 func getAllImageInformation(request *restful.Request, response *restful.Response) {
-	imageInformationSlice, err := image.LoadAllImageInformation()
+	imageInformationSlice, err := image.GetStorage().LoadAllImageInformation()
 	if err != nil {
 		errorText := fmt.Sprintf("Get all image information failure %s", err)
 		log.Error(errorText)
@@ -75,7 +75,7 @@ func getAllImageInformation(request *restful.Request, response *restful.Response
 
 func deleteImageInformationAndRelatedRecords(request *restful.Request, response *restful.Response) {
 	imageInformationName := request.PathParameter("imageinformationname")
-	err := image.DeleteImageInformationAndRelatedRecord(imageInformationName)
+	err := image.GetStorage().DeleteImageInformationAndRelatedRecord(imageInformationName)
 	if err != nil {
 		errorText := fmt.Sprintf("Delete image information %s and related records failure %s", imageInformationName, err)
 		log.Error(errorText)

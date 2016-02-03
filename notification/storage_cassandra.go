@@ -20,7 +20,11 @@ import (
 	"time"
 )
 
-var tableSchemaNotifier = `
+type StorageCassandra struct {
+}
+
+func (storageCassandra *StorageCassandra) initialize() error {
+	tableSchemaNotifier := `
 	CREATE TABLE IF NOT EXISTS notifier (
 	check boolean,
 	cool_down_duration bigint,
@@ -35,15 +39,16 @@ var tableSchemaNotifier = `
 	PRIMARY KEY (namespace, kind, name));
 	`
 
-func init() {
 	err := cassandra.CassandraClient.CreateTableIfNotExist(tableSchemaNotifier, 3, time.Second*5)
 	if err != nil {
 		log.Critical("Fail to create table with schema %s", tableSchemaNotifier)
-		panic(err)
+		return err
 	}
+
+	return nil
 }
 
-func DeleteReplicationControllerNotifierSerializable(namespace string, kind string, name string) error {
+func (storageCassandra *StorageCassandra) DeleteReplicationControllerNotifierSerializable(namespace string, kind string, name string) error {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)
@@ -56,7 +61,7 @@ func DeleteReplicationControllerNotifierSerializable(namespace string, kind stri
 	return nil
 }
 
-func SaveReplicationControllerNotifierSerializable(replicationControllerNotifierSerializable *ReplicationControllerNotifierSerializable) error {
+func (storageCassandra *StorageCassandra) SaveReplicationControllerNotifierSerializable(replicationControllerNotifierSerializable *ReplicationControllerNotifierSerializable) error {
 	notifierSliceByteSlice, err := json.Marshal(replicationControllerNotifierSerializable.NotifierSlice)
 	if err != nil {
 		log.Error("Marshal notifier slice error replicationControllerNotifierSerializable %s error: %s", replicationControllerNotifierSerializable, err)
@@ -91,7 +96,7 @@ func SaveReplicationControllerNotifierSerializable(replicationControllerNotifier
 	return nil
 }
 
-func LoadReplicationControllerNotifierSerializable(namespace string, kind string, name string) (*ReplicationControllerNotifierSerializable, error) {
+func (storageCassandra *StorageCassandra) LoadReplicationControllerNotifierSerializable(namespace string, kind string, name string) (*ReplicationControllerNotifierSerializable, error) {
 	notifierSliceByteSlice := make([]byte, 0)
 	indicatorSliceByteSlice := make([]byte, 0)
 	replicationControllerNotifierSerializable := new(ReplicationControllerNotifierSerializable)
@@ -131,7 +136,7 @@ func LoadReplicationControllerNotifierSerializable(namespace string, kind string
 	return replicationControllerNotifierSerializable, nil
 }
 
-func LoadAllReplicationControllerNotifierSerializable() ([]ReplicationControllerNotifierSerializable, error) {
+func (storageCassandra *StorageCassandra) LoadAllReplicationControllerNotifierSerializable() ([]ReplicationControllerNotifierSerializable, error) {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)

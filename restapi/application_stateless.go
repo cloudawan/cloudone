@@ -68,7 +68,7 @@ func registerWebServiceStatelessApplication() {
 }
 
 func getAllStatelessApplication(request *restful.Request, response *restful.Response) {
-	statelessSlice, err := application.LoadAllStatelessApplication()
+	statelessSlice, err := application.GetStorage().LoadAllStatelessApplication()
 	if err != nil {
 		errorText := fmt.Sprintf("Get read database fail with error %s", err)
 		log.Error(errorText)
@@ -116,7 +116,7 @@ func postStatelessApplication(request *restful.Request, response *restful.Respon
 
 func deleteStatelessApplication(request *restful.Request, response *restful.Response) {
 	name := request.PathParameter("statelessapplication")
-	err := application.DeleteStatelessApplication(name)
+	err := application.GetStorage().DeleteStatelessApplication(name)
 	if err != nil {
 		errorText := fmt.Sprintf("Delete stateless application %s fail with error %s", name, err)
 		log.Error(errorText)

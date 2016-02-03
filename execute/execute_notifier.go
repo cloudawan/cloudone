@@ -25,7 +25,7 @@ var replicationControllerNotifierMap = make(map[string]*notification.Replication
 
 func init() {
 	// Load from database
-	replicationControllerNotifierSerializableSlice, err := notification.LoadAllReplicationControllerNotifierSerializable()
+	replicationControllerNotifierSerializableSlice, err := notification.GetStorage().LoadAllReplicationControllerNotifierSerializable()
 	if err != nil {
 		log.Error(err)
 	} else {

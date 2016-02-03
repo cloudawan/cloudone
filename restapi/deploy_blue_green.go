@@ -54,7 +54,7 @@ func registerWebServiceDeployBlueGreen() {
 }
 
 func getAllDeployBlueGreen(request *restful.Request, response *restful.Response) {
-	deployBlueGreenSlice, err := deploy.LoadAllDeployBlueGreen()
+	deployBlueGreenSlice, err := deploy.GetStorage().LoadAllDeployBlueGreen()
 	if err != nil {
 		errorText := fmt.Sprintf("Get all blue green deployment failure %s", err)
 		log.Error(errorText)
@@ -84,7 +84,7 @@ func deleteDeployBlueGreen(request *restful.Request, response *restful.Response)
 
 	imageInformation := request.PathParameter("imageinformation")
 
-	err = deploy.DeleteDeployBlueGreen(imageInformation)
+	err = deploy.GetStorage().DeleteDeployBlueGreen(imageInformation)
 	if err != nil {
 		errorText := fmt.Sprintf("Delete blue green deployment imageInformation %s failure %s", imageInformation, err)
 		log.Error(errorText)

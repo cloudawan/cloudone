@@ -22,35 +22,37 @@ import (
 )
 
 func TestSaveDeployBlueGreen(t *testing.T) {
+	storageCassandra := &StorageCassandra{}
+
 	deployBlueGreen := &DeployBlueGreen{
 		"test",
 		"rel1",
 		30202,
 		"",
 	}
-	fmt.Println(saveDeployBlueGreen(deployBlueGreen))
+	fmt.Println(storageCassandra.saveDeployBlueGreen(deployBlueGreen))
 
-	fmt.Println(LoadDeployBlueGreen("test"))
+	fmt.Println(storageCassandra.LoadDeployBlueGreen("test"))
 	deployBlueGreen.Namespace = "rel1"
-	fmt.Println(saveDeployBlueGreen(deployBlueGreen))
+	fmt.Println(storageCassandra.saveDeployBlueGreen(deployBlueGreen))
 
 	time.Sleep(time.Millisecond * 100)
 
-	fmt.Println(LoadDeployBlueGreen("test"))
+	fmt.Println(storageCassandra.LoadDeployBlueGreen("test"))
 	deployBlueGreen.Namespace = "rel2"
-	fmt.Println(saveDeployBlueGreen(deployBlueGreen))
+	fmt.Println(storageCassandra.saveDeployBlueGreen(deployBlueGreen))
 
 	time.Sleep(time.Millisecond * 100)
 
-	fmt.Println(LoadDeployBlueGreen("test"))
+	fmt.Println(storageCassandra.LoadDeployBlueGreen("test"))
 	deployBlueGreen.Namespace = "rel3"
-	fmt.Println(saveDeployBlueGreen(deployBlueGreen))
+	fmt.Println(storageCassandra.saveDeployBlueGreen(deployBlueGreen))
 
 	time.Sleep(time.Millisecond * 100)
 
-	fmt.Println(LoadDeployBlueGreen("test"))
+	fmt.Println(storageCassandra.LoadDeployBlueGreen("test"))
 	deployBlueGreen.Namespace = "rel4"
-	fmt.Println(saveDeployBlueGreen(deployBlueGreen))
+	fmt.Println(storageCassandra.saveDeployBlueGreen(deployBlueGreen))
 
 	fmt.Println(LoadDeployBlueGreen("test"))
 }

@@ -19,7 +19,11 @@ import (
 	"time"
 )
 
-var tableSchemaDeployInformation = `
+type StorageCassandra struct {
+}
+
+func (storageCassandra *StorageCassandra) initialize() error {
+	tableSchemaDeployInformation := `
 	CREATE TABLE IF NOT EXISTS deploy_information (
 	namespace  varchar,
 	image_information varchar,
@@ -28,7 +32,7 @@ var tableSchemaDeployInformation = `
 	PRIMARY KEY (namespace, image_information));
 	`
 
-var tableSchemaDeployBlueGreen = `
+	tableSchemaDeployBlueGreen := `
 	CREATE TABLE IF NOT EXISTS deploy_blue_green (
 	image_information varchar,
 	current_namespace varchar,
@@ -38,20 +42,20 @@ var tableSchemaDeployBlueGreen = `
 	PRIMARY KEY (image_information));
 	`
 
-func init() {
 	err := cassandra.CassandraClient.CreateTableIfNotExist(tableSchemaDeployInformation, 3, time.Second*5)
 	if err != nil {
 		log.Critical("Fail to create table with schema %s", tableSchemaDeployInformation)
-		panic(err)
+		return err
 	}
 	err = cassandra.CassandraClient.CreateTableIfNotExist(tableSchemaDeployBlueGreen, 3, time.Second*5)
 	if err != nil {
 		log.Critical("Fail to create table with schema %s", tableSchemaDeployBlueGreen)
-		panic(err)
+		return err
 	}
+	return nil
 }
 
-func DeleteDeployInformation(namespace string, imageInformation string) error {
+func (storageCassandra *StorageCassandra) DeleteDeployInformation(namespace string, imageInformation string) error {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)
@@ -65,7 +69,7 @@ func DeleteDeployInformation(namespace string, imageInformation string) error {
 	return nil
 }
 
-func saveDeployInformation(deployInformation *DeployInformation) error {
+func (storageCassandra *StorageCassandra) saveDeployInformation(deployInformation *DeployInformation) error {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)
@@ -83,7 +87,7 @@ func saveDeployInformation(deployInformation *DeployInformation) error {
 	return nil
 }
 
-func LoadDeployInformation(namespace string, imageInformation string) (*DeployInformation, error) {
+func (storageCassandra *StorageCassandra) LoadDeployInformation(namespace string, imageInformation string) (*DeployInformation, error) {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)
@@ -104,7 +108,7 @@ func LoadDeployInformation(namespace string, imageInformation string) (*DeployIn
 	}
 }
 
-func LoadAllDeployInformation() ([]DeployInformation, error) {
+func (storageCassandra *StorageCassandra) LoadAllDeployInformation() ([]DeployInformation, error) {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)
@@ -134,7 +138,7 @@ func LoadAllDeployInformation() ([]DeployInformation, error) {
 	}
 }
 
-func DeleteDeployBlueGreen(imageInformation string) error {
+func (storageCassandra *StorageCassandra) DeleteDeployBlueGreen(imageInformation string) error {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)
@@ -148,7 +152,7 @@ func DeleteDeployBlueGreen(imageInformation string) error {
 	return nil
 }
 
-func saveDeployBlueGreen(deployBlueGreen *DeployBlueGreen) error {
+func (storageCassandra *StorageCassandra) saveDeployBlueGreen(deployBlueGreen *DeployBlueGreen) error {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)
@@ -167,7 +171,7 @@ func saveDeployBlueGreen(deployBlueGreen *DeployBlueGreen) error {
 	return nil
 }
 
-func LoadDeployBlueGreen(imageInformation string) (*DeployBlueGreen, error) {
+func (storageCassandra *StorageCassandra) LoadDeployBlueGreen(imageInformation string) (*DeployBlueGreen, error) {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)
@@ -189,7 +193,7 @@ func LoadDeployBlueGreen(imageInformation string) (*DeployBlueGreen, error) {
 	}
 }
 
-func LoadAllDeployBlueGreen() ([]DeployBlueGreen, error) {
+func (storageCassandra *StorageCassandra) LoadAllDeployBlueGreen() ([]DeployBlueGreen, error) {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)

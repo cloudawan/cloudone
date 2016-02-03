@@ -29,7 +29,7 @@ type DeployBlueGreen struct {
 
 func UpdateDeployBlueGreen(kubeapiHost string, kubeapiPort int, deployBlueGreen *DeployBlueGreen) error {
 
-	deployInformation, err := LoadDeployInformation(
+	deployInformation, err := GetStorage().LoadDeployInformation(
 		deployBlueGreen.Namespace, deployBlueGreen.ImageInformation)
 	if err != nil {
 		log.Error("Fail to load deploy information %s in namespace %s with error %s",
@@ -80,7 +80,7 @@ func UpdateDeployBlueGreen(kubeapiHost string, kubeapiPort int, deployBlueGreen 
 	}
 
 	// Update DeployBlueGreen
-	err = saveDeployBlueGreen(deployBlueGreen)
+	err = GetStorage().saveDeployBlueGreen(deployBlueGreen)
 	if err != nil {
 		log.Error("Save deploy blude grenn %s with error %s",
 			deployBlueGreen, err)
@@ -111,7 +111,7 @@ func CleanAllServiceUnderBlueGreenDeployment(kubeapiHost string, kubeapiPort int
 }
 
 func GetAllBlueGreenDeployableNamespace(imageInformationName string) ([]string, error) {
-	deployInformationSlice, err := LoadAllDeployInformation()
+	deployInformationSlice, err := GetStorage().LoadAllDeployInformation()
 	if err != nil {
 		log.Error("Fail to get all deploy information with error %s", err)
 		return nil, err

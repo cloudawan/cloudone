@@ -42,7 +42,7 @@ func registerWebServiceImageRecord() {
 
 func getImageRecordBelongToImageInformation(request *restful.Request, response *restful.Response) {
 	imageInformationName := request.PathParameter("imageinformationname")
-	imageRecordSlice, err := image.LoadImageRecordWithImageInformationName(imageInformationName)
+	imageRecordSlice, err := image.GetStorage().LoadImageRecordWithImageInformationName(imageInformationName)
 	if err != nil {
 		errorText := fmt.Sprintf("Get image record belong to the image information %s failure %s", imageInformationName, err)
 		log.Error(errorText)
@@ -56,7 +56,7 @@ func getImageRecordBelongToImageInformation(request *restful.Request, response *
 func deleteImageRecordBelongToImageInformation(request *restful.Request, response *restful.Response) {
 	imageInformationName := request.PathParameter("imageinformationname")
 	imageRecordVersion := request.PathParameter("imagerecordversion")
-	err := image.DeleteImageRecord(imageInformationName, imageRecordVersion)
+	err := image.GetStorage().DeleteImageRecord(imageInformationName, imageRecordVersion)
 	if err != nil {
 		errorText := fmt.Sprintf("Delete image record version %s belong to the image information %s failure %s", imageRecordVersion, imageInformationName, err)
 		log.Error(errorText)

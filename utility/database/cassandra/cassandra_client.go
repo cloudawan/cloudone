@@ -15,6 +15,7 @@
 package cassandra
 
 import (
+	"errors"
 	"github.com/cloudawan/cloudone/utility/configuration"
 	"github.com/cloudawan/cloudone/utility/logger"
 	"github.com/cloudawan/cloudone_utility/database/cassandra"
@@ -26,34 +27,41 @@ var log = logger.GetLogManager().GetLogger("utility")
 var CassandraClient *cassandra.CassandraClient
 
 func init() {
+	err := Reload()
+	if err != nil {
+		panic(err)
+	}
+}
+
+func Reload() error {
 	cassandraClusterIp, ok := configuration.LocalConfiguration.GetStringSlice("cassandraClusterIp")
 	if ok == false {
 		log.Critical("Can't load cassandraClusterIp")
-		panic("Can't load cassandraClusterIp")
+		return errors.New("Can't load cassandraClusterIp")
 	}
 
 	cassandraClusterPort, ok := configuration.LocalConfiguration.GetInt("cassandraClusterPort")
 	if ok == false {
 		log.Critical("Can't load cassandraClusterPort")
-		panic("Can't load cassandraClusterPort")
+		return errors.New("Can't load cassandraClusterPort")
 	}
 
 	cassandraKeyspace, ok := configuration.LocalConfiguration.GetString("cassandraKeyspace")
 	if ok == false {
 		log.Critical("Can't load cassandraKeyspace")
-		panic("Can't load cassandraKeyspace")
+		return errors.New("Can't load cassandraKeyspace")
 	}
 
 	cassandraReplicationStrategy, ok := configuration.LocalConfiguration.GetString("cassandraReplicationStrategy")
 	if ok == false {
 		log.Critical("Can't load cassandraReplicationStrategy")
-		panic("Can't load cassandraReplicationStrategy")
+		return errors.New("Can't load cassandraReplicationStrategy")
 	}
 
 	cassandraTimeoutInMilliSecond, ok := configuration.LocalConfiguration.GetInt("cassandraTimeoutInMilliSecond")
 	if ok == false {
 		log.Critical("Can't load cassandraTimeoutInMilliSecond")
-		panic("Can't load cassandraTimeoutInMilliSecond")
+		return errors.New("Can't load cassandraTimeoutInMilliSecond")
 	}
 
 	CassandraClient = cassandra.CreateCassandraClient(
@@ -62,4 +70,6 @@ func init() {
 		cassandraKeyspace,
 		cassandraReplicationStrategy,
 		time.Millisecond*time.Duration(cassandraTimeoutInMilliSecond))
+
+	return nil
 }

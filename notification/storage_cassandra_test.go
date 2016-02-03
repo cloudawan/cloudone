@@ -20,10 +20,9 @@ import (
 	"testing"
 	"time"
 )
-*/
-/*
-func TestSave(t *testing.T) {
 
+func TestSave(t *testing.T) {
+	storageCassandra := &StorageCassandra{}
 	indicatorSlice := make([]Indicator, 1)
 	indicatorSlice[0] = Indicator{"cpu", false, 0.3, 800000000, false, 0.3, 1000000}
 	notifierSlice := make([]Notifier, 1)
@@ -34,23 +33,22 @@ func TestSave(t *testing.T) {
 
 	replicationControllerNotifierSerializable := ConvertToSerializable(replicationControllerNotifier)
 
-	fmt.Println(SaveReplicationControllerNotifierSerializable(&replicationControllerNotifierSerializable))
+	fmt.Println(storageCassandra.SaveReplicationControllerNotifierSerializable(&replicationControllerNotifierSerializable))
 }
-*/
-/*
-func TestDelete(t *testing.T) {
-	fmt.Println(DeleteReplicationControllerNotifierSerializable("default", "replicationController", "flask"))
-}
-*/
-/*
-func TestLoad(t *testing.T) {
 
-	replicationControllerNotifierSerializable, err := LoadReplicationControllerNotifierSerializable("default", "replicationController", "flask")
+func TestDelete(t *testing.T) {
+	storageCassandra := &StorageCassandra{}
+	fmt.Println(storageCassandra.DeleteReplicationControllerNotifierSerializable("default", "replicationController", "flask"))
+}
+
+func TestLoad(t *testing.T) {
+	storageCassandra := &StorageCassandra{}
+	replicationControllerNotifierSerializable, err := storageCassandra.LoadReplicationControllerNotifierSerializable("default", "replicationController", "flask")
 	fmt.Println(replicationControllerNotifierSerializable, err)
 }
-*/
-/*
+
 func TestLoadAll(t *testing.T) {
-	fmt.Println(LoadAllReplicationControllerNotifierSerializable())
+	storageCassandra := &StorageCassandra{}
+	fmt.Println(storageCassandra.LoadAllReplicationControllerNotifierSerializable())
 }
 */

@@ -134,7 +134,7 @@ func putReplicationControllerNotifier(request *restful.Request, response *restfu
 		return
 	}
 
-	err = notification.SaveReplicationControllerNotifierSerializable(replicationControllerNotifierSerializable)
+	err = notification.GetStorage().SaveReplicationControllerNotifierSerializable(replicationControllerNotifierSerializable)
 	if err != nil {
 		errorText := fmt.Sprintf("PUT notifier %s fail to save to database with error %s", replicationControllerNotifierSerializable, err)
 		log.Error(errorText)
@@ -151,7 +151,7 @@ func deleteReplicationControllerNotifier(request *restful.Request, response *res
 	replicationControllerNotifier.Kind = request.PathParameter("kind")
 	replicationControllerNotifier.Name = request.PathParameter("name")
 	replicationControllerNotifier.Check = false
-	err := notification.DeleteReplicationControllerNotifierSerializable(replicationControllerNotifier.Namespace, replicationControllerNotifier.Kind, replicationControllerNotifier.Name)
+	err := notification.GetStorage().DeleteReplicationControllerNotifierSerializable(replicationControllerNotifier.Namespace, replicationControllerNotifier.Kind, replicationControllerNotifier.Name)
 	if err != nil {
 		errorText := fmt.Sprintf("Delete namespace %s kind %s name %s fail to delete with error %s", replicationControllerNotifier.Namespace, replicationControllerNotifier.Kind, replicationControllerNotifier.Name, err)
 		log.Error(errorText)

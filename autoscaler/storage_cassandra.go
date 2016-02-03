@@ -20,7 +20,11 @@ import (
 	"time"
 )
 
-var tableSchemaAutoscaler = `
+type StorageCassandra struct {
+}
+
+func (storageCassandra *StorageCassandra) initialize() error {
+	tableSchemaAutoscaler := `
 	CREATE TABLE IF NOT EXISTS auto_scaler (
 	check boolean,
 	cool_down_duration bigint,
@@ -36,15 +40,16 @@ var tableSchemaAutoscaler = `
 	PRIMARY KEY (namespace, kind, name));
 	`
 
-func init() {
 	err := cassandra.CassandraClient.CreateTableIfNotExist(tableSchemaAutoscaler, 3, time.Second*5)
 	if err != nil {
 		log.Critical("Fail to create table with schema %s", tableSchemaAutoscaler)
-		panic(err)
+		return err
 	}
+
+	return nil
 }
 
-func DeleteReplicationControllerAutoScaler(namespace string, kind string, name string) error {
+func (storageCassandra *StorageCassandra) DeleteReplicationControllerAutoScaler(namespace string, kind string, name string) error {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)
@@ -57,7 +62,7 @@ func DeleteReplicationControllerAutoScaler(namespace string, kind string, name s
 	return nil
 }
 
-func SaveReplicationControllerAutoScaler(replicationControllerAutoScaler *ReplicationControllerAutoScaler) error {
+func (storageCassandra *StorageCassandra) SaveReplicationControllerAutoScaler(replicationControllerAutoScaler *ReplicationControllerAutoScaler) error {
 	indicatorSliceByteSlice, err := json.Marshal(replicationControllerAutoScaler.IndicatorSlice)
 	if err != nil {
 		log.Error("Marshal indicator slice error replicationControllerAutoScaler %s error: %s", replicationControllerAutoScaler, err)
@@ -88,7 +93,7 @@ func SaveReplicationControllerAutoScaler(replicationControllerAutoScaler *Replic
 	return nil
 }
 
-func LoadReplicationControllerAutoScaler(namespace string, kind string, name string) (*ReplicationControllerAutoScaler, error) {
+func (storageCassandra *StorageCassandra) LoadReplicationControllerAutoScaler(namespace string, kind string, name string) (*ReplicationControllerAutoScaler, error) {
 	indicatorSliceByteSlice := make([]byte, 0)
 	replicationControllerAutoScaler := new(ReplicationControllerAutoScaler)
 
@@ -123,7 +128,7 @@ func LoadReplicationControllerAutoScaler(namespace string, kind string, name str
 	return replicationControllerAutoScaler, nil
 }
 
-func LoadAllReplicationControllerAutoScaler() ([]ReplicationControllerAutoScaler, error) {
+func (storageCassandra *StorageCassandra) LoadAllReplicationControllerAutoScaler() ([]ReplicationControllerAutoScaler, error) {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)

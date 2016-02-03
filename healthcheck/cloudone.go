@@ -46,8 +46,8 @@ func (cloudoneControl *CloudoneControl) testRestAPI() bool {
 	return result
 }
 
-func (cloudoneControl *CloudoneControl) testStorageCassandra() bool {
-	if err := saveTest("test", time.Now()); err != nil {
+func (cloudoneControl *CloudoneControl) testStorage() bool {
+	if err := GetStorage().saveTest("test", time.Now()); err != nil {
 		log.Error(err)
 		return false
 	} else {
@@ -69,7 +69,7 @@ func (cloudoneControl *CloudoneControl) testDocker() bool {
 func (cloudoneControl *CloudoneControl) GetStatus() map[string]interface{} {
 	jsonMap := make(map[string]interface{})
 	jsonMap["restapi"] = cloudoneControl.testRestAPI()
-	jsonMap["cassandra"] = cloudoneControl.testStorageCassandra()
+	jsonMap["storage"] = cloudoneControl.testStorage()
 	jsonMap["docker"] = cloudoneControl.testDocker()
 	return jsonMap
 }

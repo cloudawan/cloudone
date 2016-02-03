@@ -20,7 +20,11 @@ import (
 	"time"
 )
 
-var tableSchemaImageInformation = `
+type StorageCassandra struct {
+}
+
+func (storageCassandra *StorageCassandra) initialize() error {
+	tableSchemaImageInformation := `
 	CREATE TABLE IF NOT EXISTS image_information (
 	name varchar,
 	kind varchar,
@@ -30,7 +34,7 @@ var tableSchemaImageInformation = `
 	PRIMARY KEY (name));
 	`
 
-var tableSchemaImageRecord = `
+	tableSchemaImageRecord := `
 	CREATE TABLE IF NOT EXISTS image_record (
 	image_information varchar,
 	version varchar,
@@ -42,20 +46,21 @@ var tableSchemaImageRecord = `
 	PRIMARY KEY (image_information, version));
 	`
 
-func init() {
 	err := cassandra.CassandraClient.CreateTableIfNotExist(tableSchemaImageInformation, 3, time.Second*5)
 	if err != nil {
 		log.Critical("Fail to create table with schema %s", tableSchemaImageInformation)
-		panic(err)
+		return err
 	}
 	err = cassandra.CassandraClient.CreateTableIfNotExist(tableSchemaImageRecord, 3, time.Second*5)
 	if err != nil {
 		log.Critical("Fail to create table with schema %s", tableSchemaImageRecord)
-		panic(err)
+		return err
 	}
+
+	return nil
 }
 
-func DeleteImageInformationAndRelatedRecord(name string) error {
+func (storageCassandra *StorageCassandra) DeleteImageInformationAndRelatedRecord(name string) error {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)
@@ -65,10 +70,10 @@ func DeleteImageInformationAndRelatedRecord(name string) error {
 		log.Error("Delete ImageInformation with name %s error: %s", name, err)
 		return err
 	}
-	return deleteImageRecordWithImageInformationName(name)
+	return GetStorage().deleteImageRecordWithImageInformationName(name)
 }
 
-func saveImageInformation(imageInformation *ImageInformation) error {
+func (storageCassandra *StorageCassandra) saveImageInformation(imageInformation *ImageInformation) error {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)
@@ -87,7 +92,7 @@ func saveImageInformation(imageInformation *ImageInformation) error {
 	return nil
 }
 
-func LoadImageInformation(name string) (*ImageInformation, error) {
+func (storageCassandra *StorageCassandra) LoadImageInformation(name string) (*ImageInformation, error) {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)
@@ -109,7 +114,7 @@ func LoadImageInformation(name string) (*ImageInformation, error) {
 	}
 }
 
-func LoadAllImageInformation() ([]ImageInformation, error) {
+func (storageCassandra *StorageCassandra) LoadAllImageInformation() ([]ImageInformation, error) {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)
@@ -140,7 +145,7 @@ func LoadAllImageInformation() ([]ImageInformation, error) {
 	}
 }
 
-func saveImageRecord(imageRecord *ImageRecord) error {
+func (storageCassandra *StorageCassandra) saveImageRecord(imageRecord *ImageRecord) error {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)
@@ -154,7 +159,7 @@ func saveImageRecord(imageRecord *ImageRecord) error {
 	return nil
 }
 
-func DeleteImageRecord(imageInformationName string, version string) error {
+func (storageCassandra *StorageCassandra) DeleteImageRecord(imageInformationName string, version string) error {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)
@@ -167,7 +172,7 @@ func DeleteImageRecord(imageInformationName string, version string) error {
 	return nil
 }
 
-func deleteImageRecordWithImageInformationName(imageInformationName string) error {
+func (storageCassandra *StorageCassandra) deleteImageRecordWithImageInformationName(imageInformationName string) error {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)
@@ -180,7 +185,7 @@ func deleteImageRecordWithImageInformationName(imageInformationName string) erro
 	return nil
 }
 
-func LoadImageRecord(imageInformationName string, version string) (*ImageRecord, error) {
+func (storageCassandra *StorageCassandra) LoadImageRecord(imageInformationName string, version string) (*ImageRecord, error) {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)
@@ -206,7 +211,7 @@ func LoadImageRecord(imageInformationName string, version string) (*ImageRecord,
 	}
 }
 
-func LoadImageRecordWithImageInformationName(imageInformationName string) ([]ImageRecord, error) {
+func (storageCassandra *StorageCassandra) LoadImageRecordWithImageInformationName(imageInformationName string) ([]ImageRecord, error) {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)

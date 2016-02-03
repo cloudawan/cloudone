@@ -53,7 +53,7 @@ func BuildCreate(imageInformation *ImageInformation) error {
 	}
 
 	// Save image record
-	err = saveImageRecord(imageRecord)
+	err = GetStorage().saveImageRecord(imageRecord)
 	if err != nil {
 		log.Error("Save image record error: %s", err)
 		return err
@@ -61,7 +61,7 @@ func BuildCreate(imageInformation *ImageInformation) error {
 
 	imageInformation.CurrentVersion = imageRecord.Version
 	// Save image information
-	err = saveImageInformation(imageInformation)
+	err = GetStorage().saveImageInformation(imageInformation)
 	if err != nil {
 		log.Error("Save image information error: %s", err)
 		return err
@@ -71,7 +71,7 @@ func BuildCreate(imageInformation *ImageInformation) error {
 }
 
 func BuildUpgrade(imageInformationName string, description string) error {
-	imageInformation, err := LoadImageInformation(imageInformationName)
+	imageInformation, err := GetStorage().LoadImageInformation(imageInformationName)
 	if err != nil {
 		log.Error("Load image information error: %s", err)
 		return err
@@ -84,7 +84,7 @@ func BuildUpgrade(imageInformationName string, description string) error {
 	}
 
 	// Save image record
-	err = saveImageRecord(imageRecord)
+	err = GetStorage().saveImageRecord(imageRecord)
 	if err != nil {
 		log.Error("Save image record error: %s", err)
 		return err
@@ -92,7 +92,7 @@ func BuildUpgrade(imageInformationName string, description string) error {
 
 	imageInformation.CurrentVersion = imageRecord.Version
 	// Save image information
-	err = saveImageInformation(imageInformation)
+	err = GetStorage().saveImageInformation(imageInformation)
 	if err != nil {
 		log.Error("Save image information error: %s", err)
 		return err

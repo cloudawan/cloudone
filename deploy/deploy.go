@@ -35,7 +35,7 @@ func DeployCreate(
 	replicationControllerContainerPortSlice []control.ReplicationControllerContainerPort,
 	replicationControllerContainerEnvironmentSlice []control.ReplicationControllerContainerEnvironment) error {
 
-	imageRecord, err := image.LoadImageRecord(imageInformationName, version)
+	imageRecord, err := image.GetStorage().LoadImageRecord(imageInformationName, version)
 	if err != nil {
 		log.Error("Load image record error: %s imageInformationName %s version %s", err, imageInformationName, version)
 		return err
@@ -82,7 +82,7 @@ func DeployCreate(
 		description,
 	}
 
-	err = saveDeployInformation(deployInformation)
+	err = GetStorage().saveDeployInformation(deployInformation)
 	if err != nil {
 		log.Error("Save deploy information error: %s", err)
 		return err
@@ -95,13 +95,13 @@ func DeployUpdate(kubeapiHost string, kubeapiPort int, namespace string,
 	imageInformationName string, version string, description string,
 	environmentSlice []control.ReplicationControllerContainerEnvironment) error {
 
-	imageRecord, err := image.LoadImageRecord(imageInformationName, version)
+	imageRecord, err := image.GetStorage().LoadImageRecord(imageInformationName, version)
 	if err != nil {
 		log.Error("Load image record error: %s imageInformationName %s version %s", err, imageInformationName, version)
 		return err
 	}
 
-	deployInformation, err := LoadDeployInformation(namespace, imageInformationName)
+	deployInformation, err := GetStorage().LoadDeployInformation(namespace, imageInformationName)
 	if err != nil {
 		log.Error("Load deploy information error: %s imageInformationName %s version %s", err, imageInformationName, version)
 		return err
@@ -123,7 +123,7 @@ func DeployUpdate(kubeapiHost string, kubeapiPort int, namespace string,
 		return err
 	}
 
-	err = saveDeployInformation(deployInformation)
+	err = GetStorage().saveDeployInformation(deployInformation)
 	if err != nil {
 		log.Error("Save deploy information error: %s", err)
 		return err

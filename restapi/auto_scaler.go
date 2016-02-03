@@ -118,7 +118,7 @@ func putReplicationControllerAutoScaler(request *restful.Request, response *rest
 		return
 	}
 
-	err = autoscaler.SaveReplicationControllerAutoScaler(replicationControllerAutoScaler)
+	err = autoscaler.GetStorage().SaveReplicationControllerAutoScaler(replicationControllerAutoScaler)
 	if err != nil {
 		errorText := fmt.Sprintf("PUT autoscaler %s fail to save to database with error %s", replicationControllerAutoScaler, err)
 		log.Error(errorText)
@@ -135,7 +135,7 @@ func deleteReplicationControllerAutoScaler(request *restful.Request, response *r
 	replicationControllerAutoScaler.Kind = request.PathParameter("kind")
 	replicationControllerAutoScaler.Name = request.PathParameter("name")
 	replicationControllerAutoScaler.Check = false
-	err := autoscaler.DeleteReplicationControllerAutoScaler(replicationControllerAutoScaler.Namespace, replicationControllerAutoScaler.Kind, replicationControllerAutoScaler.Name)
+	err := autoscaler.GetStorage().DeleteReplicationControllerAutoScaler(replicationControllerAutoScaler.Namespace, replicationControllerAutoScaler.Kind, replicationControllerAutoScaler.Name)
 	if err != nil {
 		errorText := fmt.Sprintf("Delete namespace %s replicationcontroller %s fail to delete with error %s", replicationControllerAutoScaler, err)
 		log.Error(errorText)

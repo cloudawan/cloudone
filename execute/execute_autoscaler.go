@@ -25,7 +25,7 @@ var replicationControllerAutoScalerMap = make(map[string]*autoscaler.Replication
 
 func init() {
 	// Load from database
-	replicationControllerAutoScalerSlice, err := autoscaler.LoadAllReplicationControllerAutoScaler()
+	replicationControllerAutoScalerSlice, err := autoscaler.GetStorage().LoadAllReplicationControllerAutoScaler()
 	if err != nil {
 		log.Error(err)
 	} else {

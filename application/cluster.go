@@ -36,7 +36,7 @@ type Cluster struct {
 }
 
 func LaunchClusterApplication(kubeapiHost string, kubeapiPort int, namespace string, name string, environmentSlice []interface{}, size int) error {
-	cluster, err := LoadClusterApplication(name)
+	cluster, err := GetStorage().LoadClusterApplication(name)
 	if err != nil {
 		log.Error("Load cluster application error %s", err)
 		return err
