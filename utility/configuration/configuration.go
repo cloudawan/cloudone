@@ -46,8 +46,8 @@ var configurationContent = `
 	"glusterfsSSHPort": 22,
 	"glusterfsSSHUser": "user",
 	"glusterfsSSHPassword": "password",
-	"etcdHostAndPort": ["127.0.0.1:4001"],
-	"etcdCheckTimeoutInMilliSecond": 300,
+	"etcdEndpoints": ["http://127.0.0.1:4001"],
+	"etcdHeaderTimeoutPerRequestInMilliSecond": 1000,
 	"storageTypeDefault": 2
 }
 `

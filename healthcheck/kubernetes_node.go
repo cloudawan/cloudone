@@ -15,125 +15,105 @@
 package healthcheck
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/cloudawan/cloudone/utility/configuration"
-	"github.com/cloudawan/cloudone_utility/restclient"
-	"time"
+	"github.com/cloudawan/cloudone/utility/database/etcd"
+	"golang.org/x/net/context"
+	"strings"
 )
 
 func CreateKubernetesNodeControl() (*KubernetesNodeControl, error) {
-	etcdHostAndPortSlice, ok := configuration.LocalConfiguration.GetStringSlice("etcdHostAndPort")
-	if ok == false {
-		log.Error("Can't load etcdHostAndPortSlice")
-		return nil, errors.New("Can't load etcdHostAndPortSlice")
-	}
-
-	etcdCheckTimeoutInMilliSecond, ok := configuration.LocalConfiguration.GetInt("etcdCheckTimeoutInMilliSecond")
-	if ok == false {
-		log.Error("Can't load etcdCheckTimeoutInMilliSecond")
-		return nil, errors.New("Can't load etcdCheckTimeoutInMilliSecond")
-	}
-
-	kubernetesNodeControl := &KubernetesNodeControl{
-		etcdHostAndPortSlice,
-		etcdCheckTimeoutInMilliSecond,
-	}
+	kubernetesNodeControl := &KubernetesNodeControl{}
 
 	return kubernetesNodeControl, nil
 }
 
 type KubernetesNodeControl struct {
-	EtcdHostAndPortSlice          []string
-	EtcdCheckTimeoutInMilliSecond int
-}
-
-func (kubernetesNodeControl *KubernetesNodeControl) getAvailableHostAndPort() (*string, error) {
-	for _, hostAndPort := range kubernetesNodeControl.EtcdHostAndPortSlice {
-		result, err := restclient.HealthCheck("http://"+hostAndPort+"/v2/keys",
-			time.Duration(kubernetesNodeControl.EtcdCheckTimeoutInMilliSecond)*time.Millisecond)
-		if result {
-			return &hostAndPort, nil
-		} else if err != nil {
-			log.Error(err)
-		}
-	}
-
-	return nil, errors.New("No available host and port")
 }
 
 func (kubernetesNodeControl *KubernetesNodeControl) GetStatus() (map[string]interface{}, error) {
-	hostAndPort, err := kubernetesNodeControl.getAvailableHostAndPort()
+	keysAPI, err := etcd.EtcdClient.GetKeysAPI()
+
+	response, err := keysAPI.Get(context.Background(), "/cloudawan/cloudone/health", nil)
 	if err != nil {
 		log.Error(err)
 		return nil, err
 	}
-	result, err := restclient.RequestGet("http://"+*hostAndPort+"/v2/keys/cloudawan/cloudone/health", false)
-	jsonMap, ok := result.(map[string]interface{})
-	if ok {
-		return jsonMap, nil
-	} else {
-		text := fmt.Sprintf("Fail to convert result: %v", result)
+
+	if response.Node == nil {
+		text := fmt.Sprintf("Response node is nil. Response: %v", response)
 		log.Error(text)
 		return nil, errors.New(text)
+	}
+
+	hasError := false
+	errorBuffer := bytes.Buffer{}
+	jsonMap := make(map[string]interface{})
+	for _, node := range response.Node.Nodes {
+		valueJsonMap := make(map[string]interface{})
+		err := json.Unmarshal([]byte(node.Value), &valueJsonMap)
+		if err != nil {
+			hasError = true
+			errorBuffer.WriteString(err.Error())
+			log.Error(err)
+		}
+
+		splitSlice := strings.Split(node.Key, "/")
+		ip := splitSlice[len(splitSlice)-1]
+
+		jsonMap[ip] = valueJsonMap
+	}
+
+	if hasError {
+		return jsonMap, errors.New(errorBuffer.String())
+	} else {
+		return jsonMap, nil
 	}
 }
 
 func (kubernetesNodeControl *KubernetesNodeControl) GetHostWithinFlannelNetwork() ([]string, error) {
-	hostAndPort, err := kubernetesNodeControl.getAvailableHostAndPort()
+	keysAPI, err := etcd.EtcdClient.GetKeysAPI()
+
+	response, err := keysAPI.Get(context.Background(), "/coreos.com/network/subnets", nil)
 	if err != nil {
 		log.Error(err)
 		return nil, err
 	}
-	result, err := restclient.RequestGet("http://"+*hostAndPort+"/v2/keys/coreos.com/network/subnets", false)
-	jsonMap, ok := result.(map[string]interface{})
-	if ok {
-		nodeJsonMap, ok := jsonMap["node"].(map[string]interface{})
-		if ok == false {
-			text := fmt.Sprintf("Fail to convert jsonMap[node]: %v, jsonMap: %v", jsonMap["node"], jsonMap)
-			log.Error(text)
-			return nil, errors.New(text)
-		}
-		nodeSlice, _ := nodeJsonMap["nodes"].([]interface{})
-		if ok == false {
-			text := fmt.Sprintf("Fail to convert nodeJsonMap[nodes]: %v, jsonMap: %v", nodeJsonMap["nodes"], jsonMap)
-			log.Error(text)
-			return nil, errors.New(text)
-		}
 
-		ipSlice := make([]string, 0)
-		for _, node := range nodeSlice {
-			data, ok := node.(map[string]interface{})
-			if ok == false {
-				text := fmt.Sprintf("Fail to convert node: %v, jsonMap: %v", node, jsonMap)
-				log.Error(text)
-				return nil, errors.New(text)
-			}
-			value, ok := data["value"].(string)
-			if ok == false {
-				text := fmt.Sprintf("Fail to convert data[value]: %v jsonMap: %v", data["value"], jsonMap)
-				log.Error(text)
-				return nil, errors.New(text)
-			}
-			valueJsonMap := make(map[string]interface{})
-			err := json.Unmarshal([]byte(value), &valueJsonMap)
-			if err != nil {
-				log.Error(err)
-				return nil, err
-			}
-			ip, ok := valueJsonMap["PublicIP"].(string)
-			if ok == false {
-				text := fmt.Sprintf("Fail to convert valueJsonMap[PublicIP]: %v jsonMap: %v", valueJsonMap["PublicIP"], jsonMap)
-				log.Error(text)
-				return nil, errors.New(text)
-			}
-			ipSlice = append(ipSlice, ip)
-		}
-		return ipSlice, nil
-	} else {
-		text := fmt.Sprintf("Fail to convert result: %v", result)
+	if response.Node == nil {
+		text := fmt.Sprintf("Response node is nil. Response: %v", response)
 		log.Error(text)
 		return nil, errors.New(text)
+	}
+
+	hasError := false
+	errorBuffer := bytes.Buffer{}
+	ipSlice := make([]string, 0)
+	for _, node := range response.Node.Nodes {
+		valueJsonMap := make(map[string]interface{})
+		err := json.Unmarshal([]byte(node.Value), &valueJsonMap)
+		if err != nil {
+			hasError = true
+			errorBuffer.WriteString(err.Error())
+			log.Error(err)
+		}
+
+		ip, ok := valueJsonMap["PublicIP"].(string)
+		if ok {
+			ipSlice = append(ipSlice, ip)
+		} else {
+			hasError = true
+			text := fmt.Sprintf("Fail to convert valueJsonMap[PublicIP]: %v valueJsonMap: %v", valueJsonMap["PublicIP"], valueJsonMap)
+			errorBuffer.WriteString(text)
+			log.Error(text)
+		}
+	}
+
+	if hasError {
+		return ipSlice, errors.New(errorBuffer.String())
+	} else {
+		return ipSlice, nil
 	}
 }

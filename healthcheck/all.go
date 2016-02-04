@@ -15,42 +15,26 @@
 package healthcheck
 
 import (
-	"encoding/json"
-	"github.com/cloudawan/cloudone/control/glusterfs"
-	"strings"
+//"github.com/cloudawan/cloudone/control/glusterfs"
 )
 
 func GetAllStatus() (map[string]interface{}, error) {
 	jsonMap := make(map[string]interface{})
 	// Kubernetes
-	jsonMap["kubernetes"] = make(map[string]interface{})
 	kubernetesNodeControl, err := CreateKubernetesNodeControl()
 	if err != nil {
 		log.Error(err)
-		return nil, err
+		return jsonMap, err
 	}
-	kubernetesNodeJsonMap, err := kubernetesNodeControl.GetStatus()
+	jsonMap["kubernetes"], err = kubernetesNodeControl.GetStatus()
 	if err != nil {
 		log.Error(err)
-		return nil, err
+		return jsonMap, err
 	}
 	ipSlice, err := kubernetesNodeControl.GetHostWithinFlannelNetwork()
 	if err != nil {
 		log.Error(err)
-		return nil, err
-	}
-	for _, data := range kubernetesNodeJsonMap["node"].(map[string]interface{})["nodes"].([]interface{}) {
-		dataJsonMap, _ := data.(map[string]interface{})
-		key, _ := dataJsonMap["key"].(string)
-		splitSlice := strings.Split(key, "/")
-		ip := splitSlice[len(splitSlice)-1]
-		valueText, _ := dataJsonMap["value"].(string)
-		valueJsonMap := make(map[string]interface{})
-		err := json.Unmarshal([]byte(valueText), &valueJsonMap)
-		if err != nil {
-			log.Error(err)
-		}
-		jsonMap["kubernetes"].(map[string]interface{})[ip] = valueJsonMap
+		return jsonMap, err
 	}
 	for _, ip := range ipSlice {
 		if jsonMap["kubernetes"].(map[string]interface{})[ip] == nil {
@@ -61,24 +45,26 @@ func GetAllStatus() (map[string]interface{}, error) {
 		}
 	}
 	// Glusterfs
-	glusterfsVolumeControl, err := glusterfs.CreateGlusterfsVolumeControl()
-	if err != nil {
-		log.Error(err)
-		return nil, err
-	}
-	hostStatusMap := glusterfsVolumeControl.GetHostStatus()
-	jsonMap["glusterfs"] = make(map[string]interface{})
-	for key, value := range hostStatusMap {
-		jsonMap["glusterfs"].(map[string]interface{})[key] = make(map[string]interface{})
-		jsonMap["glusterfs"].(map[string]interface{})[key].(map[string]interface{})["active"] = true
-		jsonMap["glusterfs"].(map[string]interface{})[key].(map[string]interface{})["service"] = make(map[string]interface{})
-		jsonMap["glusterfs"].(map[string]interface{})[key].(map[string]interface{})["service"].(map[string]interface{})["glusterfs"] = value
-	}
+	/*
+		glusterfsVolumeControl, err := glusterfs.CreateGlusterfsVolumeControl()
+		if err != nil {
+			log.Error(err)
+			return jsonMap, err
+		}
+		hostStatusMap := glusterfsVolumeControl.GetHostStatus()
+		jsonMap["glusterfs"] = make(map[string]interface{})
+		for key, value := range hostStatusMap {
+			jsonMap["glusterfs"].(map[string]interface{})[key] = make(map[string]interface{})
+			jsonMap["glusterfs"].(map[string]interface{})[key].(map[string]interface{})["active"] = true
+			jsonMap["glusterfs"].(map[string]interface{})[key].(map[string]interface{})["service"] = make(map[string]interface{})
+			jsonMap["glusterfs"].(map[string]interface{})[key].(map[string]interface{})["service"].(map[string]interface{})["glusterfs"] = value
+		}
+	*/
 	// CloudOne
 	cloudoneControl, err := CreateCloudoneControl()
 	if err != nil {
 		log.Error(err)
-		return nil, err
+		return jsonMap, err
 	}
 	jsonMap["cloudone"] = cloudoneControl.GetStatus()
 
