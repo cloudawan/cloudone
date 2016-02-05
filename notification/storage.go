@@ -19,21 +19,15 @@ import (
 	"github.com/cloudawan/cloudone/utility/configuration"
 )
 
-const (
-	StorageTypeDefault   = 0
-	StorageTypeDummy     = 1
-	StorageTypeCassandra = 2
-)
-
 var storage Storage = nil
 
 func GetStorage() Storage {
 	switch storage.(type) {
 	case nil:
-		if err := ReloadStorage(StorageTypeDefault); err != nil {
+		if err := ReloadStorage(configuration.StorageTypeDefault); err != nil {
 			log.Error(err)
 			log.Critical("Fail to load storage and use dummy")
-			if err := ReloadStorage(StorageTypeDummy); err != nil {
+			if err := ReloadStorage(configuration.StorageTypeDummy); err != nil {
 				log.Error(err)
 			}
 		}
@@ -41,7 +35,7 @@ func GetStorage() Storage {
 		// If dummy, will retry to use default storage every configured interval
 		if storage.(*StorageDummy).ShouldCheck() {
 			// If fail to reload, it will use the previous one
-			if err := ReloadStorage(StorageTypeDefault); err != nil {
+			if err := ReloadStorage(configuration.StorageTypeDefault); err != nil {
 				log.Error(err)
 			}
 		}
@@ -54,39 +48,37 @@ func ReloadStorage(storageType int) error {
 	switch storageType {
 	default:
 		return errors.New("Not supported type")
-	case StorageTypeDefault:
+	case configuration.StorageTypeDefault:
 		// If not indicated, use default
-		storageTypeDefault, err := getStorageTypeDefault()
+		storageTypeDefault, err := configuration.GetStorageTypeDefault()
 		if err != nil {
 			log.Error(err)
-			return ReloadStorage(StorageTypeDummy)
+			return ReloadStorage(configuration.StorageTypeDummy)
 		} else {
 			return ReloadStorage(storageTypeDefault)
 		}
-	case StorageTypeDummy:
+	case configuration.StorageTypeDummy:
 		newStorage := &StorageDummy{}
 		err := newStorage.initialize()
 		if err == nil {
 			storage = newStorage
 		}
 		return err
-	case StorageTypeCassandra:
+	case configuration.StorageTypeCassandra:
 		newStorage := &StorageCassandra{}
 		err := newStorage.initialize()
 		if err == nil {
 			storage = newStorage
 		}
 		return err
+	case configuration.StorageTypeEtcd:
+		newStorage := &StorageEtcd{}
+		err := newStorage.initialize()
+		if err == nil {
+			storage = newStorage
+		}
+		return err
 	}
-}
-
-func getStorageTypeDefault() (int, error) {
-	value, ok := configuration.LocalConfiguration.GetInt("storageTypeDefault")
-	if ok == false {
-		log.Critical("Can't load storageTypeDefault")
-		return 0, errors.New("Can't load storageTypeDefault")
-	}
-	return value, nil
 }
 
 type Storage interface {

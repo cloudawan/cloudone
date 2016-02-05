@@ -70,7 +70,7 @@ func (storageCassandra *StorageCassandra) DeleteImageInformationAndRelatedRecord
 		log.Error("Delete ImageInformation with name %s error: %s", name, err)
 		return err
 	}
-	return GetStorage().deleteImageRecordWithImageInformationName(name)
+	return storageCassandra.deleteImageRecordWithImageInformationName(name)
 }
 
 func (storageCassandra *StorageCassandra) saveImageInformation(imageInformation *ImageInformation) error {
@@ -145,20 +145,6 @@ func (storageCassandra *StorageCassandra) LoadAllImageInformation() ([]ImageInfo
 	}
 }
 
-func (storageCassandra *StorageCassandra) saveImageRecord(imageRecord *ImageRecord) error {
-	session, err := cassandra.CassandraClient.GetSession()
-	if err != nil {
-		log.Error("Get session error %s", err)
-		return err
-	}
-	if err := session.Query("INSERT INTO image_record (image_information, version, path, version_info, environment, description, created_time) VALUES (?, ?, ?, ?, ?, ?, ?)",
-		imageRecord.ImageInformation, imageRecord.Version, imageRecord.Path, imageRecord.VersionInfo, imageRecord.Environment, imageRecord.Description, gocql.UUIDFromTime(imageRecord.CreatedTime)).Exec(); err != nil {
-		log.Error("Save ImageRecord %s error: %s", imageRecord, err)
-		return err
-	}
-	return nil
-}
-
 func (storageCassandra *StorageCassandra) DeleteImageRecord(imageInformationName string, version string) error {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
@@ -180,6 +166,20 @@ func (storageCassandra *StorageCassandra) deleteImageRecordWithImageInformationN
 	}
 	if err := session.Query("DELETE FROM image_record WHERE image_information = ?", imageInformationName).Exec(); err != nil {
 		log.Error("Delete ImageRecord with image information name %s error: %s", imageInformationName, err)
+		return err
+	}
+	return nil
+}
+
+func (storageCassandra *StorageCassandra) saveImageRecord(imageRecord *ImageRecord) error {
+	session, err := cassandra.CassandraClient.GetSession()
+	if err != nil {
+		log.Error("Get session error %s", err)
+		return err
+	}
+	if err := session.Query("INSERT INTO image_record (image_information, version, path, version_info, environment, description, created_time) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		imageRecord.ImageInformation, imageRecord.Version, imageRecord.Path, imageRecord.VersionInfo, imageRecord.Environment, imageRecord.Description, gocql.UUIDFromTime(imageRecord.CreatedTime)).Exec(); err != nil {
+		log.Error("Save ImageRecord %s error: %s", imageRecord, err)
 		return err
 	}
 	return nil

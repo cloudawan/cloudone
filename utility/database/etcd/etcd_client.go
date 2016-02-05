@@ -46,9 +46,16 @@ func Reload() error {
 		return errors.New("Can't load etcdHeaderTimeoutPerRequestInMilliSecond")
 	}
 
+	etcdBasePath, ok := configuration.LocalConfiguration.GetString("etcdBasePath")
+	if ok == false {
+		log.Critical("Can't load etcdBasePath")
+		return errors.New("Can't load etcdBasePath")
+	}
+
 	EtcdClient = etcd.CreateEtcdClient(
 		etcdEndpoints,
-		time.Millisecond*time.Duration(etcdHeaderTimeoutPerRequestInMilliSecond))
+		time.Millisecond*time.Duration(etcdHeaderTimeoutPerRequestInMilliSecond),
+		etcdBasePath)
 
 	return nil
 }

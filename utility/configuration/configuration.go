@@ -15,6 +15,7 @@
 package configuration
 
 import (
+	"errors"
 	"github.com/cloudawan/cloudone/utility/logger"
 	"github.com/cloudawan/cloudone_utility/configuration"
 )
@@ -48,7 +49,8 @@ var configurationContent = `
 	"glusterfsSSHPassword": "password",
 	"etcdEndpoints": ["http://127.0.0.1:4001"],
 	"etcdHeaderTimeoutPerRequestInMilliSecond": 1000,
-	"storageTypeDefault": 2
+	"etcdBasePath": "/cloudawan/cloudone",
+	"storageTypeDefault": 3
 }
 `
 
@@ -69,4 +71,20 @@ func Reload() error {
 	}
 
 	return err
+}
+
+const (
+	StorageTypeDefault   = 0
+	StorageTypeDummy     = 1
+	StorageTypeCassandra = 2
+	StorageTypeEtcd      = 3
+)
+
+func GetStorageTypeDefault() (int, error) {
+	value, ok := LocalConfiguration.GetInt("storageTypeDefault")
+	if ok == false {
+		log.Critical("Can't load storageTypeDefault")
+		return 0, errors.New("Can't load storageTypeDefault")
+	}
+	return value, nil
 }
