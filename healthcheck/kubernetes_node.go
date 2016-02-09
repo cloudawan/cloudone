@@ -36,7 +36,7 @@ type KubernetesNodeControl struct {
 func (kubernetesNodeControl *KubernetesNodeControl) GetStatus() (map[string]interface{}, error) {
 	keysAPI, err := etcd.EtcdClient.GetKeysAPI()
 
-	response, err := keysAPI.Get(context.Background(), "/cloudawan/cloudone/health", nil)
+	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/health", nil)
 	if err != nil {
 		log.Error(err)
 		return nil, err
