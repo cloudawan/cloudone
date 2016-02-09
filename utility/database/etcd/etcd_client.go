@@ -34,10 +34,10 @@ func init() {
 }
 
 func Reload() error {
-	etcdEndpoints, ok := configuration.LocalConfiguration.GetStringSlice("etcdEndpoints")
+	etcdEndpoint, ok := configuration.LocalConfiguration.GetStringSlice("etcdEndpoint")
 	if ok == false {
-		log.Critical("Can't load etcdEndpoints")
-		return errors.New("Can't load etcdEndpoints")
+		log.Critical("Can't load etcdEndpoint")
+		return errors.New("Can't load etcdEndpoint")
 	}
 
 	etcdHeaderTimeoutPerRequestInMilliSecond, ok := configuration.LocalConfiguration.GetInt("etcdHeaderTimeoutPerRequestInMilliSecond")
@@ -53,7 +53,7 @@ func Reload() error {
 	}
 
 	EtcdClient = etcd.CreateEtcdClient(
-		etcdEndpoints,
+		etcdEndpoint,
 		time.Millisecond*time.Duration(etcdHeaderTimeoutPerRequestInMilliSecond),
 		etcdBasePath)
 
