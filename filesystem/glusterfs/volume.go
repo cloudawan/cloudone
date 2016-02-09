@@ -18,78 +18,11 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
-	"github.com/cloudawan/cloudone/utility/configuration"
 	"github.com/cloudawan/cloudone_utility/logger"
 	"github.com/cloudawan/cloudone_utility/sshclient"
 	"strconv"
 	"strings"
-	"time"
 )
-
-func CreateGlusterfsVolumeControl() (*GlusterfsVolumeControl, error) {
-	var ok bool
-
-	glusterfsHostSlice, ok := configuration.LocalConfiguration.GetStringSlice("glusterfsHost")
-	if ok == false {
-		log.Error("Can't load glusterfsClusterIPSlice")
-		return nil, errors.New("Can't load glusterfsClusterIPSlice")
-	}
-
-	glusterfsPath, ok := configuration.LocalConfiguration.GetString("glusterfsPath")
-	if ok == false {
-		log.Error("Can't load glusterfsPath")
-		return nil, errors.New("Can't load glusterfsPath")
-	}
-
-	glusterfsSSHDialTimeoutInMilliSecond, ok := configuration.LocalConfiguration.GetInt("glusterfsSSHDialTimeoutInMilliSecond")
-	if ok == false {
-		log.Error("Can't load glusterfsSSHDialTimeoutInMilliSecond")
-		return nil, errors.New("Can't load glusterfsSSHDialTimeoutInMilliSecond")
-	}
-
-	glusterfsSSHSessionTimeoutInMilliSecond, ok := configuration.LocalConfiguration.GetInt("glusterfsSSHSessionTimeoutInMilliSecond")
-	if ok == false {
-		log.Error("Can't load glusterfsSSHSessionTimeoutInMilliSecond")
-		return nil, errors.New("Can't load glusterfsSSHSessionTimeoutInMilliSecond")
-	}
-
-	glusterfsSSHHostSlice, ok := configuration.LocalConfiguration.GetStringSlice("glusterfsSSHHost")
-	if ok == false {
-		log.Error("Can't load glusterfsSSHHost")
-		return nil, errors.New("Can't load glusterfsSSHHost")
-	}
-
-	glusterfsSSHPort, ok := configuration.LocalConfiguration.GetInt("glusterfsSSHPort")
-	if ok == false {
-		log.Error("Can't load glusterfsSSHPort")
-		return nil, errors.New("Can't load glusterfsSSHPort")
-	}
-
-	glusterfsSSHUser, ok := configuration.LocalConfiguration.GetString("glusterfsSSHUser")
-	if ok == false {
-		log.Error("Can't load glusterfsSSHUser")
-		return nil, errors.New("Can't load glusterfsSSHUser")
-	}
-
-	glusterfsSSHPassword, ok := configuration.LocalConfiguration.GetString("glusterfsSSHPassword")
-	if ok == false {
-		log.Error("Can't load glusterfsSSHPassword")
-		return nil, errors.New("Can't load glusterfsSSHPassword")
-	}
-
-	glusterfsVolumeControl := &GlusterfsVolumeControl{
-		glusterfsHostSlice,
-		glusterfsPath,
-		glusterfsSSHDialTimeoutInMilliSecond,
-		glusterfsSSHSessionTimeoutInMilliSecond,
-		glusterfsSSHHostSlice,
-		glusterfsSSHPort,
-		glusterfsSSHUser,
-		glusterfsSSHPassword,
-	}
-
-	return glusterfsVolumeControl, nil
-}
 
 type GlusterfsVolume struct {
 	VolumeName     string
@@ -102,18 +35,7 @@ type GlusterfsVolume struct {
 	Size           int
 }
 
-type GlusterfsVolumeControl struct {
-	GlusterfsClusterHostSlice               []string
-	GlusterfsPath                           string
-	GlusterfsSSHDialTimeoutInMilliSecond    int
-	GlusterfsSSHSessionTimeoutInMilliSecond int
-	GlusterfsSSHHostSlice                   []string
-	GlusterfsSSHPort                        int
-	GlusterfsSSHUser                        string
-	GlusterfsSSHPassword                    string
-}
-
-func parseSize(field string) (returnedSize int, returnedError error) {
+func (glusterfsCluster *GlusterfsCluster) parseSize(field string) (returnedSize int, returnedError error) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error("Parse size error: %s", err)
@@ -140,7 +62,7 @@ func parseSize(field string) (returnedSize int, returnedError error) {
 	}
 }
 
-func parseVolumeInfo(text string) (returnedGlusterfsVolumeSlice []GlusterfsVolume, returnedError error) {
+func (glusterfsCluster *GlusterfsCluster) parseVolumeInfo(text string) (returnedGlusterfsVolumeSlice []GlusterfsVolume, returnedError error) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error("parseVolumeInfo Error: %s", err)
@@ -171,7 +93,7 @@ func parseVolumeInfo(text string) (returnedGlusterfsVolumeSlice []GlusterfsVolum
 			glusterfsVolume.Status = line[len("Status: "):]
 		} else if strings.HasPrefix(line, "Number of Bricks: ") {
 			glusterfsVolume.NumberOfBricks = line[len("Number of Bricks: "):]
-			glusterfsVolume.Size, _ = parseSize(glusterfsVolume.NumberOfBricks)
+			glusterfsVolume.Size, _ = glusterfsCluster.parseSize(glusterfsVolume.NumberOfBricks)
 		} else if strings.HasPrefix(line, "Transport-type: ") {
 			glusterfsVolume.TransportType = line[len("Transport-type: "):]
 		} else if line == "Bricks:" {
@@ -195,18 +117,18 @@ func parseVolumeInfo(text string) (returnedGlusterfsVolumeSlice []GlusterfsVolum
 	return glusterfsVolumeSlice, nil
 }
 
-func (glusterfsVolumeControl *GlusterfsVolumeControl) getAvailableHost() (*string, error) {
+func (glusterfsCluster *GlusterfsCluster) getAvailableHost() (*string, error) {
 	commandSlice := make([]string, 0)
 	commandSlice = append(commandSlice, "exit\n")
 
-	for _, host := range glusterfsVolumeControl.GlusterfsClusterHostSlice {
+	for _, host := range glusterfsCluster.HostSlice {
 		_, err := sshclient.InteractiveSSH(
-			time.Duration(glusterfsVolumeControl.GlusterfsSSHDialTimeoutInMilliSecond)*time.Millisecond,
-			time.Duration(glusterfsVolumeControl.GlusterfsSSHSessionTimeoutInMilliSecond)*time.Millisecond,
+			glusterfsCluster.SSHDialTimeout,
+			glusterfsCluster.SSHSessionTimeout,
 			host,
-			glusterfsVolumeControl.GlusterfsSSHPort,
-			glusterfsVolumeControl.GlusterfsSSHUser,
-			glusterfsVolumeControl.GlusterfsSSHPassword,
+			glusterfsCluster.SSHPort,
+			glusterfsCluster.SSHUser,
+			glusterfsCluster.SSHPassword,
 			commandSlice,
 			nil)
 		if err == nil {
@@ -219,20 +141,20 @@ func (glusterfsVolumeControl *GlusterfsVolumeControl) getAvailableHost() (*strin
 	return nil, errors.New("No available host")
 }
 
-func (glusterfsVolumeControl *GlusterfsVolumeControl) GetHostStatus() map[string]bool {
+func (glusterfsCluster *GlusterfsCluster) GetHostStatus() map[string]bool {
 	commandSlice := make([]string, 0)
 	commandSlice = append(commandSlice, "exit\n")
 
 	hostStatusMap := make(map[string]bool)
 
-	for _, host := range glusterfsVolumeControl.GlusterfsClusterHostSlice {
+	for _, host := range glusterfsCluster.HostSlice {
 		_, err := sshclient.InteractiveSSH(
-			time.Duration(glusterfsVolumeControl.GlusterfsSSHDialTimeoutInMilliSecond)*time.Millisecond,
-			time.Duration(glusterfsVolumeControl.GlusterfsSSHSessionTimeoutInMilliSecond)*time.Millisecond,
+			glusterfsCluster.SSHDialTimeout,
+			glusterfsCluster.SSHSessionTimeout,
 			host,
-			glusterfsVolumeControl.GlusterfsSSHPort,
-			glusterfsVolumeControl.GlusterfsSSHUser,
-			glusterfsVolumeControl.GlusterfsSSHPassword,
+			glusterfsCluster.SSHPort,
+			glusterfsCluster.SSHUser,
+			glusterfsCluster.SSHPassword,
 			commandSlice,
 			nil)
 		if err == nil {
@@ -246,8 +168,8 @@ func (glusterfsVolumeControl *GlusterfsVolumeControl) GetHostStatus() map[string
 	return hostStatusMap
 }
 
-func (glusterfsVolumeControl *GlusterfsVolumeControl) GetAllVolume() ([]GlusterfsVolume, error) {
-	host, err := glusterfsVolumeControl.getAvailableHost()
+func (glusterfsCluster *GlusterfsCluster) GetAllVolume() ([]GlusterfsVolume, error) {
+	host, err := glusterfsCluster.getAvailableHost()
 	if err != nil {
 		return nil, err
 	}
@@ -259,16 +181,16 @@ func (glusterfsVolumeControl *GlusterfsVolumeControl) GetAllVolume() ([]Glusterf
 	interactiveMap["[sudo]"] = "cloud4win\n"
 
 	resultSlice, err := sshclient.InteractiveSSH(
-		time.Duration(glusterfsVolumeControl.GlusterfsSSHDialTimeoutInMilliSecond)*time.Millisecond,
-		time.Duration(glusterfsVolumeControl.GlusterfsSSHSessionTimeoutInMilliSecond)*time.Millisecond,
+		glusterfsCluster.SSHDialTimeout,
+		glusterfsCluster.SSHSessionTimeout,
 		*host,
-		glusterfsVolumeControl.GlusterfsSSHPort,
-		glusterfsVolumeControl.GlusterfsSSHUser,
-		glusterfsVolumeControl.GlusterfsSSHPassword,
+		glusterfsCluster.SSHPort,
+		glusterfsCluster.SSHUser,
+		glusterfsCluster.SSHPassword,
 		commandSlice,
 		interactiveMap)
 
-	glusterfsVolumeSlice, err := parseVolumeInfo(resultSlice[0])
+	glusterfsVolumeSlice, err := glusterfsCluster.parseVolumeInfo(resultSlice[0])
 	if err != nil {
 		log.Error("Parse volume info error %s", err)
 		return nil, err
@@ -277,10 +199,10 @@ func (glusterfsVolumeControl *GlusterfsVolumeControl) GetAllVolume() ([]Glusterf
 	}
 }
 
-func (glusterfsVolumeControl *GlusterfsVolumeControl) CreateVolume(name string,
+func (glusterfsCluster *GlusterfsCluster) CreateVolume(name string,
 	stripe int, replica int, transport string, hostSlice []string) error {
 
-	host, err := glusterfsVolumeControl.getAvailableHost()
+	host, err := glusterfsCluster.getAvailableHost()
 	if err != nil {
 		return err
 	}
@@ -300,7 +222,7 @@ func (glusterfsVolumeControl *GlusterfsVolumeControl) CreateVolume(name string,
 	commandBuffer.WriteString(" transport ")
 	commandBuffer.WriteString(transport)
 	for _, ip := range hostSlice {
-		path := " " + ip + ":" + glusterfsVolumeControl.GlusterfsPath + "/" + name
+		path := " " + ip + ":" + glusterfsCluster.Path + "/" + name
 		commandBuffer.WriteString(path)
 	}
 	commandBuffer.WriteString(" force\n")
@@ -308,15 +230,15 @@ func (glusterfsVolumeControl *GlusterfsVolumeControl) CreateVolume(name string,
 	commandSlice = append(commandSlice, commandBuffer.String())
 
 	interactiveMap := make(map[string]string)
-	interactiveMap["[sudo]"] = glusterfsVolumeControl.GlusterfsSSHPassword + "\n"
+	interactiveMap["[sudo]"] = glusterfsCluster.SSHPassword + "\n"
 
 	resultSlice, err := sshclient.InteractiveSSH(
-		time.Duration(glusterfsVolumeControl.GlusterfsSSHDialTimeoutInMilliSecond)*time.Millisecond,
-		time.Duration(glusterfsVolumeControl.GlusterfsSSHSessionTimeoutInMilliSecond)*time.Millisecond,
+		glusterfsCluster.SSHDialTimeout,
+		glusterfsCluster.SSHSessionTimeout,
 		*host,
-		glusterfsVolumeControl.GlusterfsSSHPort,
-		glusterfsVolumeControl.GlusterfsSSHUser,
-		glusterfsVolumeControl.GlusterfsSSHPassword,
+		glusterfsCluster.SSHPort,
+		glusterfsCluster.SSHUser,
+		glusterfsCluster.SSHPassword,
 		commandSlice,
 		interactiveMap)
 
@@ -334,8 +256,8 @@ func (glusterfsVolumeControl *GlusterfsVolumeControl) CreateVolume(name string,
 	}
 }
 
-func (glusterfsVolumeControl *GlusterfsVolumeControl) StartVolume(name string) error {
-	host, err := glusterfsVolumeControl.getAvailableHost()
+func (glusterfsCluster *GlusterfsCluster) StartVolume(name string) error {
+	host, err := glusterfsCluster.getAvailableHost()
 	if err != nil {
 		return err
 	}
@@ -348,15 +270,15 @@ func (glusterfsVolumeControl *GlusterfsVolumeControl) StartVolume(name string) e
 	commandSlice = append(commandSlice, commandBuffer.String())
 
 	interactiveMap := make(map[string]string)
-	interactiveMap["[sudo]"] = glusterfsVolumeControl.GlusterfsSSHPassword + "\n"
+	interactiveMap["[sudo]"] = glusterfsCluster.SSHPassword + "\n"
 
 	resultSlice, err := sshclient.InteractiveSSH(
-		time.Duration(glusterfsVolumeControl.GlusterfsSSHDialTimeoutInMilliSecond)*time.Millisecond,
-		time.Duration(glusterfsVolumeControl.GlusterfsSSHSessionTimeoutInMilliSecond)*time.Millisecond,
+		glusterfsCluster.SSHDialTimeout,
+		glusterfsCluster.SSHSessionTimeout,
 		*host,
-		glusterfsVolumeControl.GlusterfsSSHPort,
-		glusterfsVolumeControl.GlusterfsSSHUser,
-		glusterfsVolumeControl.GlusterfsSSHPassword,
+		glusterfsCluster.SSHPort,
+		glusterfsCluster.SSHUser,
+		glusterfsCluster.SSHPassword,
 		commandSlice,
 		interactiveMap)
 
@@ -374,8 +296,8 @@ func (glusterfsVolumeControl *GlusterfsVolumeControl) StartVolume(name string) e
 	}
 }
 
-func (glusterfsVolumeControl *GlusterfsVolumeControl) StopVolume(name string) error {
-	host, err := glusterfsVolumeControl.getAvailableHost()
+func (glusterfsCluster *GlusterfsCluster) StopVolume(name string) error {
+	host, err := glusterfsCluster.getAvailableHost()
 	if err != nil {
 		return err
 	}
@@ -388,15 +310,15 @@ func (glusterfsVolumeControl *GlusterfsVolumeControl) StopVolume(name string) er
 	commandSlice = append(commandSlice, commandBuffer.String())
 
 	interactiveMap := make(map[string]string)
-	interactiveMap["[sudo]"] = glusterfsVolumeControl.GlusterfsSSHPassword + "\n"
+	interactiveMap["[sudo]"] = glusterfsCluster.SSHPassword + "\n"
 
 	resultSlice, err := sshclient.InteractiveSSH(
-		time.Duration(glusterfsVolumeControl.GlusterfsSSHDialTimeoutInMilliSecond)*time.Millisecond,
-		time.Duration(glusterfsVolumeControl.GlusterfsSSHSessionTimeoutInMilliSecond)*time.Millisecond,
+		glusterfsCluster.SSHDialTimeout,
+		glusterfsCluster.SSHSessionTimeout,
 		*host,
-		glusterfsVolumeControl.GlusterfsSSHPort,
-		glusterfsVolumeControl.GlusterfsSSHUser,
-		glusterfsVolumeControl.GlusterfsSSHPassword,
+		glusterfsCluster.SSHPort,
+		glusterfsCluster.SSHUser,
+		glusterfsCluster.SSHPassword,
 		commandSlice,
 		interactiveMap)
 
@@ -414,8 +336,8 @@ func (glusterfsVolumeControl *GlusterfsVolumeControl) StopVolume(name string) er
 	}
 }
 
-func (glusterfsVolumeControl *GlusterfsVolumeControl) DeleteVolume(name string) error {
-	host, err := glusterfsVolumeControl.getAvailableHost()
+func (glusterfsCluster *GlusterfsCluster) DeleteVolume(name string) error {
+	host, err := glusterfsCluster.getAvailableHost()
 	if err != nil {
 		return err
 	}
@@ -428,15 +350,15 @@ func (glusterfsVolumeControl *GlusterfsVolumeControl) DeleteVolume(name string) 
 	commandSlice = append(commandSlice, commandBuffer.String())
 
 	interactiveMap := make(map[string]string)
-	interactiveMap["[sudo]"] = glusterfsVolumeControl.GlusterfsSSHPassword + "\n"
+	interactiveMap["[sudo]"] = glusterfsCluster.SSHPassword + "\n"
 
 	resultSlice, err := sshclient.InteractiveSSH(
-		time.Duration(glusterfsVolumeControl.GlusterfsSSHDialTimeoutInMilliSecond)*time.Millisecond,
-		time.Duration(glusterfsVolumeControl.GlusterfsSSHSessionTimeoutInMilliSecond)*time.Millisecond,
+		glusterfsCluster.SSHDialTimeout,
+		glusterfsCluster.SSHSessionTimeout,
 		*host,
-		glusterfsVolumeControl.GlusterfsSSHPort,
-		glusterfsVolumeControl.GlusterfsSSHUser,
-		glusterfsVolumeControl.GlusterfsSSHPassword,
+		glusterfsCluster.SSHPort,
+		glusterfsCluster.SSHUser,
+		glusterfsCluster.SSHPassword,
 		commandSlice,
 		interactiveMap)
 

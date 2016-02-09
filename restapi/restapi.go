@@ -38,7 +38,7 @@ func StartRestAPIServer() {
 	registerWebServiceReplicationControllerNotifier()
 	registerWebServiceStatelessApplication()
 	registerWebServiceClusterApplication()
-	registerWebServiceGlusterfsVolume()
+	registerWebServiceGlusterfs()
 	registerWebServiceHealthCheck()
 
 	// You can install the Swagger Service which provides a nice Web UI on your REST API
