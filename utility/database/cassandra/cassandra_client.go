@@ -27,9 +27,16 @@ var log = logger.GetLogManager().GetLogger("utility")
 var CassandraClient *cassandra.CassandraClient
 
 func init() {
-	err := Reload()
+	storageTypeDefault, err := configuration.GetStorageTypeDefault()
 	if err != nil {
+		log.Critical("Unable to load the storage type so it can't decide to use this or not with error %s", err)
 		panic(err)
+	}
+	if storageTypeDefault == configuration.StorageTypeCassandra {
+		err := Reload()
+		if err != nil {
+			panic(err)
+		}
 	}
 }
 
