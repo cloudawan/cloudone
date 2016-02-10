@@ -1,7 +1,4 @@
 {
-	"CASSANDRA_CLUSTER_HOST": "Cassandra cluster host. Format: \"HOST1/IP1\", \"HOST2/IP2\" ",
-	"CASSANDRA_CLUSTER_PORT": "Cassandra cluster port. Format: Number ",
-	"CASSANDRA_CLUSTER_REPLICATION_STRATEGY": "Cassandra cluster replication strategy. Format: String in JSON",
 	"EMAIL_SENDER_ACCOUNT": "Email sender account. Format: String ",
 	"EMAIL_SENDER_PASSWORD": "Email sender password. Format: String ",
 	"EMAIL_SENDER_HOST": "Email sender host. Format: HOST/IP ",
@@ -9,8 +6,5 @@
 	"SMS_NEXMO_URL": "SMS service provider NEXMO URL. Format: String",
 	"SMS_NEXMO_API_KEY": "SMS service provider NEXMO API key. Format: String",
 	"SMS_NEXMO_API_SECRET": "SMS service provider NEXMO API secret. Format: String",
-	"GLUSTERFS_HOST": "Glusterfs host. Format \"HOST1/IP1\", \"HOST2/IP2\" ",
-	"GLUSTERFS_MOUNT_PATH": "Glusterfs cluster mount path. Format String",
-	"GLUSTERFS_SSH_USER": "Issue commands to Glusterfs with ssh user. Format String",
-	"GLUSTERFS_SSH_PASSWORD": "Issue commands to Glusterfs with ssh password. Format String"
+	"ETCD_ENDPOINT": "The etcd endpoint list. Format: \"http://HOST1:PORT1\", \"http://HOST2:PORT2\" "
 }
