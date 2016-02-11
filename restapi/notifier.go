@@ -52,6 +52,44 @@ func registerWebServiceReplicationControllerNotifier() {
 		Param(ws.PathParameter("kind", "selector or replicationController").DataType("string")).
 		Param(ws.PathParameter("name", "name").DataType("string")).
 		Do(returns200, returns500))
+
+	ws.Route(ws.GET("/emailserversmtp/").To(getAllEmailServerSMTP).
+		Doc("Get all of the configuration of email server stmp").
+		Do(returns200AllEmailServerSMTP, returns500))
+
+	ws.Route(ws.POST("/emailserversmtp/").To(postEmailServerSMTP).
+		Doc("Create the configuration of email server stmp").
+		Do(returns200, returns400, returns404, returns500).
+		Reads(notification.EmailServerSMTP{}))
+
+	ws.Route(ws.GET("/emailserversmtp/{name}").To(getEmailServerSMTP).
+		Doc("Get all of the configuration of email server stmp").
+		Param(ws.PathParameter("emailserversmtpname", "email server smtp name").DataType("string")).
+		Do(returns200EmailServerSMTP, returns404, returns500))
+
+	ws.Route(ws.DELETE("/emailserversmtp/{name}").To(deleteEmailServerSMTP).
+		Doc("Delete the configuration of email server stmp").
+		Param(ws.PathParameter("emailserversmtpname", "email server smtp name").DataType("string")).
+		Do(returns200, returns500))
+
+	ws.Route(ws.GET("/smsnexmo/").To(getAllSMSNexmo).
+		Doc("Get all of the configuration of sms nexmo").
+		Do(returns200AllSMSNexmo, returns500))
+
+	ws.Route(ws.POST("/smsnexmo/").To(postSMSNexmo).
+		Doc("Create the configuration of sms nexmo").
+		Do(returns200, returns400, returns404, returns500).
+		Reads(notification.SMSNexmo{}))
+
+	ws.Route(ws.GET("/smsnexmo/{name}").To(getSMSNexmo).
+		Doc("Get all of the configuration of sms nexmo").
+		Param(ws.PathParameter("smsnexmo", "sms nexmo name").DataType("string")).
+		Do(returns200SMSNexmo, returns404, returns500))
+
+	ws.Route(ws.DELETE("/smsnexmo/{name}").To(deleteSMSNexmo).
+		Doc("Delete the configuration of sms nexmo").
+		Param(ws.PathParameter("smsnexmo", "sms nexmo name").DataType("string")).
+		Do(returns200, returns500))
 }
 
 func getAllReplicationControllerNotifier(request *restful.Request, response *restful.Response) {
@@ -161,10 +199,158 @@ func deleteReplicationControllerNotifier(request *restful.Request, response *res
 	execute.AddReplicationControllerNotifier(replicationControllerNotifier)
 }
 
+func getAllEmailServerSMTP(request *restful.Request, response *restful.Response) {
+	emailServerSMTPSlice, err := notification.GetStorage().LoadAllEmailServerSMTP()
+	if err != nil {
+		errorText := fmt.Sprintf("Could not get all smtp email server with error %s", err)
+		log.Error(errorText)
+		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	response.WriteJson(emailServerSMTPSlice, "[]EmailServerSMTP")
+}
+
+func postEmailServerSMTP(request *restful.Request, response *restful.Response) {
+	emailServerSMTP := &notification.EmailServerSMTP{}
+	err := request.ReadEntity(&emailServerSMTP)
+
+	if err != nil {
+		errorText := fmt.Sprintf("POST parse smtp email server input failure with error %s", err)
+		log.Error(errorText)
+		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	existingEmailServerSMTP, _ := notification.GetStorage().LoadEmailServerSMTP(emailServerSMTP.Name)
+	if existingEmailServerSMTP != nil {
+		errorText := fmt.Sprintf("The smtp email server with name %s exists", emailServerSMTP.Name)
+		log.Error(errorText)
+		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	err = notification.GetStorage().SaveEmailServerSMTP(emailServerSMTP)
+	if err != nil {
+		errorText := fmt.Sprintf("Save smtp email server %v with error %s", emailServerSMTP, err)
+		log.Error(errorText)
+		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		return
+	}
+}
+
+func getEmailServerSMTP(request *restful.Request, response *restful.Response) {
+	name := request.PathParameter("name")
+
+	emailServerSMTP, err := notification.GetStorage().LoadEmailServerSMTP(name)
+	if err != nil {
+		errorText := fmt.Sprintf("Could not get smtp email server %s with error %s", name, err)
+		log.Error(errorText)
+		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	response.WriteJson(emailServerSMTP, "EmailServerSMTP")
+}
+
+func deleteEmailServerSMTP(request *restful.Request, response *restful.Response) {
+	name := request.PathParameter("name")
+
+	err := notification.GetStorage().DeleteEmailServerSMTP(name)
+	if err != nil {
+		errorText := fmt.Sprintf("Delete smtp email server %s with error %s", name, err)
+		log.Error(errorText)
+		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		return
+	}
+}
+
+func getAllSMSNexmo(request *restful.Request, response *restful.Response) {
+	smsNexmoSlice, err := notification.GetStorage().LoadAllSMSNexmo()
+	if err != nil {
+		errorText := fmt.Sprintf("Could not get all sms nexmo with error %s", err)
+		log.Error(errorText)
+		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	response.WriteJson(smsNexmoSlice, "[]SMSNexmo")
+}
+
+func postSMSNexmo(request *restful.Request, response *restful.Response) {
+	smsNexmo := &notification.SMSNexmo{}
+	err := request.ReadEntity(&smsNexmo)
+
+	if err != nil {
+		errorText := fmt.Sprintf("POST parse sms nexmo input failure with error %s", err)
+		log.Error(errorText)
+		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	existingSMSNexmo, _ := notification.GetStorage().LoadSMSNexmo(smsNexmo.Name)
+	if existingSMSNexmo != nil {
+		errorText := fmt.Sprintf("The sms nexmo with name %s exists", smsNexmo.Name)
+		log.Error(errorText)
+		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	err = notification.GetStorage().SaveSMSNexmo(smsNexmo)
+	if err != nil {
+		errorText := fmt.Sprintf("Save sms nexmo %v with error %s", smsNexmo, err)
+		log.Error(errorText)
+		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		return
+	}
+}
+
+func getSMSNexmo(request *restful.Request, response *restful.Response) {
+	name := request.PathParameter("name")
+
+	smsNexmo, err := notification.GetStorage().LoadSMSNexmo(name)
+	if err != nil {
+		errorText := fmt.Sprintf("Could not get sms nexmo %s with error %s", name, err)
+		log.Error(errorText)
+		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	response.WriteJson(smsNexmo, "SMSNexmo")
+}
+
+func deleteSMSNexmo(request *restful.Request, response *restful.Response) {
+	name := request.PathParameter("name")
+
+	err := notification.GetStorage().DeleteSMSNexmo(name)
+	if err != nil {
+		errorText := fmt.Sprintf("Delete sms nexmo %s with error %s", name, err)
+		log.Error(errorText)
+		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		return
+	}
+}
+
 func returns200AllReplicationControllerNotifier(b *restful.RouteBuilder) {
 	b.Returns(http.StatusOK, "OK", []notification.ReplicationControllerNotifierSerializable{})
 }
 
 func returns200ReplicationControllerNotifier(b *restful.RouteBuilder) {
 	b.Returns(http.StatusOK, "OK", notification.ReplicationControllerNotifierSerializable{})
+}
+
+func returns200AllEmailServerSMTP(b *restful.RouteBuilder) {
+	b.Returns(http.StatusOK, "OK", []notification.EmailServerSMTP{})
+}
+
+func returns200EmailServerSMTP(b *restful.RouteBuilder) {
+	b.Returns(http.StatusOK, "OK", notification.EmailServerSMTP{})
+}
+
+func returns200AllSMSNexmo(b *restful.RouteBuilder) {
+	b.Returns(http.StatusOK, "OK", []notification.SMSNexmo{})
+}
+
+func returns200SMSNexmo(b *restful.RouteBuilder) {
+	b.Returns(http.StatusOK, "OK", notification.SMSNexmo{})
 }

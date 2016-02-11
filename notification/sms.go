@@ -17,42 +17,18 @@ package notification
 import (
 	"bytes"
 	"errors"
-	"github.com/cloudawan/cloudone/utility/configuration"
 	"github.com/cloudawan/cloudone_utility/restclient"
 	"net/url"
 )
 
-var smsNexmoURL string
-var smsNexmoAPIKey string
-var smsNexmoAPISecret string
-
-func init() {
-	if err := ReloadSMSNexmo(); err != nil {
-		panic(err)
-	}
+type SMSNexmo struct {
+	Name      string
+	Url       string
+	APIKey    string
+	APISecret string
 }
 
-func ReloadSMSNexmo() error {
-	var ok bool
-	smsNexmoURL, ok = configuration.LocalConfiguration.GetString("smsNexmoURL")
-	if ok == false {
-		log.Error("Fail to get sms configuration smsNexmoURL")
-		return errors.New("Fail to get sms configuration smsNexmoURL")
-	}
-	smsNexmoAPIKey, ok = configuration.LocalConfiguration.GetString("smsNexmoAPIKey")
-	if ok == false {
-		log.Error("Fail to get sms configuration smsNexmoAPIKey")
-		return errors.New("Fail to get sms configuration smsNexmoAPIKey")
-	}
-	smsNexmoAPISecret, ok = configuration.LocalConfiguration.GetString("smsNexmoAPISecret")
-	if ok == false {
-		log.Error("Fail to get sms configuration smsNexmoAPISecret")
-		return errors.New("Fail to get sms configuration smsNexmoAPISecret")
-	}
-	return nil
-}
-
-func SendSMSNexmo(smsNexmoURL string, smsNexmoAPIKey string, smsNexmoAPISecret string,
+func (smsNexmo *SMSNexmo) SendSMSNexmo(smsNexmoURL string, smsNexmoAPIKey string, smsNexmoAPISecret string,
 	sender string, receiverNumberSlice []string, text string) error {
 
 	hasError := false
@@ -91,11 +67,18 @@ func SendSMSNexmo(smsNexmoURL string, smsNexmoAPIKey string, smsNexmoAPISecret s
 }
 
 type NotifierSMSNexmo struct {
+	Destination         string
 	Sender              string
 	ReceiverNumberSlice []string
 }
 
 func (notifierSMSNexmo NotifierSMSNexmo) notify(message string) error {
-	return SendSMSNexmo(smsNexmoURL, smsNexmoAPIKey, smsNexmoAPISecret,
-		notifierSMSNexmo.Sender, notifierSMSNexmo.ReceiverNumberSlice, message)
+	smsNexmo, err := GetStorage().LoadSMSNexmo(notifierSMSNexmo.Destination)
+	if err != nil {
+		log.Error(err)
+		return nil
+	} else {
+		return smsNexmo.SendSMSNexmo(smsNexmo.Url, smsNexmo.APIKey, smsNexmo.APISecret,
+			notifierSMSNexmo.Sender, notifierSMSNexmo.ReceiverNumberSlice, message)
+	}
 }

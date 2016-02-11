@@ -15,49 +15,19 @@
 package notification
 
 import (
-	"errors"
-	"github.com/cloudawan/cloudone/utility/configuration"
 	"net/smtp"
 	"strconv"
 )
 
-var senderAccount string
-var senderPassword string
-var senderHost string
-var senderPort int
-
-func init() {
-	if err := ReloadEmail(); err != nil {
-		panic(err)
-	}
+type EmailServerSMTP struct {
+	Name     string
+	Account  string
+	Password string
+	Host     string
+	Port     int
 }
 
-func ReloadEmail() error {
-	var ok bool
-	senderAccount, ok = configuration.LocalConfiguration.GetString("emailSenderAccount")
-	if ok == false {
-		log.Error("Fail to get email configuration senderAccount")
-		return errors.New("Fail to get email configuration senderAccount")
-	}
-	senderPassword, ok = configuration.LocalConfiguration.GetString("emailSenderPassword")
-	if ok == false {
-		log.Error("Fail to get email configuration senderPassword")
-		return errors.New("Fail to get email configuration senderPassword")
-	}
-	senderHost, ok = configuration.LocalConfiguration.GetString("emailSenderHost")
-	if ok == false {
-		log.Error("Fail to get email configuration senderHost")
-		return errors.New("Fail to get email configuration senderHost")
-	}
-	senderPort, ok = configuration.LocalConfiguration.GetInt("emailSenderPort")
-	if ok == false {
-		log.Error("Fail to get email configuration senderPort")
-		return errors.New("Fail to get email configuration senderPort")
-	}
-	return nil
-}
-
-func SendEmail(senderAccount string, senderPassword string, senderHost string,
+func (emailServerSMTP *EmailServerSMTP) SendEmail(senderAccount string, senderPassword string, senderHost string,
 	senderPort int, receiverAccountSlice []string, subject string, body string) error {
 	// Set up authentication information.
 	auth := smtp.PlainAuth(
@@ -90,10 +60,19 @@ func SendEmail(senderAccount string, senderPassword string, senderHost string,
 }
 
 type NotifierEmail struct {
+	Destination          string
 	ReceiverAccountSlice []string
 }
 
 func (notifierEmail NotifierEmail) notify(message string) error {
-	return SendEmail(senderAccount, senderPassword, senderHost, senderPort,
-		notifierEmail.ReceiverAccountSlice, "Abnormal Notification", message)
+	emailServerSMTP, err := GetStorage().LoadEmailServerSMTP(notifierEmail.Destination)
+	if err != nil {
+		log.Error(err)
+		return nil
+	} else {
+		return emailServerSMTP.SendEmail(
+			emailServerSMTP.Account, emailServerSMTP.Password,
+			emailServerSMTP.Host, emailServerSMTP.Port,
+			notifierEmail.ReceiverAccountSlice, "Abnormal Notification", message)
+	}
 }

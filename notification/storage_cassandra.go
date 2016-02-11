@@ -21,9 +21,12 @@ import (
 )
 
 type StorageCassandra struct {
+	dummyError DummyError
 }
 
 func (storageCassandra *StorageCassandra) initialize() error {
+	storageCassandra.dummyError = DummyError{"Dummy support nothing"}
+
 	tableSchemaNotifier := `
 	CREATE TABLE IF NOT EXISTS notifier (
 	check boolean,
@@ -184,4 +187,36 @@ func (storageCassandra *StorageCassandra) LoadAllReplicationControllerNotifierSe
 	}
 
 	return replicationControllerNotifierSerializableSlice, nil
+}
+
+func (storageCassandra *StorageCassandra) DeleteEmailServerSMTP(name string) error {
+	return &storageCassandra.dummyError
+}
+
+func (storageCassandra *StorageCassandra) SaveEmailServerSMTP(emailServerSMTP *EmailServerSMTP) error {
+	return &storageCassandra.dummyError
+}
+
+func (storageCassandra *StorageCassandra) LoadEmailServerSMTP(name string) (*EmailServerSMTP, error) {
+	return nil, &storageCassandra.dummyError
+}
+
+func (storageCassandra *StorageCassandra) LoadAllEmailServerSMTP() ([]EmailServerSMTP, error) {
+	return nil, &storageCassandra.dummyError
+}
+
+func (storageCassandra *StorageCassandra) DeleteSMSNexmo(name string) error {
+	return &storageCassandra.dummyError
+}
+
+func (storageCassandra *StorageCassandra) SaveSMSNexmo(sMSNexmo *SMSNexmo) error {
+	return &storageCassandra.dummyError
+}
+
+func (storageCassandra *StorageCassandra) LoadSMSNexmo(name string) (*SMSNexmo, error) {
+	return nil, &storageCassandra.dummyError
+}
+
+func (storageCassandra *StorageCassandra) LoadAllSMSNexmo() ([]SMSNexmo, error) {
+	return nil, &storageCassandra.dummyError
 }

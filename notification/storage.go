@@ -87,4 +87,12 @@ type Storage interface {
 	SaveReplicationControllerNotifierSerializable(replicationControllerNotifierSerializable *ReplicationControllerNotifierSerializable) error
 	LoadReplicationControllerNotifierSerializable(namespace string, kind string, name string) (*ReplicationControllerNotifierSerializable, error)
 	LoadAllReplicationControllerNotifierSerializable() ([]ReplicationControllerNotifierSerializable, error)
+	DeleteEmailServerSMTP(name string) error
+	SaveEmailServerSMTP(emailServerSMTP *EmailServerSMTP) error
+	LoadEmailServerSMTP(name string) (*EmailServerSMTP, error)
+	LoadAllEmailServerSMTP() ([]EmailServerSMTP, error)
+	DeleteSMSNexmo(name string) error
+	SaveSMSNexmo(sMSNexmo *SMSNexmo) error
+	LoadSMSNexmo(name string) (*SMSNexmo, error)
+	LoadAllSMSNexmo() ([]SMSNexmo, error)
 }

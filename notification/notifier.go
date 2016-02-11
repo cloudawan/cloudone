@@ -20,7 +20,6 @@ import (
 	"errors"
 	"github.com/cloudawan/cloudone/monitor"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -167,15 +166,10 @@ func ConvertToSerializable(replicationControllerNotifier ReplicationControllerNo
 	for _, notifier := range replicationControllerNotifier.NotifierSlice {
 		switch notifier.(type) {
 		case NotifierEmail:
-			buffer := bytes.Buffer{}
-			length := len(notifier.(NotifierEmail).ReceiverAccountSlice)
-			for i, receiverAccount := range notifier.(NotifierEmail).ReceiverAccountSlice {
-				buffer.WriteString(receiverAccount)
-				if i != length {
-					buffer.WriteString(",")
-				}
+			byteSlice, err := json.Marshal(notifier.(NotifierEmail))
+			if err == nil {
+				returnedNotifierSlice = append(returnedNotifierSlice, NotifierSerializable{"email", string(byteSlice)})
 			}
-			returnedNotifierSlice = append(returnedNotifierSlice, NotifierSerializable{"email", buffer.String()})
 		case NotifierSMSNexmo:
 			byteSlice, err := json.Marshal(notifier.(NotifierSMSNexmo))
 			if err == nil {
@@ -202,14 +196,17 @@ func ConvertToSerializable(replicationControllerNotifier ReplicationControllerNo
 	return returnedReplicationControllerNotifier, err
 }
 
-func ConvertFromSerializable(replicationControllerNotifier ReplicationControllerNotifierSerializable) (ReplicationControllerNotifier, error) {
+func ConvertFromSerializable(replicationControllerNotifierSerializable ReplicationControllerNotifierSerializable) (ReplicationControllerNotifier, error) {
 	var err error = nil
 	returnedNotifierSlice := make([]Notifier, 0)
-	for _, notifier := range replicationControllerNotifier.NotifierSlice {
+	for _, notifier := range replicationControllerNotifierSerializable.NotifierSlice {
 		switch notifier.Kind {
 		case "email":
-			emailSlice := strings.Split(notifier.Data, ",")
-			returnedNotifierSlice = append(returnedNotifierSlice, NotifierEmail{emailSlice})
+			notifierEmail := NotifierEmail{}
+			err := json.Unmarshal([]byte(notifier.Data), &notifierEmail)
+			if err == nil {
+				returnedNotifierSlice = append(returnedNotifierSlice, notifierEmail)
+			}
 		case "smsNexmo":
 			notifierSMSNexmo := NotifierSMSNexmo{}
 			err := json.Unmarshal([]byte(notifier.Data), &notifierSMSNexmo)
@@ -221,18 +218,18 @@ func ConvertFromSerializable(replicationControllerNotifier ReplicationController
 		}
 	}
 
-	returnedReplicationControllerNotifier := ReplicationControllerNotifier{
-		replicationControllerNotifier.Check,
-		time.Duration(replicationControllerNotifier.CoolDownDuration),
-		time.Duration(replicationControllerNotifier.RemainingCoolDown),
-		replicationControllerNotifier.KubeapiHost,
-		replicationControllerNotifier.KubeapiPort,
-		replicationControllerNotifier.Namespace,
-		replicationControllerNotifier.Kind,
-		replicationControllerNotifier.Name,
+	replicationControllerNotifier := ReplicationControllerNotifier{
+		replicationControllerNotifierSerializable.Check,
+		time.Duration(replicationControllerNotifierSerializable.CoolDownDuration),
+		time.Duration(replicationControllerNotifierSerializable.RemainingCoolDown),
+		replicationControllerNotifierSerializable.KubeapiHost,
+		replicationControllerNotifierSerializable.KubeapiPort,
+		replicationControllerNotifierSerializable.Namespace,
+		replicationControllerNotifierSerializable.Kind,
+		replicationControllerNotifierSerializable.Name,
 		returnedNotifierSlice,
-		replicationControllerNotifier.IndicatorSlice,
+		replicationControllerNotifierSerializable.IndicatorSlice,
 	}
 
-	return returnedReplicationControllerNotifier, err
+	return replicationControllerNotifier, err
 }

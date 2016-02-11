@@ -65,3 +65,35 @@ func (storageDummy *StorageDummy) LoadReplicationControllerNotifierSerializable(
 func (storageDummy *StorageDummy) LoadAllReplicationControllerNotifierSerializable() ([]ReplicationControllerNotifierSerializable, error) {
 	return nil, &storageDummy.dummyError
 }
+
+func (storageDummy *StorageDummy) DeleteEmailServerSMTP(name string) error {
+	return &storageDummy.dummyError
+}
+
+func (storageDummy *StorageDummy) SaveEmailServerSMTP(emailServerSMTP *EmailServerSMTP) error {
+	return &storageDummy.dummyError
+}
+
+func (storageDummy *StorageDummy) LoadEmailServerSMTP(name string) (*EmailServerSMTP, error) {
+	return nil, &storageDummy.dummyError
+}
+
+func (storageDummy *StorageDummy) LoadAllEmailServerSMTP() ([]EmailServerSMTP, error) {
+	return nil, &storageDummy.dummyError
+}
+
+func (storageDummy *StorageDummy) DeleteSMSNexmo(name string) error {
+	return &storageDummy.dummyError
+}
+
+func (storageDummy *StorageDummy) SaveSMSNexmo(sMSNexmo *SMSNexmo) error {
+	return &storageDummy.dummyError
+}
+
+func (storageDummy *StorageDummy) LoadSMSNexmo(name string) (*SMSNexmo, error) {
+	return nil, &storageDummy.dummyError
+}
+
+func (storageDummy *StorageDummy) LoadAllSMSNexmo() ([]SMSNexmo, error) {
+	return nil, &storageDummy.dummyError
+}
