@@ -104,11 +104,11 @@ func periodicalCheckNotifier(checkingInterval time.Duration) {
 		if replicationControllerNotifier.RemainingCoolDown <= 0*time.Second {
 			toNotify, err := notification.CheckAndExecuteNotifier(replicationControllerNotifier)
 			if err != nil {
-				log.Error("CheckAndExecuteNotifier error: %s where ReplicationControllerNotifier %s", err.Error(), replicationControllerNotifier)
+				log.Error("CheckAndExecuteNotifier error: %s where ReplicationControllerNotifier %v", err.Error(), replicationControllerNotifier)
 			}
 			if toNotify {
 				replicationControllerNotifier.RemainingCoolDown = replicationControllerNotifier.CoolDownDuration
-				log.Info("CheckAndExecuteNotifier notified where ReplicationControllerNotifier %s", replicationControllerNotifier)
+				log.Info("CheckAndExecuteNotifier notified where ReplicationControllerNotifier %v", replicationControllerNotifier)
 			}
 		}
 	}

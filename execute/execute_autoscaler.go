@@ -99,11 +99,11 @@ func periodicalCheckAutoScaler(checkingInterval time.Duration) {
 		if replicationControllerAutoScaler.RemainingCoolDown <= 0*time.Second {
 			resized, size, err := autoscaler.CheckAndExecuteAutoScaler(replicationControllerAutoScaler)
 			if err != nil {
-				log.Error("CheckAndExecuteAutoSclae error: %s where ReplicationControllerAutoScaler %s", err.Error(), replicationControllerAutoScaler)
+				log.Error("CheckAndExecuteAutoSclae error: %s where ReplicationControllerAutoScaler %v", err.Error(), replicationControllerAutoScaler)
 			}
 			if resized {
 				replicationControllerAutoScaler.RemainingCoolDown = replicationControllerAutoScaler.CoolDownDuration
-				log.Info("CheckAndExecuteAutoSclae resized to %d where ReplicationControllerAutoScaler %s", size, replicationControllerAutoScaler)
+				log.Info("CheckAndExecuteAutoSclae resized to %d where ReplicationControllerAutoScaler %v", size, replicationControllerAutoScaler)
 			}
 		}
 	}
