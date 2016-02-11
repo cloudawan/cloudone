@@ -1,10 +1,3 @@
 {
-	"EMAIL_SENDER_ACCOUNT": "Email sender account. Format: String ",
-	"EMAIL_SENDER_PASSWORD": "Email sender password. Format: String ",
-	"EMAIL_SENDER_HOST": "Email sender host. Format: HOST/IP ",
-	"EMAIL_SENDER_PORT": "Email sender port. Format: Number ",
-	"SMS_NEXMO_URL": "SMS service provider NEXMO URL. Format: String",
-	"SMS_NEXMO_API_KEY": "SMS service provider NEXMO API key. Format: String",
-	"SMS_NEXMO_API_SECRET": "SMS service provider NEXMO API secret. Format: String",
 	"ETCD_ENDPOINT": "The etcd endpoint list. Format: \"http://HOST1:PORT1\", \"http://HOST2:PORT2\" "
 }
