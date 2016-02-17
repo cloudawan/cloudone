@@ -36,6 +36,14 @@ func registerWebServiceDeployClusterApplication() {
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
 		Do(returns200AllDeployCluster, returns404, returns500))
 
+	ws.Route(ws.GET("/{namespace}/{clusterapplication}").To(getDeployClusterApplication).
+		Doc("Get all of the cluster application deployment").
+		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
+		Param(ws.PathParameter("clusterapplication", "Cluster Application name for this deployment").DataType("string")).
+		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
+		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
+		Do(returns200DeployCluster, returns404, returns500))
+
 	ws.Route(ws.PUT("/size/{namespace}/{clusterapplication}").To(putDeployClusterApplicationSize).
 		Doc("Resize the cluster application deployment").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
@@ -82,6 +90,36 @@ func getAllDeployClusterApplication(request *restful.Request, response *restful.
 	}
 
 	response.WriteJson(deployClusterApplicationSlice, "[]DeployClusterApplication")
+}
+
+func getDeployClusterApplication(request *restful.Request, response *restful.Response) {
+	kubeapiHost := request.QueryParameter("kubeapihost")
+	kubeapiPortText := request.QueryParameter("kubeapiport")
+	namespace := request.PathParameter("namespace")
+	clusterapplication := request.PathParameter("clusterapplication")
+	if kubeapiHost == "" || kubeapiPortText == "" || namespace == "" {
+		errorText := fmt.Sprintf("Input text is incorrect kubeapiHost %s kubeapiPort %s namespace %s", kubeapiHost, kubeapiPortText, namespace)
+		log.Error(errorText)
+		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		return
+	}
+	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
+	if err != nil {
+		errorText := fmt.Sprintf("Could not parse kubeapiPortText %s with error %s", kubeapiPortText, err)
+		log.Error(errorText)
+		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	deployClusterApplication, err := deploy.GetDeployClusterApplication(kubeapiHost, kubeapiPort, namespace, clusterapplication)
+	if err != nil {
+		errorText := fmt.Sprintf("Get cluster application deployment with name %s in namespace %s error %s", clusterapplication, namespace, err)
+		log.Error(errorText)
+		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	response.WriteJson(deployClusterApplication, "DeployClusterApplication")
 }
 
 func putDeployClusterApplicationSize(request *restful.Request, response *restful.Response) {
@@ -164,4 +202,8 @@ func deleteDeployClusterApplication(request *restful.Request, response *restful.
 
 func returns200AllDeployCluster(b *restful.RouteBuilder) {
 	b.Returns(http.StatusOK, "OK", []deploy.DeployClusterApplication{})
+}
+
+func returns200DeployCluster(b *restful.RouteBuilder) {
+	b.Returns(http.StatusOK, "OK", deploy.DeployClusterApplication{})
 }
