@@ -20,21 +20,45 @@ import (
 	"strconv"
 )
 
-func GetPodLog(kubeapiHost string, kubeapiPort int, namespace string, podName string) (returnedLog string, returnedError error) {
+func GetPodLog(kubeapiHost string, kubeapiPort int, namespace string, podName string) (returnedLog map[string]interface{}, returnedError error) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error("GetPodLog Error: %s", err)
 			log.Error(logger.GetStackTrace(4096, false))
-			returnedLog = ""
+			returnedLog = nil
 			returnedError = err.(error)
 		}
 	}()
 
-	byteSlice, err := restclient.RequestGetByteSliceResult("http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/pods/" + podName + "/log")
+	result, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/"+namespace+"/pods/"+podName, false)
 	if err != nil {
-		log.Error("Fail to get all namespace name with host: %s, port: %d, error: %s", kubeapiHost, kubeapiPort, err.Error())
-		return "", err
+		log.Error("Fail to get pod information with namespace %s pod %s host: %s, port: %d, error: %s", namespace, podName, kubeapiHost, kubeapiPort, err.Error())
+		return nil, err
 	}
 
-	return string(byteSlice), nil
+	containerNameSlice := make([]string, 0)
+
+	jsonMap, _ := result.(map[string]interface{})
+	specJsonMap, _ := jsonMap["spec"].(map[string]interface{})
+	containerSlice, _ := specJsonMap["containers"].([]interface{})
+	for _, container := range containerSlice {
+		containerJsonMap, _ := container.(map[string]interface{})
+		containerName, ok := containerJsonMap["name"].(string)
+		if ok {
+			containerNameSlice = append(containerNameSlice, containerName)
+		}
+	}
+
+	logJsonMap := make(map[string]interface{})
+	for _, containerName := range containerNameSlice {
+		byteSlice, err := restclient.RequestGetByteSliceResult("http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/pods/" + podName + "/log?container=" + containerName)
+		if err != nil {
+			log.Error("Fail to get log with namespace %s pod %s container %s host: %s, port: %d, error: %s", namespace, podName, containerName, kubeapiHost, kubeapiPort, err.Error())
+			return nil, err
+		} else {
+			logJsonMap[containerName] = string(byteSlice)
+		}
+	}
+
+	return logJsonMap, nil
 }

@@ -22,10 +22,6 @@ import (
 	"strconv"
 )
 
-type PodLog struct {
-	Log string
-}
-
 func registerWebServicePodLog() {
 	ws := new(restful.WebService)
 	ws.Path("/api/v1/podlogs")
@@ -61,7 +57,7 @@ func getPodLog(request *restful.Request, response *restful.Response) {
 		return
 	}
 
-	logText, err := control.GetPodLog(kubeapiHost, kubeapiPort, namespace, pod)
+	logJsonMap, err := control.GetPodLog(kubeapiHost, kubeapiPort, namespace, pod)
 
 	if err != nil {
 		errorText := fmt.Sprintf("Get pod log failure kubeapiHost %s kubeapiPort %s namespace %s pod %s", kubeapiHost, kubeapiPortText, namespace, pod)
@@ -70,9 +66,10 @@ func getPodLog(request *restful.Request, response *restful.Response) {
 		return
 	}
 
-	response.WriteJson(PodLog{logText}, "PodLog")
+	response.WriteJson(logJsonMap, "{}")
 }
 
 func returns200PodLog(b *restful.RouteBuilder) {
-	b.Returns(http.StatusOK, "OK", PodLog{})
+	jsonMap := make(map[string]interface{})
+	b.Returns(http.StatusOK, "OK", jsonMap)
 }
