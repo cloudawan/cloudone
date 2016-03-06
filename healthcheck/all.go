@@ -36,6 +36,9 @@ func GetAllStatus() (map[string]interface{}, error) {
 		log.Error(err)
 		return jsonMap, err
 	}
+	for key, _ := range jsonMap["kubernetes"].(map[string]interface{}) {
+		jsonMap["kubernetes"].(map[string]interface{})[key].(map[string]interface{})["active"] = false
+	}
 	for _, ip := range ipSlice {
 		if jsonMap["kubernetes"].(map[string]interface{})[ip] == nil {
 			jsonMap["kubernetes"].(map[string]interface{})[ip] = make(map[string]interface{})
