@@ -23,10 +23,11 @@ import (
 var waitingDuration = 5 * time.Second
 
 type DeployInformation struct {
-	Namespace            string
-	ImageInformationName string
-	CurrentVersion       string
-	Description          string
+	Namespace                 string
+	ImageInformationName      string
+	CurrentVersion            string
+	CurrentVersionDescription string
+	Description               string
 }
 
 func DeployCreate(
@@ -79,6 +80,7 @@ func DeployCreate(
 		namespace,
 		imageInformationName,
 		version,
+		imageRecord.Description,
 		description,
 	}
 
@@ -110,6 +112,8 @@ func DeployUpdate(kubeapiHost string, kubeapiPort int, namespace string,
 	oldVersion := deployInformation.CurrentVersion
 	deployInformation.CurrentVersion = version
 	deployInformation.Description = description
+
+	deployInformation.CurrentVersionDescription = imageRecord.Description
 
 	oldReplicationControllerName := deployInformation.ImageInformationName + oldVersion
 	newReplicationControllerName := deployInformation.ImageInformationName + version

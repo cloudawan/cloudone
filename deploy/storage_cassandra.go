@@ -28,6 +28,7 @@ func (storageCassandra *StorageCassandra) initialize() error {
 	namespace  varchar,
 	image_information varchar,
 	current_version varchar,
+	current_version_description varchar,
 	description varchar,
 	PRIMARY KEY (namespace, image_information));
 	`
@@ -75,7 +76,7 @@ func (storageCassandra *StorageCassandra) saveDeployInformation(deployInformatio
 		log.Error("Get session error %s", err)
 		return err
 	}
-	if err := session.Query("INSERT INTO deploy_information (namespace, image_information, current_version, description) VALUES (?, ?, ?, ?)",
+	if err := session.Query("INSERT INTO deploy_information (namespace, image_information, current_version, current_version_description, description) VALUES (?, ?, ?, ?, ?)",
 		deployInformation.Namespace,
 		deployInformation.ImageInformationName,
 		deployInformation.CurrentVersion,
@@ -94,10 +95,11 @@ func (storageCassandra *StorageCassandra) LoadDeployInformation(namespace string
 		return nil, err
 	}
 	deployInformation := new(DeployInformation)
-	err = session.Query("SELECT namespace, image_information, current_version, description FROM deploy_information WHERE namespace = ? AND image_information = ?", namespace, imageInformation).Scan(
+	err = session.Query("SELECT namespace, image_information, current_version, current_version_description, description FROM deploy_information WHERE namespace = ? AND image_information = ?", namespace, imageInformation).Scan(
 		&deployInformation.Namespace,
 		&deployInformation.ImageInformationName,
 		&deployInformation.CurrentVersion,
+		&deployInformation.CurrentVersionDescription,
 		&deployInformation.Description,
 	)
 	if err != nil {
@@ -114,7 +116,7 @@ func (storageCassandra *StorageCassandra) LoadAllDeployInformation() ([]DeployIn
 		log.Error("Get session error %s", err)
 		return nil, err
 	}
-	iter := session.Query("SELECT namespace, image_information, current_version, description FROM deploy_information").Iter()
+	iter := session.Query("SELECT namespace, image_information, current_version, current_version_description, description FROM deploy_information").Iter()
 
 	deployInformationSlice := make([]DeployInformation, 0)
 	deployInformation := new(DeployInformation)
@@ -123,6 +125,7 @@ func (storageCassandra *StorageCassandra) LoadAllDeployInformation() ([]DeployIn
 		&deployInformation.Namespace,
 		&deployInformation.ImageInformationName,
 		&deployInformation.CurrentVersion,
+		&deployInformation.CurrentVersionDescription,
 		&deployInformation.Description,
 	) {
 		deployInformationSlice = append(deployInformationSlice, *deployInformation)
