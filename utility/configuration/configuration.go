@@ -35,7 +35,7 @@ var configurationContent = `
 	"smsNexmoAPIKey": "2045d69e",
 	"smsNexmoAPISecret": "fcaf0b59",
 	"etcdEndpoints": ["http://127.0.0.1:4001"],
-	"etcdHeaderTimeoutPerRequestInMilliSecond": 1000,
+	"etcdHeaderTimeoutPerRequestInMilliSecond": 2000,
 	"etcdBasePath": "/cloudawan/cloudone",
 	"storageTypeDefault": 3
 }

@@ -3,7 +3,7 @@
 	"key": "/etc/cloudone/development_key.pem",
 	"restapiPort": 8081,
 	"etcdEndpoint": [{{ETCD_ENDPOINT}}],
-	"etcdHeaderTimeoutPerRequestInMilliSecond": 1000,
+	"etcdHeaderTimeoutPerRequestInMilliSecond": 2000,
 	"etcdBasePath": "/cloudawan/cloudone",
 	"storageTypeDefault": 3
 }
