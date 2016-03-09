@@ -27,8 +27,19 @@ type DeployBlueGreen struct {
 	SessionAffinity  string
 }
 
-func UpdateDeployBlueGreen(kubeapiHost string, kubeapiPort int, deployBlueGreen *DeployBlueGreen) error {
+const (
+	blueGreenServiceNamePrefix = "BlueGreen-"
+)
 
+func getBlueGreenReplicationControllerName(imageInformation string, currentVersion string) string {
+	return imageInformation + currentVersion
+}
+
+func getBlueGreenServiceName(imageInformation string) string {
+	return blueGreenServiceNamePrefix + imageInformation
+}
+
+func UpdateDeployBlueGreen(kubeapiHost string, kubeapiPort int, deployBlueGreen *DeployBlueGreen) error {
 	deployInformation, err := GetStorage().LoadDeployInformation(
 		deployBlueGreen.Namespace, deployBlueGreen.ImageInformation)
 	if err != nil {
@@ -39,7 +50,7 @@ func UpdateDeployBlueGreen(kubeapiHost string, kubeapiPort int, deployBlueGreen 
 
 	replicationController, err := control.GetReplicationController(
 		kubeapiHost, kubeapiPort, deployBlueGreen.Namespace,
-		deployInformation.ImageInformationName+deployInformation.CurrentVersion)
+		getBlueGreenReplicationControllerName(deployInformation.ImageInformationName, deployInformation.CurrentVersion))
 	if err != nil {
 		log.Error("Fail to load target replication controller information %s in namespace %s with error %s",
 			deployInformation.ImageInformationName+deployInformation.CurrentVersion, deployBlueGreen.Namespace, err)
@@ -64,7 +75,7 @@ func UpdateDeployBlueGreen(kubeapiHost string, kubeapiPort int, deployBlueGreen 
 		portName, "TCP", strconv.Itoa(containerPort), strconv.Itoa(containerPort), strconv.Itoa(deployBlueGreen.NodePort)})
 
 	service := control.Service{
-		deployBlueGreen.ImageInformation,
+		getBlueGreenServiceName(deployBlueGreen.ImageInformation),
 		deployBlueGreen.Namespace,
 		portSlice,
 		selector,
@@ -98,9 +109,9 @@ func CleanAllServiceUnderBlueGreenDeployment(kubeapiHost string, kubeapiPort int
 		return err
 	}
 	for _, namespace := range namespaceSlice {
-		service, _ := control.GetService(kubeapiHost, kubeapiPort, namespace, imageInformationName)
+		service, _ := control.GetService(kubeapiHost, kubeapiPort, namespace, getBlueGreenServiceName(imageInformationName))
 		if service != nil {
-			err := control.DeleteService(kubeapiHost, kubeapiPort, namespace, imageInformationName)
+			err := control.DeleteService(kubeapiHost, kubeapiPort, namespace, service.Name)
 			if err != nil {
 				log.Error("Fail to delete service %s in namesapce %s with error %s", imageInformationName, namespace, err)
 				return err
