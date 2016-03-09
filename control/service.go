@@ -62,19 +62,17 @@ func CreateService(kubeapiHost string, kubeapiPort int, namespace string, servic
 			portJsonMap["port"] = portNumber
 		}
 		targetPortNumber, err := strconv.Atoi(port.TargetPort)
-		if err != nil {
-			portJsonMap["targetPort"] = 0 //port.TargetPort
-		} else {
+		if err == nil {
 			portJsonMap["targetPort"] = targetPortNumber
 		}
 		nodePortNumber, err := strconv.Atoi(port.NodePort)
-		if err != nil {
-			portJsonMap["nodePort"] = 0 //port.NodePort
-		} else {
-			portJsonMap["nodePort"] = nodePortNumber
-		}
-		if port.NodePort != "" && port.NodePort != "0" {
+		if err == nil {
 			hasNodePort = true
+			if nodePortNumber > 0 {
+				portJsonMap["nodePort"] = nodePortNumber
+			} else {
+				// 0 means auto-generated without assignment
+			}
 		}
 		portJsonMapSlice = append(portJsonMapSlice, portJsonMap)
 	}

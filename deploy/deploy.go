@@ -86,7 +86,7 @@ func DeployCreate(
 			"TCP",
 			containerPort,
 			containerPort,
-			"",
+			"0",
 		}
 		servicePortSlice = append(servicePortSlice, servicePort)
 	}
