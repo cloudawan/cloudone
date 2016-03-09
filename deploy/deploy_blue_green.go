@@ -28,7 +28,7 @@ type DeployBlueGreen struct {
 }
 
 const (
-	blueGreenServiceNamePrefix = "BlueGreen-"
+	blueGreenServiceNamePrefix = "bg-"
 )
 
 func getBlueGreenReplicationControllerName(imageInformation string, currentVersion string) string {
