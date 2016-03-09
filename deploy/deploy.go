@@ -168,3 +168,33 @@ func DeployUpdate(kubeapiHost string, kubeapiPort int, namespace string,
 
 	return nil
 }
+
+func DeployDelete(kubeapiHost string, kubeapiPort int, namespace string, imageInformation string) error {
+	deployInformation, err := GetStorage().LoadDeployInformation(namespace, imageInformation)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	err = GetStorage().DeleteDeployInformation(namespace, imageInformation)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	replicationControllerName := deployInformation.ImageInformationName + deployInformation.CurrentVersion
+
+	err = control.DeleteReplicationControllerAndRelatedPod(kubeapiHost, kubeapiPort, namespace, replicationControllerName)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	err = control.DeleteService(kubeapiHost, kubeapiPort, namespace, deployInformation.ImageInformationName)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	return nil
+}

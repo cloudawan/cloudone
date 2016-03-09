@@ -107,27 +107,9 @@ func deleteDeployInformation(request *restful.Request, response *restful.Respons
 
 	imageInformation := request.PathParameter("imageinformation")
 
-	deployInformation, err := deploy.GetStorage().LoadDeployInformation(namespace, imageInformation)
+	err = deploy.DeployDelete(kubeapiHost, kubeapiPort, namespace, imageInformation)
 	if err != nil {
-		errorText := fmt.Sprintf("Can't find deploy information namespace %s imageInformation %s failure %s", namespace, imageInformation, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
-		return
-	}
-
-	err = deploy.GetStorage().DeleteDeployInformation(namespace, imageInformation)
-	if err != nil {
-		errorText := fmt.Sprintf("Delete deploy information namespace %s imageInformation %s failure %s", namespace, imageInformation, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
-		return
-	}
-
-	replicationControllerName := deployInformation.ImageInformationName + deployInformation.CurrentVersion
-
-	err = control.DeleteReplicationControllerAndRelatedPod(kubeapiHost, kubeapiPort, namespace, replicationControllerName)
-	if err != nil {
-		errorText := fmt.Sprintf("Delete replication controller namespace %s replicationControllerName %s failure %s", namespace, replicationControllerName, err)
+		errorText := fmt.Sprintf("Delete imageInformation %s namespace %s failure %s", imageInformation, namespace, err)
 		log.Error(errorText)
 		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
 		return
