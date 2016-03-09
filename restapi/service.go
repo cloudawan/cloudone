@@ -47,7 +47,7 @@ func registerWebServiceReplicationController() {
 		Do(returns200AllKubernetesService, returns400, returns404, returns500))
 
 	ws.Route(ws.POST("/{namespace}").To(postKubernetesService).
-		Doc("Add an kubernetes service in the namespace").
+		Doc("Add a kubernetes service in the namespace").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).

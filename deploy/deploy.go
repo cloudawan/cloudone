@@ -17,6 +17,7 @@ package deploy
 import (
 	"github.com/cloudawan/cloudone/control"
 	"github.com/cloudawan/cloudone/image"
+	"strconv"
 	"time"
 )
 
@@ -73,6 +74,38 @@ func DeployCreate(
 		namespace, replicationController)
 	if err != nil {
 		log.Error("Create replication controller error: %s", err)
+		return err
+	}
+
+	// Automatically generate the basic default service. For advanced configuration, it should be modified in the service
+	servicePortSlice := make([]control.ServicePort, 0)
+	for _, replicationControllerContainerPort := range replicationControllerContainerPortSlice {
+		containerPort := strconv.Itoa(replicationControllerContainerPort.ContainerPort)
+		servicePort := control.ServicePort{
+			replicationControllerContainerPort.Name,
+			"TCP",
+			containerPort,
+			containerPort,
+			"",
+		}
+		servicePortSlice = append(servicePortSlice, servicePort)
+	}
+	selectorLabelMap := make(map[string]interface{})
+	selectorLabelMap["name"] = selectorName
+	serviceLabelMap := make(map[string]interface{})
+	serviceLabelMap["name"] = imageInformationName
+	service := control.Service{
+		imageInformationName,
+		namespace,
+		servicePortSlice,
+		selectorLabelMap,
+		"",
+		serviceLabelMap,
+		"",
+	}
+	err = control.CreateService(kubeapiHost, kubeapiPort, namespace, service)
+	if err != nil {
+		log.Error("Create service error: %s", err)
 		return err
 	}
 
