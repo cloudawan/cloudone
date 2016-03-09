@@ -63,13 +63,13 @@ func CreateService(kubeapiHost string, kubeapiPort int, namespace string, servic
 		}
 		targetPortNumber, err := strconv.Atoi(port.TargetPort)
 		if err != nil {
-			portJsonMap["targetPort"] = port.TargetPort
+			portJsonMap["targetPort"] = 0 //port.TargetPort
 		} else {
 			portJsonMap["targetPort"] = targetPortNumber
 		}
 		nodePortNumber, err := strconv.Atoi(port.NodePort)
 		if err != nil {
-			portJsonMap["nodePort"] = port.NodePort
+			portJsonMap["nodePort"] = 0 //port.NodePort
 		} else {
 			portJsonMap["nodePort"] = nodePortNumber
 		}
@@ -100,6 +100,10 @@ func CreateService(kubeapiHost string, kubeapiPort int, namespace string, servic
 
 	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/services/"
 	_, err := restclient.RequestPost(url, bodyJsonMap, true)
+
+	if err != nil {
+		log.Error(err)
+	}
 
 	return err
 }
@@ -275,6 +279,10 @@ func CreateServiceWithJson(kubeapiHost string, kubeapiPort int, namespace string
 
 	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/services/"
 	_, err := restclient.RequestPost(url, bodyJsonMap, true)
+
+	if err != nil {
+		log.Error(err)
+	}
 
 	return err
 }
