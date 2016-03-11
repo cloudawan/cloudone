@@ -21,17 +21,27 @@ import (
 
 /*
 func TestGetAllVolume(t *testing.T) {
-	glusterfsVolumeControl, _ := CreateGlusterfsVolumeControl()
-	fmt.Println(glusterfsVolumeControl.GetAllVolume())
+	hostSlice := make([]string, 0)
+	hostSlice = append(hostSlice, "192.168.0.25")
+	glusterfsCluster := CreateGlusterfsCluster("default", hostSlice, "/data/glusterfs",
+		1000, 3000, 22, "cloudawan", "cloud4win")
+	fmt.Println(glusterfsCluster.GetAllVolume())
 }
+
 
 func TestGetAvailableHost(t *testing.T) {
-	glusterfsVolumeControl, _ := CreateGlusterfsVolumeControl()
-	fmt.Println(glusterfsVolumeControl.getAvailableHost())
+	hostSlice := make([]string, 0)
+	hostSlice = append(hostSlice, "192.168.0.25")
+	glusterfsCluster := CreateGlusterfsCluster("default", hostSlice, "/data/glusterfs",
+		1000, 3000, 22, "cloudawan", "cloud4win")
+	fmt.Println(glusterfsCluster.getAvailableHost())
 }
-*/
 
 func TestGetHostStatus(t *testing.T) {
-	glusterfsVolumeControl, _ := CreateGlusterfsVolumeControl()
-	fmt.Println(glusterfsVolumeControl.getHostStatus())
+	hostSlice := make([]string, 0)
+	hostSlice = append(hostSlice, "192.168.0.25")
+	glusterfsCluster := CreateGlusterfsCluster("default", hostSlice, "/data/glusterfs",
+		1000, 3000, 22, "cloudawan", "cloud4win")
+	fmt.Println(glusterfsCluster.GetHostStatus())
 }
+*/
