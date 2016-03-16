@@ -102,7 +102,16 @@ func (kubernetesNodeControl *KubernetesNodeControl) GetHostWithinFlannelNetwork(
 
 		ip, ok := valueJsonMap["PublicIP"].(string)
 		if ok {
-			ipSlice = append(ipSlice, ip)
+			exist := false
+			for _, existingIP := range ipSlice {
+				if ip == existingIP {
+					exist = true
+					break
+				}
+			}
+			if exist == false {
+				ipSlice = append(ipSlice, ip)
+			}
 		} else {
 			hasError = true
 			text := fmt.Sprintf("Fail to convert valueJsonMap[PublicIP]: %v valueJsonMap: %v", valueJsonMap["PublicIP"], valueJsonMap)
