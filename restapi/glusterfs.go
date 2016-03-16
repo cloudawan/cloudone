@@ -141,11 +141,20 @@ func postGlusterfsCluster(request *restful.Request, response *restful.Response) 
 }
 
 func putGlusterfsCluster(request *restful.Request, response *restful.Response) {
+	cluster := request.PathParameter("cluster")
+
 	glusterfsClusterInput := GlusterfsClusterInput{}
 	err := request.ReadEntity(&glusterfsClusterInput)
 
 	if err != nil {
 		errorText := fmt.Sprintf("PUT parse glusterfs cluster input failure with error %s", err)
+		log.Error(errorText)
+		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	if cluster != glusterfsClusterInput.Name {
+		errorText := fmt.Sprintf("PUT name %s is different from name %s in the body", cluster, glusterfsClusterInput.Name)
 		log.Error(errorText)
 		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
 		return
