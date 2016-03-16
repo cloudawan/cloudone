@@ -30,9 +30,10 @@ type Pod struct {
 }
 
 type PodContainer struct {
-	Name      string
-	Image     string
-	PortSlice []PodContainerPort
+	Name        string
+	Image       string
+	ContainerID string
+	PortSlice   []PodContainerPort
 }
 
 type PodContainerPort struct {
@@ -132,10 +133,10 @@ func GetAllPodBelongToReplicationControllerFromData(replicationControllerName st
 		nameField, nameFieldOk := data.(map[string]interface{})["metadata"].(map[string]interface{})["name"].(string)
 		if generateName == generateNameField || replicationControllerName == nameField {
 			if nameFieldOk {
-
 				containerSlice := make([]PodContainer, 0)
 				containerFieldSlice, containerFieldSliceOk := data.(map[string]interface{})["spec"].(map[string]interface{})["containers"].([]interface{})
-				if containerFieldSliceOk {
+				containerStatusSlice, containerStatusSliceOk := data.(map[string]interface{})["status"].(map[string]interface{})["containerStatuses"].([]interface{})
+				if containerFieldSliceOk && containerStatusSliceOk {
 					for _, containerField := range containerFieldSlice {
 						portSlice := make([]PodContainerPort, 0)
 						portFieldSlice, portFieldSliceOk := containerField.(map[string]interface{})["ports"].([]interface{})
@@ -158,9 +159,18 @@ func GetAllPodBelongToReplicationControllerFromData(replicationControllerName st
 						containerName, _ := containerField.(map[string]interface{})["name"].(string)
 						containerImage, _ := containerField.(map[string]interface{})["image"].(string)
 
+						containerId := ""
+						for _, containerStatus := range containerStatusSlice {
+							name, _ := containerStatus.(map[string]interface{})["name"].(string)
+							if name == containerName {
+								containerId, _ = containerStatus.(map[string]interface{})["containerID"].(string)
+							}
+						}
+
 						podContainer := PodContainer{
 							containerName,
 							containerImage,
+							containerId,
 							portSlice,
 						}
 
