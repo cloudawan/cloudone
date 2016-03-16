@@ -25,7 +25,7 @@ type StorageEtcd struct {
 
 func (storageEtcd *StorageEtcd) initialize() error {
 	if err := etcd.EtcdClient.CreateDirectoryIfNotExist(etcd.EtcdClient.EtcdBasePath + "/glusterfs_cluster"); err != nil {
-		log.Error("Create if not existing auto scaler directory error: %s", err)
+		log.Error("Create if not existing glusterfs cluster directory error: %s", err)
 		return err
 	}
 
