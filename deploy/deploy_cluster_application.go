@@ -329,12 +329,13 @@ func DeleteDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespa
 		for _, deployClusterApplication := range deployClusterApplicationSlice {
 			if deployClusterApplication.Name == name {
 				for _, replicationControllerName := range deployClusterApplication.ReplicationControllerNameSlice {
-					err := control.DeleteReplicationController(kubeapiHost, kubeapiPort, namespace, replicationControllerName)
+					err := control.DeleteReplicationControllerAndRelatedPod(kubeapiHost, kubeapiPort, namespace, replicationControllerName)
 					if err != nil {
 						log.Error("Delete replication controller %s error %s", replicationControllerName, err)
 						return err
 					}
 				}
+
 				err := control.DeleteService(kubeapiHost, kubeapiPort, namespace, deployClusterApplication.ServiceName)
 				if err != nil {
 					log.Error("Delete service %s error %s", deployClusterApplication.ServiceName, err)
