@@ -69,6 +69,15 @@ func registerWebServiceReplicationController() {
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
 		Do(returns200, returns400, returns404, returns500).
 		Reads(new(struct{})))
+
+	ws.Route(ws.PUT("/json/{namespace}/{service}").To(putKubernetesServiceFromJson).
+		Doc("Add an kubernetes service in the namespace from json source").
+		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
+		Param(ws.PathParameter("service", "Kubernetes service name").DataType("string")).
+		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
+		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
+		Do(returns200, returns400, returns404, returns500).
+		Reads(new(struct{})))
 }
 
 func getAllKubernetesService(request *restful.Request, response *restful.Response) {
@@ -206,6 +215,45 @@ func postKubernetesServiceFromJson(request *restful.Request, response *restful.R
 
 	if err != nil {
 		errorText := fmt.Sprintf("Create service failure kubeapiHost %s kubeapiPort %d namespace %s service %s error %s", kubeapiHost, kubeapiPort, namespace, service, err)
+		log.Error(errorText)
+		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		return
+	}
+}
+
+func putKubernetesServiceFromJson(request *restful.Request, response *restful.Response) {
+	kubeapiHost := request.QueryParameter("kubeapihost")
+	kubeapiPortText := request.QueryParameter("kubeapiport")
+	namespace := request.PathParameter("namespace")
+	serviceName := request.PathParameter("service")
+	if kubeapiHost == "" || kubeapiPortText == "" || namespace == "" {
+		errorText := fmt.Sprintf("Input text is incorrect kubeapiHost %s kubeapiPort %s namespace %s", kubeapiHost, kubeapiPortText, namespace)
+		log.Error(errorText)
+		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		return
+	}
+	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
+	if err != nil {
+		errorText := fmt.Sprintf("Could not parse kubeapiPortText %s with error %s", kubeapiPortText, err)
+		log.Error(errorText)
+		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	service := make(map[string]interface{})
+	err = request.ReadEntity(&service)
+
+	if err != nil {
+		errorText := fmt.Sprintf("PUT namespace %s kubeapiHost %s kubeapiPort %s failure with error %s", namespace, kubeapiHost, kubeapiPort, err)
+		log.Error(errorText)
+		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	err = control.UpdateServiceWithJson(kubeapiHost, kubeapiPort, namespace, serviceName, service)
+
+	if err != nil {
+		errorText := fmt.Sprintf("Update service failure kubeapiHost %s kubeapiPort %d namespace %s service %s error %s", kubeapiHost, kubeapiPort, namespace, service, err)
 		log.Error(errorText)
 		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
 		return

@@ -15,6 +15,7 @@
 package control
 
 import (
+	"github.com/cloudawan/cloudone_utility/deepcopy"
 	"github.com/cloudawan/cloudone_utility/jsonparse"
 	"github.com/cloudawan/cloudone_utility/logger"
 	"github.com/cloudawan/cloudone_utility/restclient"
@@ -422,6 +423,33 @@ func CreateReplicationControllerWithJson(kubeapiHost string, kubeapiPort int, na
 	_, err := restclient.RequestPost(url, bodyJsonMap, true)
 
 	if err != nil {
+		log.Error(err)
+		return err
+	} else {
+		return nil
+	}
+}
+
+func UpdateReplicationControllerWithJson(kubeapiHost string, kubeapiPort int, namespace string, replicationControllerName string, bodyJsonMap map[string]interface{}) (returnedError error) {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Error("UpdateReplicationControllerWithJson Error: %s", err)
+			log.Error(logger.GetStackTrace(4096, false))
+			returnedError = err.(error)
+		}
+	}()
+
+	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/replicationcontrollers/" + replicationControllerName
+	result, err := restclient.RequestGet(url, true)
+	jsonMap, _ := result.(map[string]interface{})
+
+	deepcopy.DeepOverwriteJsonMap(bodyJsonMap, jsonMap)
+
+	url = "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/replicationcontrollers/" + replicationControllerName
+	_, err = restclient.RequestPut(url, jsonMap, true)
+
+	if err != nil {
+		log.Error(err)
 		return err
 	} else {
 		return nil

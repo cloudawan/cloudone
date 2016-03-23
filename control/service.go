@@ -16,6 +16,7 @@ package control
 
 import (
 	"encoding/json"
+	"github.com/cloudawan/cloudone_utility/deepcopy"
 	"github.com/cloudawan/cloudone_utility/logger"
 	"github.com/cloudawan/cloudone_utility/restclient"
 	"strconv"
@@ -280,7 +281,34 @@ func CreateServiceWithJson(kubeapiHost string, kubeapiPort int, namespace string
 
 	if err != nil {
 		log.Error(err)
+		return err
+	} else {
+		return nil
 	}
+}
 
-	return err
+func UpdateServiceWithJson(kubeapiHost string, kubeapiPort int, namespace string, serviceName string, bodyJsonMap map[string]interface{}) (returnedError error) {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Error("CreateServiceWithJson Error: %s", err)
+			log.Error(logger.GetStackTrace(4096, false))
+			returnedError = err.(error)
+		}
+	}()
+
+	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/services/" + serviceName
+	result, err := restclient.RequestGet(url, true)
+	jsonMap, _ := result.(map[string]interface{})
+
+	deepcopy.DeepOverwriteJsonMap(bodyJsonMap, jsonMap)
+
+	url = "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/services/" + serviceName
+	_, err = restclient.RequestPut(url, jsonMap, true)
+
+	if err != nil {
+		log.Error(err)
+		return err
+	} else {
+		return nil
+	}
 }
