@@ -15,6 +15,7 @@
 package restapi
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/cloudawan/cloudone/control"
 	"github.com/emicklei/go-restful"
@@ -327,6 +328,32 @@ func putReplicationControllerFromJson(request *restful.Request, response *restfu
 
 	if err != nil {
 		errorText := fmt.Sprintf("Update replication controller failure kubeapiHost %s kubeapiPort %s namespace %s replication controller %s error %s", kubeapiHost, kubeapiPort, namespace, replicationController, err)
+		log.Error(errorText)
+		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	podNameSlice, err := control.GetAllPodNameBelongToReplicationController(kubeapiHost, kubeapiPort, namespace, replicationcontrollerName)
+	if err != nil {
+		errorText := fmt.Sprintf("Get all pod name belonging to replication controller failure kubeapiHost %s kubeapiPort %s namespace %s replication controller %s error %s", kubeapiHost, kubeapiPort, namespace, replicationController, err)
+		log.Error(errorText)
+		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	hasError := false
+	errorByteBuffer := bytes.Buffer{}
+	for _, podName := range podNameSlice {
+		err := control.DeletePod(kubeapiHost, kubeapiPort, namespace, podName)
+		if err != nil {
+			hasError = true
+			errorByteBuffer.WriteString(err.Error())
+			errorByteBuffer.WriteString(" ")
+		}
+	}
+
+	if hasError {
+		errorText := fmt.Sprintf("Delete pods belonging to replication controller failure kubeapiHost %s kubeapiPort %s namespace %s replication controller %s error %s", kubeapiHost, kubeapiPort, namespace, replicationController, errorByteBuffer.String())
 		log.Error(errorText)
 		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
 		return
