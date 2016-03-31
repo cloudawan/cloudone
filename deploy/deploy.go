@@ -35,7 +35,8 @@ func DeployCreate(
 	kubeapiHost string, kubeapiPort int, namespace string, imageInformationName string,
 	version string, description string, replicaAmount int,
 	replicationControllerContainerPortSlice []control.ReplicationControllerContainerPort,
-	replicationControllerContainerEnvironmentSlice []control.ReplicationControllerContainerEnvironment) error {
+	replicationControllerContainerEnvironmentSlice []control.ReplicationControllerContainerEnvironment,
+	nodePort int) error {
 
 	imageRecord, err := image.GetStorage().LoadImageRecord(imageInformationName, version)
 	if err != nil {
@@ -47,6 +48,39 @@ func DeployCreate(
 	replicationControllerName := selectorName + version
 	image := imageRecord.Path
 
+	// Automatically generate the basic default service. For advanced configuration, it should be modified in the service
+	servicePortSlice := make([]control.ServicePort, 0)
+	for _, replicationControllerContainerPort := range replicationControllerContainerPortSlice {
+		containerPort := strconv.Itoa(replicationControllerContainerPort.ContainerPort)
+		servicePort := control.ServicePort{
+			replicationControllerContainerPort.Name,
+			"TCP",
+			containerPort,
+			containerPort,
+			strconv.Itoa(nodePort),
+		}
+		servicePortSlice = append(servicePortSlice, servicePort)
+	}
+	selectorLabelMap := make(map[string]interface{})
+	selectorLabelMap["name"] = selectorName
+	serviceLabelMap := make(map[string]interface{})
+	serviceLabelMap["name"] = imageInformationName
+	service := control.Service{
+		imageInformationName,
+		namespace,
+		servicePortSlice,
+		selectorLabelMap,
+		"",
+		serviceLabelMap,
+		"",
+	}
+	err = control.CreateService(kubeapiHost, kubeapiPort, namespace, service)
+	if err != nil {
+		log.Error("Create service error: %s", err)
+		return err
+	}
+
+	// Replication controller
 	replicationControllerContainerSlice := make([]control.ReplicationControllerContainer, 0)
 	replicationControllerContainerSlice = append(
 		replicationControllerContainerSlice,
@@ -74,38 +108,6 @@ func DeployCreate(
 		namespace, replicationController)
 	if err != nil {
 		log.Error("Create replication controller error: %s", err)
-		return err
-	}
-
-	// Automatically generate the basic default service. For advanced configuration, it should be modified in the service
-	servicePortSlice := make([]control.ServicePort, 0)
-	for _, replicationControllerContainerPort := range replicationControllerContainerPortSlice {
-		containerPort := strconv.Itoa(replicationControllerContainerPort.ContainerPort)
-		servicePort := control.ServicePort{
-			replicationControllerContainerPort.Name,
-			"TCP",
-			containerPort,
-			containerPort,
-			"0",
-		}
-		servicePortSlice = append(servicePortSlice, servicePort)
-	}
-	selectorLabelMap := make(map[string]interface{})
-	selectorLabelMap["name"] = selectorName
-	serviceLabelMap := make(map[string]interface{})
-	serviceLabelMap["name"] = imageInformationName
-	service := control.Service{
-		imageInformationName,
-		namespace,
-		servicePortSlice,
-		selectorLabelMap,
-		"",
-		serviceLabelMap,
-		"",
-	}
-	err = control.CreateService(kubeapiHost, kubeapiPort, namespace, service)
-	if err != nil {
-		log.Error("Create service error: %s", err)
 		return err
 	}
 
