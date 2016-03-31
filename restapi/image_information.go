@@ -16,6 +16,7 @@ package restapi
 
 import (
 	"fmt"
+	"github.com/cloudawan/cloudone/deploy"
 	"github.com/cloudawan/cloudone/image"
 	"github.com/emicklei/go-restful"
 	"net/http"
@@ -48,7 +49,7 @@ func registerWebServiceImageInformation() {
 	ws.Route(ws.DELETE("/{imageinformationname}").To(deleteImageInformationAndRelatedRecords).
 		Doc("Delete image information and related records").
 		Param(ws.PathParameter("imageinformationname", "Image information name").DataType("string")).
-		Do(returns200, returns404, returns500))
+		Do(returns200, returns400, returns404, returns500))
 
 	ws.Route(ws.POST("/create").To(postImageInformationCreate).
 		Doc("Create image build from source code").
@@ -75,7 +76,22 @@ func getAllImageInformation(request *restful.Request, response *restful.Response
 
 func deleteImageInformationAndRelatedRecords(request *restful.Request, response *restful.Response) {
 	imageInformationName := request.PathParameter("imageinformationname")
-	err := image.GetStorage().DeleteImageInformationAndRelatedRecord(imageInformationName)
+
+	used, err := deploy.IsImageInformationUsed(imageInformationName)
+	if err != nil {
+		errorText := fmt.Sprintf("Check whether image information is used error the image information %s failure %s", imageInformationName, err)
+		log.Error(errorText)
+		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		return
+	}
+	if used {
+		errorText := fmt.Sprintf("Image information is used image information %s", imageInformationName)
+		log.Error(errorText)
+		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	err = image.DeleteImageInformationAndRelatedRecord(imageInformationName)
 	if err != nil {
 		errorText := fmt.Sprintf("Delete image information %s and related records failure %s", imageInformationName, err)
 		log.Error(errorText)

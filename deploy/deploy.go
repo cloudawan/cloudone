@@ -200,3 +200,33 @@ func DeployDelete(kubeapiHost string, kubeapiPort int, namespace string, imageIn
 
 	return nil
 }
+
+func IsImageRecordUsed(imageInformationName string, imageRecordVersion string) (bool, error) {
+	deployInformationSlice, err := GetStorage().LoadAllDeployInformation()
+	if err != nil {
+		log.Error(err)
+		return false, err
+	}
+
+	for _, deployInformation := range deployInformationSlice {
+		if deployInformation.ImageInformationName == imageInformationName && deployInformation.CurrentVersion == imageRecordVersion {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func IsImageInformationUsed(imageInformationName string) (bool, error) {
+	deployInformationSlice, err := GetStorage().LoadAllDeployInformation()
+	if err != nil {
+		log.Error(err)
+		return false, err
+	}
+
+	for _, deployInformation := range deployInformationSlice {
+		if deployInformation.ImageInformationName == imageInformationName {
+			return true, nil
+		}
+	}
+	return false, nil
+}

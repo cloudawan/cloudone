@@ -16,6 +16,7 @@ package restapi
 
 import (
 	"fmt"
+	"github.com/cloudawan/cloudone/deploy"
 	"github.com/cloudawan/cloudone/image"
 	"github.com/emicklei/go-restful"
 	"net/http"
@@ -37,7 +38,7 @@ func registerWebServiceImageRecord() {
 		Doc("Delete image record belong to the image information").
 		Param(ws.PathParameter("imageinformationname", "Image information name").DataType("string")).
 		Param(ws.PathParameter("imagerecordversion", "Image record version").DataType("string")).
-		Do(returns200, returns404, returns500))
+		Do(returns200, returns400, returns404, returns500))
 }
 
 func getImageRecordBelongToImageInformation(request *restful.Request, response *restful.Response) {
@@ -56,7 +57,22 @@ func getImageRecordBelongToImageInformation(request *restful.Request, response *
 func deleteImageRecordBelongToImageInformation(request *restful.Request, response *restful.Response) {
 	imageInformationName := request.PathParameter("imageinformationname")
 	imageRecordVersion := request.PathParameter("imagerecordversion")
-	err := image.GetStorage().DeleteImageRecord(imageInformationName, imageRecordVersion)
+
+	used, err := deploy.IsImageRecordUsed(imageInformationName, imageRecordVersion)
+	if err != nil {
+		errorText := fmt.Sprintf("Check whether image record is used error version %s belong to the image information %s failure %s", imageRecordVersion, imageInformationName, err)
+		log.Error(errorText)
+		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		return
+	}
+	if used {
+		errorText := fmt.Sprintf("Image record is used version %s belong to the image information %s", imageRecordVersion, imageInformationName)
+		log.Error(errorText)
+		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	err = image.DeleteImageRecord(imageInformationName, imageRecordVersion)
 	if err != nil {
 		errorText := fmt.Sprintf("Delete image record version %s belong to the image information %s failure %s", imageRecordVersion, imageInformationName, err)
 		log.Error(errorText)
