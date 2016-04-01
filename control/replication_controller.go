@@ -132,7 +132,7 @@ func CreateReplicationController(kubeapiHost string, kubeapiPort int, namespace 
 	bodyJsonMap["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["volumes"] = volumeJsonMapSlice
 
 	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/replicationcontrollers/"
-	_, err := restclient.RequestPost(url, bodyJsonMap, true)
+	_, err := restclient.RequestPost(url, bodyJsonMap, nil, true)
 
 	if err != nil {
 		return err
@@ -151,7 +151,7 @@ func DeleteReplicationController(kubeapiHost string, kubeapiPort int, namespace 
 	}()
 
 	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/replicationcontrollers/" + replicationControllerName
-	_, err := restclient.RequestDelete(url, nil, true)
+	_, err := restclient.RequestDelete(url, nil, nil, true)
 	return err
 }
 
@@ -194,7 +194,7 @@ func GetReplicationController(kubeapiHost string, kubeapiPort int, namespace str
 	}()
 
 	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/replicationcontrollers/" + replicationControllerName
-	result, err := restclient.RequestGet(url, true)
+	result, err := restclient.RequestGet(url, nil, true)
 	jsonMap, _ := result.(map[string]interface{})
 	if err != nil {
 		return nil, err
@@ -258,7 +258,7 @@ func GetAllReplicationControllerName(kubeapiHost string, kubeapiPort int, namesp
 	}()
 
 	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/replicationcontrollers/"
-	result, err := restclient.RequestGet(url, true)
+	result, err := restclient.RequestGet(url, nil, true)
 	jsonMap, _ := result.(map[string]interface{})
 	if err != nil {
 		return nil, err
@@ -284,14 +284,14 @@ func UpdateReplicationControllerSize(kubeapiHost string, kubeapiPort int, namesp
 	}()
 
 	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/replicationcontrollers/" + replicationControllerName + "/"
-	result, err := restclient.RequestGet(url, true)
+	result, err := restclient.RequestGet(url, nil, true)
 	jsonMap, _ := result.(map[string]interface{})
 	if err != nil {
 		log.Error("Get replication controller information failure where size: %d, kubeapiHost: %s, kubeapiPort: %d, namespace: %s, replicationControllerName: %s, err: %s", size, kubeapiHost, kubeapiPort, namespace, replicationControllerName, err.Error())
 		return err
 	} else {
 		jsonMap["spec"].(map[string]interface{})["replicas"] = float64(size)
-		_, err := restclient.RequestPut(url, jsonMap, true)
+		_, err := restclient.RequestPut(url, jsonMap, nil, true)
 
 		if err != nil {
 			return err
@@ -313,7 +313,7 @@ func ResizeReplicationController(kubeapiHost string, kubeapiPort int, namespace 
 	}()
 
 	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/replicationcontrollers/" + replicationControllerName + "/"
-	result, err := restclient.RequestGet(url, true)
+	result, err := restclient.RequestGet(url, nil, true)
 	jsonMap, _ := result.(map[string]interface{})
 	if err != nil {
 		log.Error("Get replication controller information failure where delta: %d, kubeapiHost: %s, kubeapiPort: %d, namespace: %s, replicationControllerName: %s, err: %s", delta, kubeapiHost, kubeapiPort, namespace, replicationControllerName, err.Error())
@@ -334,7 +334,7 @@ func ResizeReplicationController(kubeapiHost string, kubeapiPort int, namespace 
 		}
 
 		jsonMap["spec"].(map[string]interface{})["replicas"] = float64(newSize)
-		result, err := restclient.RequestPut(url, jsonMap, true)
+		result, err := restclient.RequestPut(url, jsonMap, nil, true)
 		resultJsonMap, _ := result.(map[string]interface{})
 		if err != nil {
 			return false, currentSize, err
@@ -420,7 +420,7 @@ func CreateReplicationControllerWithJson(kubeapiHost string, kubeapiPort int, na
 	}()
 
 	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/replicationcontrollers/"
-	_, err := restclient.RequestPost(url, bodyJsonMap, true)
+	_, err := restclient.RequestPost(url, bodyJsonMap, nil, true)
 
 	if err != nil {
 		log.Error(err)
@@ -440,13 +440,13 @@ func UpdateReplicationControllerWithJson(kubeapiHost string, kubeapiPort int, na
 	}()
 
 	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/replicationcontrollers/" + replicationControllerName
-	result, err := restclient.RequestGet(url, true)
+	result, err := restclient.RequestGet(url, nil, true)
 	jsonMap, _ := result.(map[string]interface{})
 
 	deepcopy.DeepOverwriteJsonMap(bodyJsonMap, jsonMap)
 
 	url = "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/replicationcontrollers/" + replicationControllerName
-	_, err = restclient.RequestPut(url, jsonMap, true)
+	_, err = restclient.RequestPut(url, jsonMap, nil, true)
 
 	if err != nil {
 		log.Error(err)

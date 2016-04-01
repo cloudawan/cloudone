@@ -52,7 +52,7 @@ func MonitorPod(kubeapiHost string, kubeapiPort int, namespace string, podName s
 		}
 	}()
 
-	result, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/"+namespace+"/pods/"+podName+"/", true)
+	result, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/"+namespace+"/pods/"+podName+"/", nil, true)
 	jsonMap, _ := result.(map[string]interface{})
 	if err != nil {
 		log.Error("Fail to get pod inofrmation with host %s, port: %d, namespace: %s, pod name: %s, error %s", kubeapiHost, kubeapiPort, namespace, podName, err.Error())
@@ -156,7 +156,7 @@ func getContainerMonitorData(urlSlice []string) ([]map[string]interface{}, []err
 	dataMapSlice := make([]map[string]interface{}, 0)
 	errorSlice := make([]error, 0)
 	for _, url := range urlSlice {
-		result, err := restclient.RequestGet(url, true)
+		result, err := restclient.RequestGet(url, nil, true)
 		jsonMap, _ := result.(map[string]interface{})
 		if err != nil {
 			dataMapSlice = append(dataMapSlice, nil)

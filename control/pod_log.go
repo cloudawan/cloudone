@@ -30,7 +30,7 @@ func GetPodLog(kubeapiHost string, kubeapiPort int, namespace string, podName st
 		}
 	}()
 
-	result, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/"+namespace+"/pods/"+podName, false)
+	result, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/"+namespace+"/pods/"+podName, nil, false)
 	if err != nil {
 		log.Error("Fail to get pod information with namespace %s pod %s host: %s, port: %d, error: %s", namespace, podName, kubeapiHost, kubeapiPort, err.Error())
 		return nil, err
@@ -51,7 +51,7 @@ func GetPodLog(kubeapiHost string, kubeapiPort int, namespace string, podName st
 
 	logJsonMap := make(map[string]interface{})
 	for _, containerName := range containerNameSlice {
-		byteSlice, err := restclient.RequestGetByteSliceResult("http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/pods/" + podName + "/log?container=" + containerName)
+		byteSlice, err := restclient.RequestGetByteSliceResult("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/"+namespace+"/pods/"+podName+"/log?container="+containerName, nil)
 		if err != nil {
 			log.Error("Fail to get log with namespace %s pod %s container %s host: %s, port: %d, error: %s", namespace, podName, containerName, kubeapiHost, kubeapiPort, err.Error())
 			return nil, err

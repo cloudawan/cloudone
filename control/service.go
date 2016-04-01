@@ -98,7 +98,7 @@ func CreateService(kubeapiHost string, kubeapiPort int, namespace string, servic
 	}
 
 	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/services/"
-	_, err := restclient.RequestPost(url, bodyJsonMap, true)
+	_, err := restclient.RequestPost(url, bodyJsonMap, nil, true)
 
 	if err != nil {
 		log.Error(err)
@@ -117,7 +117,7 @@ func DeleteService(kubeapiHost string, kubeapiPort int, namespace string, servic
 	}()
 
 	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/services/" + serviceName
-	_, err := restclient.RequestDelete(url, nil, true)
+	_, err := restclient.RequestDelete(url, nil, nil, true)
 
 	return err
 }
@@ -134,7 +134,7 @@ func GetService(kubeapiHost string, kubeapiPort int, namespace string, serviceNa
 
 	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) +
 		"/api/v1/namespaces/" + namespace + "/services/" + serviceName
-	result, err := restclient.RequestGet(url, true)
+	result, err := restclient.RequestGet(url, nil, true)
 	jsonMap, _ := result.(map[string]interface{})
 	if err != nil {
 		return nil, err
@@ -205,7 +205,7 @@ func GetAllService(kubeapiHost string, kubeapiPort int, namespace string) (retur
 	}()
 
 	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/services/"
-	result, err := restclient.RequestGet(url, true)
+	result, err := restclient.RequestGet(url, nil, true)
 	jsonMap, _ := result.(map[string]interface{})
 	if err != nil {
 		return nil, err
@@ -277,7 +277,7 @@ func CreateServiceWithJson(kubeapiHost string, kubeapiPort int, namespace string
 	}()
 
 	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/services/"
-	_, err := restclient.RequestPost(url, bodyJsonMap, true)
+	_, err := restclient.RequestPost(url, bodyJsonMap, nil, true)
 
 	if err != nil {
 		log.Error(err)
@@ -297,13 +297,13 @@ func UpdateServiceWithJson(kubeapiHost string, kubeapiPort int, namespace string
 	}()
 
 	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/services/" + serviceName
-	result, err := restclient.RequestGet(url, true)
+	result, err := restclient.RequestGet(url, nil, true)
 	jsonMap, _ := result.(map[string]interface{})
 
 	deepcopy.DeepOverwriteJsonMap(bodyJsonMap, jsonMap)
 
 	url = "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/services/" + serviceName
-	_, err = restclient.RequestPut(url, jsonMap, true)
+	_, err = restclient.RequestPut(url, jsonMap, nil, true)
 
 	if err != nil {
 		log.Error(err)

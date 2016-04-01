@@ -149,7 +149,7 @@ func RemoveImageFromPrivateRegistry(imageIdentifierSlice []ImageIdentifier) erro
 				} else {
 					digest := response.Header.Get("Docker-Content-Digest")
 
-					_, err := restclient.RequestDelete("https://"+hostAndPort+"/v2/"+repositoryName+"/manifests/"+digest, nil, false)
+					_, err := restclient.RequestDelete("https://"+hostAndPort+"/v2/"+repositoryName+"/manifests/"+digest, nil, nil, false)
 					if err != nil {
 						hasError = true
 						errorMessage := fmt.Sprintf("Delete imageIdentifier %v error %v.", imageIdentifier, err)

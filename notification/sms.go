@@ -48,7 +48,7 @@ func (smsNexmo *SMSNexmo) SendSMSNexmo(smsNexmoURL string, smsNexmoAPIKey string
 		parameters.Add("text", text)
 		convertedURL.RawQuery = parameters.Encode()
 
-		result, err := restclient.RequestGet(convertedURL.String(), true)
+		result, err := restclient.RequestGet(convertedURL.String(), nil, true)
 		bodyJsonMap, _ := result.(map[string]interface{})
 		if err != nil {
 			log.Error("Request url %s error bodyJsonMap %s error %s", convertedURL.String(), bodyJsonMap, err)

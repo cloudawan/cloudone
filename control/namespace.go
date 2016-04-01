@@ -30,7 +30,7 @@ func GetAllNamespaceName(kubeapiHost string, kubeapiPort int) (returnedNameSlice
 		}
 	}()
 
-	result, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/", true)
+	result, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/", nil, true)
 	if err != nil {
 		log.Error("Fail to get all namespace name with host: %s, port: %d, error: %s", kubeapiHost, kubeapiPort, err.Error())
 		return nil, err
@@ -61,7 +61,7 @@ func CreateNamespace(kubeapiHost string, kubeapiPort int, name string) (returned
 	jsonMap["metadata"] = make(map[string]interface{})
 	jsonMap["metadata"].(map[string]interface{})["name"] = name
 
-	_, err := restclient.RequestPost("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/", jsonMap, true)
+	_, err := restclient.RequestPost("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/", jsonMap, nil, true)
 	if err != nil {
 		log.Error("Fail to create namespace with host: %s, port: %d, name: %s, error: %s", kubeapiHost, kubeapiPort, name, err.Error())
 		return err
@@ -79,7 +79,7 @@ func DeleteNamespace(kubeapiHost string, kubeapiPort int, name string) (returned
 		}
 	}()
 
-	_, err := restclient.RequestDelete("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/"+name, nil, true)
+	_, err := restclient.RequestDelete("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/"+name, nil, nil, true)
 	if err != nil {
 		log.Error("Fail to delete namespace with host: %s, port: %d, name: %s, error: %s", kubeapiHost, kubeapiPort, name, err.Error())
 		return err

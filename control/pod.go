@@ -52,7 +52,7 @@ func DeletePod(kubeapiHost string, kubeapiPort int, namespace string, podName st
 	}()
 
 	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/pods/" + podName
-	_, err := restclient.RequestDelete(url, nil, true)
+	_, err := restclient.RequestDelete(url, nil, nil, true)
 	if err != nil {
 		return err
 	} else {
@@ -70,7 +70,7 @@ func GetAllPodNameBelongToReplicationController(kubeapiHost string, kubeapiPort 
 		}
 	}()
 
-	result, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/"+namespace+"/pods/", true)
+	result, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/"+namespace+"/pods/", nil, true)
 	if err != nil {
 		log.Error("Fail to get replication controller inofrmation with host %s, port: %d, namespace: %s, replication controller name: %s, error %s", kubeapiHost, kubeapiPort, namespace, replicationControllerName, err.Error())
 		return nil, err
@@ -106,7 +106,7 @@ func GetAllPodBelongToReplicationController(kubeapiHost string, kubeapiPort int,
 		}
 	}()
 
-	result, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/"+namespace+"/pods/", true)
+	result, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/"+namespace+"/pods/", nil, true)
 	jsonMap, _ := result.(map[string]interface{})
 	if err != nil {
 		log.Error("Fail to get all pod inofrmation with host %s, port: %d, namespace: %s, replication controller name: %s, error %s", kubeapiHost, kubeapiPort, namespace, replicationControllerName, err.Error())

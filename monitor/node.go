@@ -44,7 +44,7 @@ func MonitorNode(kubeapiHost string, kubeapiPort int) (returnedNodeMetricSlice [
 		}
 	}()
 
-	result, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/nodes", true)
+	result, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/nodes", nil, true)
 	jsonMap, _ := result.(map[string]interface{})
 	if err != nil {
 		log.Error("Fail to get node inofrmation with hos:t %s, port: %d, error %s", kubeapiHost, kubeapiPort, err.Error())
@@ -131,7 +131,7 @@ func getNodeMonitorData(urlSlice []string) ([]map[string]interface{}, []error) {
 	dataMapSlice := make([]map[string]interface{}, 0)
 	errorSlice := make([]error, 0)
 	for _, url := range urlSlice {
-		result, err := restclient.RequestGet(url, true)
+		result, err := restclient.RequestGet(url, nil, true)
 		jsonMap, _ := result.(map[string]interface{})
 		if err != nil {
 			dataMapSlice = append(dataMapSlice, nil)

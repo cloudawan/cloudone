@@ -42,13 +42,13 @@ func GetAllReplicationControllerAndRelatedPodSlice(kubeapiHost string, kubeapiPo
 		}
 	}()
 
-	result, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/"+namespace+"/replicationcontrollers/", true)
+	result, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/"+namespace+"/replicationcontrollers/", nil, true)
 	replicationControllerJsonMap, _ := result.(map[string]interface{})
 	if err != nil {
 		log.Error("Fail to get all replication controller inofrmation with host %s, port: %d, namespace: %s, error %s", kubeapiHost, kubeapiPort, namespace, err.Error())
 		return nil, err
 	} else {
-		result, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/"+namespace+"/pods/", true)
+		result, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/"+namespace+"/pods/", nil, true)
 		podJsonMap, _ := result.(map[string]interface{})
 		if err != nil {
 			log.Error("Fail to get all pod information with host %s, port: %d, namespace: %s, error %s", kubeapiHost, kubeapiPort, namespace, err.Error())

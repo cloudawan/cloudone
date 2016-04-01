@@ -40,7 +40,7 @@ func ExistReplicationController(kubeapiHost string, kubeapiPort int, namespace s
 		}
 	}()
 
-	_, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/"+namespace+"/replicationcontrollers/"+replicationControllerName, true)
+	_, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/"+namespace+"/replicationcontrollers/"+replicationControllerName, nil, true)
 	if err != nil {
 		log.Error("Fail to detect replication controller existence with host %s, port: %d, namespace: %s, replication controller name: %s, error %s", kubeapiHost, kubeapiPort, namespace, replicationControllerName, err.Error())
 		return false, err
@@ -114,7 +114,7 @@ func GetReplicationControllerNameFromSelector(kubeapiHost string, kubeapiPort in
 	}()
 
 	result, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+
-		"/api/v1/namespaces/"+namespace+"/replicationcontrollers/", true)
+		"/api/v1/namespaces/"+namespace+"/replicationcontrollers/", nil, true)
 	jsonMap, _ := result.(map[string]interface{})
 	if err != nil {
 		log.Error("Fail to get all replication controller with host %s, port: %d, namespace: %s, selector name: %s",
