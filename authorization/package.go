@@ -12,19 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package authorization
 
 import (
-	"github.com/cloudawan/cloudone/authorization"
-	"github.com/cloudawan/cloudone/execute"
-	"github.com/cloudawan/cloudone/restapi"
 	"github.com/cloudawan/cloudone/utility/logger"
 )
 
-var log = logger.GetLogManager().GetLogger("default")
-
-func main() {
-	restapi.StartRestAPIServer()
-	execute.Close()
-	authorization.Close()
-}
+var log = logger.GetLogManager().GetLogger("authorization")
