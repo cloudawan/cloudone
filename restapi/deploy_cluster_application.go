@@ -29,14 +29,14 @@ func registerWebServiceDeployClusterApplication() {
 	ws.Produces(restful.MIME_JSON)
 	restful.Add(ws)
 
-	ws.Route(ws.GET("/{namespace}/").To(getAllDeployClusterApplication).
+	ws.Route(ws.GET("/{namespace}/").Filter(authorize).To(getAllDeployClusterApplication).
 		Doc("Get all of the cluster application deployment").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
 		Do(returns200AllDeployCluster, returns404, returns500))
 
-	ws.Route(ws.GET("/{namespace}/{clusterapplication}").To(getDeployClusterApplication).
+	ws.Route(ws.GET("/{namespace}/{clusterapplication}").Filter(authorize).To(getDeployClusterApplication).
 		Doc("Get all of the cluster application deployment").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("clusterapplication", "Cluster Application name for this deployment").DataType("string")).
@@ -44,7 +44,7 @@ func registerWebServiceDeployClusterApplication() {
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
 		Do(returns200DeployCluster, returns404, returns500))
 
-	ws.Route(ws.PUT("/size/{namespace}/{clusterapplication}").To(putDeployClusterApplicationSize).
+	ws.Route(ws.PUT("/size/{namespace}/{clusterapplication}").Filter(authorize).To(putDeployClusterApplicationSize).
 		Doc("Resize the cluster application deployment").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("clusterapplication", "Cluster Application name for this deployment").DataType("string")).
@@ -54,7 +54,7 @@ func registerWebServiceDeployClusterApplication() {
 		Do(returns200, returns400, returns404, returns500).
 		Reads(SizeInput{}))
 
-	ws.Route(ws.DELETE("/{namespace}/{clusterapplication}").To(deleteDeployClusterApplication).
+	ws.Route(ws.DELETE("/{namespace}/{clusterapplication}").Filter(authorize).To(deleteDeployClusterApplication).
 		Doc("Delete the cluster application deployment").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("clusterapplication", "Cluster Application name for this deployment").DataType("string")).

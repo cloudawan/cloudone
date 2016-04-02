@@ -30,23 +30,23 @@ func registerWebServiceReplicationControllerAutoScaler() {
 	ws.Produces(restful.MIME_JSON)
 	restful.Add(ws)
 
-	ws.Route(ws.GET("/").To(getAllReplicationControllerAutoScaler).
+	ws.Route(ws.GET("/").Filter(authorize).To(getAllReplicationControllerAutoScaler).
 		Doc("Get all of the configuration of auto scaler").
 		Do(returns200AllReplicationControllerAutoScaler, returns500))
 
-	ws.Route(ws.GET("/{namespace}/{kind}/{name}").To(getReplicationControllerAutoScaler).
+	ws.Route(ws.GET("/{namespace}/{kind}/{name}").Filter(authorize).To(getReplicationControllerAutoScaler).
 		Doc("Get the configuration of auto scaler for the replication controller in the namespace").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("kind", "selector or replicationController").DataType("string")).
 		Param(ws.PathParameter("name", "name").DataType("string")).
 		Do(returns200ReplicationControllerAutoScaler, returns404, returns500))
 
-	ws.Route(ws.PUT("/").To(putReplicationControllerAutoScaler).
+	ws.Route(ws.PUT("/").Filter(authorize).To(putReplicationControllerAutoScaler).
 		Doc("Add (if not existing) or update an auto scaler for the replication controller in the namespace").
 		Do(returns200, returns400, returns404, returns500).
 		Reads(autoscaler.ReplicationControllerAutoScaler{}))
 
-	ws.Route(ws.DELETE("/{namespace}/{kind}/{name}").To(deleteReplicationControllerAutoScaler).
+	ws.Route(ws.DELETE("/{namespace}/{kind}/{name}").Filter(authorize).To(deleteReplicationControllerAutoScaler).
 		Doc("Delete an auto scaler for the replication controller in the namespace").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("kind", "selector or replicationController").DataType("string")).

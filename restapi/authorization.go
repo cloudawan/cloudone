@@ -38,11 +38,14 @@ func registerWebServiceAuthorization() {
 	ws.Produces(restful.MIME_JSON)
 	restful.Add(ws)
 
-	ws.Route(ws.GET("/tokens/{token}").To(getToken).
+	// Used for authorization token so don't need to be check authorization
+	ws.Route(ws.GET("/tokens/{token}/components/{component}").To(getToken).
 		Doc("Get user data with the token").
 		Param(ws.PathParameter("token", "Token").DataType("string")).
+		Param(ws.PathParameter("component", "Component").DataType("string")).
 		Do(returns200User, returns400, returns404, returns500))
 
+	// Used for authorization token so don't need to be check authorization
 	ws.Route(ws.POST("/tokens/").To(postToken).
 		Doc("Create the token").
 		Do(returns200Token, returns400, returns404, returns500).
@@ -101,6 +104,7 @@ func registerWebServiceAuthorization() {
 
 func getToken(request *restful.Request, response *restful.Response) {
 	token := request.PathParameter("token")
+	component := request.PathParameter("component")
 
 	user, err := authorization.GetUserFromToken(token)
 	if err != nil {
@@ -110,7 +114,9 @@ func getToken(request *restful.Request, response *restful.Response) {
 		return
 	}
 
-	response.WriteJson(user, "User")
+	partialUser := user.CopyPartialUserDataForComponent(component)
+
+	response.WriteJson(partialUser, "User")
 }
 
 func postToken(request *restful.Request, response *restful.Response) {

@@ -15,7 +15,6 @@
 package restapi
 
 import (
-	"fmt"
 	"github.com/cloudawan/cloudone_utility/rbac"
 	"github.com/emicklei/go-restful"
 )
@@ -35,6 +34,7 @@ func authorize(req *restful.Request, resp *restful.Response, chain *restful.Filt
 	authorized := false
 	if user != nil {
 		if user.HasPermission("cloudone", req.Request.Method, req.SelectedRoutePath()) {
+			// Resource check
 			namespace := req.PathParameter("namespace")
 			namespacePass := false
 			if namespace != "" {

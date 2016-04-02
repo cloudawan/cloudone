@@ -33,20 +33,20 @@ func registerWebServiceNamespace() {
 	ws.Produces(restful.MIME_JSON)
 	restful.Add(ws)
 
-	ws.Route(ws.GET("/").To(getAllKubernetesNamespaceName).
+	ws.Route(ws.GET("/").Filter(authorize).To(getAllKubernetesNamespaceName).
 		Doc("Get all of the kubernetes namespace name").
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
 		Do(returns200AllKubernetesNamesapceName, returns400, returns404, returns500))
 
-	ws.Route(ws.POST("/").To(postKubernetesNamespace).
+	ws.Route(ws.POST("/").Filter(authorize).To(postKubernetesNamespace).
 		Doc("Add a kubernetes namespace").
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
 		Do(returns200, returns400, returns404, returns500).
 		Reads(Namesapce{}))
 
-	ws.Route(ws.DELETE("/{namespace}").To(deleteKubernetesNamespace).
+	ws.Route(ws.DELETE("/{namespace}").Filter(authorize).To(deleteKubernetesNamespace).
 		Doc("Delete the kubernetes namespace").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).

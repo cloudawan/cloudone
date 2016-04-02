@@ -29,12 +29,12 @@ func registerWebServiceImageRecord() {
 	ws.Produces(restful.MIME_JSON)
 	restful.Add(ws)
 
-	ws.Route(ws.GET("/{imageinformationname}").To(getImageRecordBelongToImageInformation).
+	ws.Route(ws.GET("/{imageinformationname}").Filter(authorize).To(getImageRecordBelongToImageInformation).
 		Doc("Get all of the image record belong to the image information").
 		Param(ws.PathParameter("imageinformationname", "Image information name").DataType("string")).
 		Do(returns200ImageRecordSlice, returns404, returns500))
 
-	ws.Route(ws.DELETE("/{imageinformationname}/{imagerecordversion}").To(deleteImageRecordBelongToImageInformation).
+	ws.Route(ws.DELETE("/{imageinformationname}/{imagerecordversion}").Filter(authorize).To(deleteImageRecordBelongToImageInformation).
 		Doc("Delete image record belong to the image information").
 		Param(ws.PathParameter("imageinformationname", "Image information name").DataType("string")).
 		Param(ws.PathParameter("imagerecordversion", "Image record version").DataType("string")).

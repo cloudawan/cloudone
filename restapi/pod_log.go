@@ -29,7 +29,7 @@ func registerWebServicePodLog() {
 	ws.Produces(restful.MIME_JSON)
 	restful.Add(ws)
 
-	ws.Route(ws.GET("/{namespace}/{pod}").To(getPodLog).
+	ws.Route(ws.GET("/{namespace}/{pod}").Filter(authorize).To(getPodLog).
 		Doc("Get log for pod").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("pod", "Kubernetes pod").DataType("string")).

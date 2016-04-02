@@ -40,26 +40,26 @@ func registerWebServiceClusterApplication() {
 	ws.Produces(restful.MIME_JSON)
 	restful.Add(ws)
 
-	ws.Route(ws.GET("/").To(getAllClusterApplication).
+	ws.Route(ws.GET("/").Filter(authorize).To(getAllClusterApplication).
 		Doc("Get all of the configuration of cluster application").
 		Do(returns200AllClusterApplication, returns404, returns500))
 
-	ws.Route(ws.GET("/{clusterapplication}").To(getClusterApplication).
+	ws.Route(ws.GET("/{clusterapplication}").Filter(authorize).To(getClusterApplication).
 		Doc("Get the configuration of cluster application").
 		Param(ws.PathParameter("clusterapplication", "Cluster application name").DataType("string")).
 		Do(returns200ClusterApplication, returns404, returns500))
 
-	ws.Route(ws.POST("/").To(postClusterApplication).
+	ws.Route(ws.POST("/").Filter(authorize).To(postClusterApplication).
 		Doc("Add a cluster application").
 		Do(returns200, returns400, returns404, returns500).
 		Reads(ClusterDescription{}))
 
-	ws.Route(ws.DELETE("/{clusterapplication}").To(deleteClusterApplication).
+	ws.Route(ws.DELETE("/{clusterapplication}").Filter(authorize).To(deleteClusterApplication).
 		Doc("Delete an cluster application").
 		Param(ws.PathParameter("clusterapplication", "Cluster application name").DataType("string")).
 		Do(returns200, returns500))
 
-	ws.Route(ws.POST("/launch/{namespace}/{clusterapplication}").To(postLaunchClusterApplication).
+	ws.Route(ws.POST("/launch/{namespace}/{clusterapplication}").Filter(authorize).To(postLaunchClusterApplication).
 		Doc("Launch a cluster application").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("clusterapplication", "cluster application").DataType("string")).

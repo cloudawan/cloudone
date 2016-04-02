@@ -30,14 +30,14 @@ func registerWebServiceReplicationControllerMetric() {
 	ws.Produces(restful.MIME_JSON)
 	restful.Add(ws)
 
-	ws.Route(ws.GET("/{namespace}").To(getAllReplicationControllerMetric).
+	ws.Route(ws.GET("/{namespace}").Filter(authorize).To(getAllReplicationControllerMetric).
 		Doc("Get all replication controllers in the namespace").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
 		Do(returns200AllReplicationControllerMetric, returns400, returns404, returns500))
 
-	ws.Route(ws.GET("/{namespace}/{replicationcontroller}").To(getReplicationControllerMetric).
+	ws.Route(ws.GET("/{namespace}/{replicationcontroller}").Filter(authorize).To(getReplicationControllerMetric).
 		Doc("Get the replication controller in the namespace").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("replicationcontroller", "Kubernetes replication controller name").DataType("string")).

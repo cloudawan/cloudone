@@ -30,63 +30,63 @@ func registerWebServiceReplicationControllerNotifier() {
 	ws.Produces(restful.MIME_JSON)
 	restful.Add(ws)
 
-	ws.Route(ws.GET("/").To(getAllReplicationControllerNotifier).
+	ws.Route(ws.GET("/").Filter(authorize).To(getAllReplicationControllerNotifier).
 		Doc("Get all of the configuration of notifier").
 		Do(returns200AllReplicationControllerNotifier, returns500))
 
-	ws.Route(ws.GET("/{namespace}/{kind}/{name}").To(getReplicationControllerNotifier).
+	ws.Route(ws.GET("/{namespace}/{kind}/{name}").Filter(authorize).To(getReplicationControllerNotifier).
 		Doc("Get the configuration of notifier for the replication controller in the namespace").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("kind", "selector or replicationController").DataType("string")).
 		Param(ws.PathParameter("name", "name").DataType("string")).
 		Do(returns200ReplicationControllerNotifier, returns404, returns500))
 
-	ws.Route(ws.PUT("/").To(putReplicationControllerNotifier).
+	ws.Route(ws.PUT("/").Filter(authorize).To(putReplicationControllerNotifier).
 		Doc("Add (if not existing) or update an notifier for the replication controller in the namespace").
 		Do(returns200, returns400, returns404, returns500).
 		Reads(notification.ReplicationControllerNotifierSerializable{}))
 
-	ws.Route(ws.DELETE("/{namespace}/{kind}/{name}").To(deleteReplicationControllerNotifier).
+	ws.Route(ws.DELETE("/{namespace}/{kind}/{name}").Filter(authorize).To(deleteReplicationControllerNotifier).
 		Doc("Delete an notifier for the replication controller in the namespace").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("kind", "selector or replicationController").DataType("string")).
 		Param(ws.PathParameter("name", "name").DataType("string")).
 		Do(returns200, returns500))
 
-	ws.Route(ws.GET("/emailserversmtp/").To(getAllEmailServerSMTP).
+	ws.Route(ws.GET("/emailserversmtp/").Filter(authorize).To(getAllEmailServerSMTP).
 		Doc("Get all of the configuration of email server stmp").
 		Do(returns200AllEmailServerSMTP, returns500))
 
-	ws.Route(ws.POST("/emailserversmtp/").To(postEmailServerSMTP).
+	ws.Route(ws.POST("/emailserversmtp/").Filter(authorize).To(postEmailServerSMTP).
 		Doc("Create the configuration of email server stmp").
 		Do(returns200, returns400, returns404, returns500).
 		Reads(notification.EmailServerSMTP{}))
 
-	ws.Route(ws.GET("/emailserversmtp/{name}").To(getEmailServerSMTP).
+	ws.Route(ws.GET("/emailserversmtp/{name}").Filter(authorize).To(getEmailServerSMTP).
 		Doc("Get all of the configuration of email server stmp").
 		Param(ws.PathParameter("emailserversmtpname", "email server smtp name").DataType("string")).
 		Do(returns200EmailServerSMTP, returns404, returns500))
 
-	ws.Route(ws.DELETE("/emailserversmtp/{name}").To(deleteEmailServerSMTP).
+	ws.Route(ws.DELETE("/emailserversmtp/{name}").Filter(authorize).To(deleteEmailServerSMTP).
 		Doc("Delete the configuration of email server stmp").
 		Param(ws.PathParameter("emailserversmtpname", "email server smtp name").DataType("string")).
 		Do(returns200, returns500))
 
-	ws.Route(ws.GET("/smsnexmo/").To(getAllSMSNexmo).
+	ws.Route(ws.GET("/smsnexmo/").Filter(authorize).To(getAllSMSNexmo).
 		Doc("Get all of the configuration of sms nexmo").
 		Do(returns200AllSMSNexmo, returns500))
 
-	ws.Route(ws.POST("/smsnexmo/").To(postSMSNexmo).
+	ws.Route(ws.POST("/smsnexmo/").Filter(authorize).To(postSMSNexmo).
 		Doc("Create the configuration of sms nexmo").
 		Do(returns200, returns400, returns404, returns500).
 		Reads(notification.SMSNexmo{}))
 
-	ws.Route(ws.GET("/smsnexmo/{name}").To(getSMSNexmo).
+	ws.Route(ws.GET("/smsnexmo/{name}").Filter(authorize).To(getSMSNexmo).
 		Doc("Get all of the configuration of sms nexmo").
 		Param(ws.PathParameter("smsnexmo", "sms nexmo name").DataType("string")).
 		Do(returns200SMSNexmo, returns404, returns500))
 
-	ws.Route(ws.DELETE("/smsnexmo/{name}").To(deleteSMSNexmo).
+	ws.Route(ws.DELETE("/smsnexmo/{name}").Filter(authorize).To(deleteSMSNexmo).
 		Doc("Delete the configuration of sms nexmo").
 		Param(ws.PathParameter("smsnexmo", "sms nexmo name").DataType("string")).
 		Do(returns200, returns500))

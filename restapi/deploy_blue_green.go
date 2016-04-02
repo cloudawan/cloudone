@@ -29,25 +29,25 @@ func registerWebServiceDeployBlueGreen() {
 	ws.Produces(restful.MIME_JSON)
 	restful.Add(ws)
 
-	ws.Route(ws.GET("/").To(getAllDeployBlueGreen).
+	ws.Route(ws.GET("/").Filter(authorize).To(getAllDeployBlueGreen).
 		Doc("Get all of the blue green deployment").
 		Do(returns200AllDeployBlueGreen, returns404, returns500))
 
-	ws.Route(ws.DELETE("/{imageinformation}").To(deleteDeployBlueGreen).
+	ws.Route(ws.DELETE("/{imageinformation}").Filter(authorize).To(deleteDeployBlueGreen).
 		Doc("Delete blue green deployment").
 		Param(ws.PathParameter("imageinformation", "Image information").DataType("string")).
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
 		Do(returns200, returns404, returns500))
 
-	ws.Route(ws.PUT("/").To(putDeployBlueGreen).
+	ws.Route(ws.PUT("/").Filter(authorize).To(putDeployBlueGreen).
 		Doc("Update blue green dployment to switch deployment").
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
 		Do(returns200, returns400, returns404, returns500).
 		Reads(deploy.DeployBlueGreen{}))
 
-	ws.Route(ws.GET("/deployable/{imageinformation}").To(getAllDeployableNamespace).
+	ws.Route(ws.GET("/deployable/{imageinformation}").Filter(authorize).To(getAllDeployableNamespace).
 		Doc("Get all of the deployable namespace").
 		Param(ws.PathParameter("imageinformation", "Image information").DataType("string")).
 		Do(returns200AllDeployableNamespace, returns404, returns500))

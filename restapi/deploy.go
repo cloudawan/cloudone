@@ -47,11 +47,11 @@ func registerWebServiceDeploy() {
 	ws.Produces(restful.MIME_JSON)
 	restful.Add(ws)
 
-	ws.Route(ws.GET("/").To(getAllDeployInformation).
+	ws.Route(ws.GET("/").Filter(authorize).To(getAllDeployInformation).
 		Doc("Get all of the deplpoy information").
 		Do(returns200AllDeployInformation, returns404, returns500))
 
-	ws.Route(ws.DELETE("/{namespace}/{imageinformation}").To(deleteDeployInformation).
+	ws.Route(ws.DELETE("/{namespace}/{imageinformation}").Filter(authorize).To(deleteDeployInformation).
 		Doc("Delete deploy information").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("imageinformation", "Image information").DataType("string")).
@@ -59,7 +59,7 @@ func registerWebServiceDeploy() {
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
 		Do(returns200, returns404, returns500))
 
-	ws.Route(ws.POST("/create/{namespace}").To(postDeployCreate).
+	ws.Route(ws.POST("/create/{namespace}").Filter(authorize).To(postDeployCreate).
 		Doc("Create dployment from selected image build and version").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
@@ -67,7 +67,7 @@ func registerWebServiceDeploy() {
 		Do(returns200, returns400, returns404, returns500).
 		Reads(DeployCreateInput{}))
 
-	ws.Route(ws.PUT("/update/{namespace}").To(putDeployUpdate).
+	ws.Route(ws.PUT("/update/{namespace}").Filter(authorize).To(putDeployUpdate).
 		Doc("Update dployment from selected image build and version").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
