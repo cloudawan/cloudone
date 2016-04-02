@@ -19,6 +19,10 @@ import (
 	"github.com/emicklei/go-restful"
 )
 
+const (
+	componentName = "cloudone"
+)
+
 func getCache(token string) *rbac.User {
 	// This is special case since cloudone own the authorization server so it doesn't need to ask authorization server and cache but just get data.
 	return rbac.GetCache(token)
@@ -33,12 +37,12 @@ func authorize(req *restful.Request, resp *restful.Response, chain *restful.Filt
 	// Verify
 	authorized := false
 	if user != nil {
-		if user.HasPermission("cloudone", req.Request.Method, req.SelectedRoutePath()) {
+		if user.HasPermission(componentName, req.Request.Method, req.SelectedRoutePath()) {
 			// Resource check
 			namespace := req.PathParameter("namespace")
 			namespacePass := false
 			if namespace != "" {
-				if user.HasResource("cloudone", "/namespaces/"+namespace) {
+				if user.HasResource(componentName, "/namespaces/"+namespace) {
 					namespacePass = true
 				}
 			} else {
