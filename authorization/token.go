@@ -116,3 +116,7 @@ func CreateToken(name string, password string) (string, error) {
 	// Sign and get the complete encoded token as a string
 	return signedToken, nil
 }
+
+func GetAllTokenExpiredTime() map[string]time.Time {
+	return rbac.GetAllTokenExpiredTime()
+}

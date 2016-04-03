@@ -39,7 +39,7 @@ func registerWebServiceAuthorization() {
 	restful.Add(ws)
 
 	// Used for authorization token so don't need to be check authorization
-	ws.Route(ws.GET("/tokens/{token}/components/{component}").To(getToken).
+	ws.Route(ws.GET("/tokens/{token}/components/{component}").To(getUserFromToken).
 		Doc("Get user data with the token").
 		Param(ws.PathParameter("token", "Token").DataType("string")).
 		Param(ws.PathParameter("component", "Component").DataType("string")).
@@ -50,6 +50,10 @@ func registerWebServiceAuthorization() {
 		Doc("Create the token").
 		Do(returns200Token, returns400, returns404, returns500).
 		Reads(UserData{}))
+
+	ws.Route(ws.GET("/tokens/expired").Filter(authorize).To(getAllTokenExpiredTime).
+		Doc("Get all token's expired time").
+		Do(returns200AllTokenExpiredTime, returns500))
 
 	ws.Route(ws.GET("/users/").Filter(authorize).To(getAllUser).
 		Doc("Get all of the user").
@@ -102,7 +106,7 @@ func registerWebServiceAuthorization() {
 		Do(returns200Role, returns404, returns500))
 }
 
-func getToken(request *restful.Request, response *restful.Response) {
+func getUserFromToken(request *restful.Request, response *restful.Response) {
 	token := request.PathParameter("token")
 	component := request.PathParameter("component")
 
@@ -139,6 +143,12 @@ func postToken(request *restful.Request, response *restful.Response) {
 	}
 
 	response.WriteJson(TokenData{token}, "[]TokenOutput")
+}
+
+func getAllTokenExpiredTime(request *restful.Request, response *restful.Response) {
+	expiredMap := authorization.GetAllTokenExpiredTime()
+
+	response.WriteJson(expiredMap, "{}")
 }
 
 func getAllUser(request *restful.Request, response *restful.Response) {
@@ -357,6 +367,10 @@ func returns200Token(b *restful.RouteBuilder) {
 
 func returns200AllUser(b *restful.RouteBuilder) {
 	b.Returns(http.StatusOK, "OK", []rbac.User{})
+}
+
+func returns200AllTokenExpiredTime(b *restful.RouteBuilder) {
+	b.Returns(http.StatusOK, "OK", make(map[interface{}]string))
 }
 
 func returns200User(b *restful.RouteBuilder) {
