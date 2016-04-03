@@ -35,8 +35,8 @@ func authorize(req *restful.Request, resp *restful.Response, chain *restful.Filt
 	user := getCache(token)
 
 	// Verify
-	authorized := false
 	if user != nil {
+		authorized := false
 		if user.HasPermission(componentName, req.Request.Method, req.SelectedRoutePath()) {
 			// Resource check
 			namespace := req.PathParameter("namespace")
@@ -52,14 +52,20 @@ func authorize(req *restful.Request, resp *restful.Response, chain *restful.Filt
 				authorized = true
 			}
 		}
-	}
 
-	if authorized {
-		chain.ProcessFilter(req, resp)
+		if authorized {
+			chain.ProcessFilter(req, resp)
+		} else {
+			jsonMap := make(map[string]interface{})
+			jsonMap["Error"] = "Not Authorized"
+			jsonMap["Format"] = "Put correct token in the header token"
+			resp.WriteHeaderAndJson(401, jsonMap, "{}")
+		}
 	} else {
+		// Cache doesn't exist
 		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Not Authorized"
-		jsonMap["Format"] = "Put correct token in the header token"
+		jsonMap["Error"] = "Token doesn't exist"
+		jsonMap["ErrorMessage"] = "Token is incorrect or expired. Please get token with username and password again."
 		resp.WriteHeaderAndJson(401, jsonMap, "{}")
 	}
 }

@@ -22,8 +22,9 @@ import (
 )
 
 const (
-	ttl        = time.Minute * 60
-	signingKey = "userTokenKey"
+	signingKey         = "userTokenKey"
+	cacheCheckInterval = time.Minute
+	cacheTTL           = cacheCheckInterval * 60
 )
 
 func init() {
@@ -45,7 +46,7 @@ func periodicallyCleanCache() {
 
 			rbac.CheckCacheTimeout()
 
-			time.Sleep(time.Minute)
+			time.Sleep(cacheCheckInterval)
 		}
 	}()
 }
@@ -102,7 +103,7 @@ func CreateToken(name string, password string) (string, error) {
 	token := jwt.New(jwt.SigningMethodHS512)
 	// Set some claims
 	token.Claims["username"] = name
-	token.Claims["expired"] = time.Now().Add(ttl).Format(time.RFC3339)
+	token.Claims["expired"] = time.Now().Add(cacheTTL).Format(time.RFC3339)
 	// Sign
 	signedToken, err := token.SignedString([]byte(signingKey))
 	if err != nil {
@@ -110,7 +111,7 @@ func CreateToken(name string, password string) (string, error) {
 		return "", err
 	}
 
-	rbac.SetCache(signedToken, user, ttl)
+	rbac.SetCache(signedToken, user, cacheTTL)
 
 	// Sign and get the complete encoded token as a string
 	return signedToken, nil
