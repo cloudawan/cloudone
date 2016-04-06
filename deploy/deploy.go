@@ -52,12 +52,17 @@ func DeployCreate(
 	servicePortSlice := make([]control.ServicePort, 0)
 	for _, replicationControllerContainerPort := range replicationControllerContainerPortSlice {
 		containerPort := strconv.Itoa(replicationControllerContainerPort.ContainerPort)
+		nodePortText := ""
+		// Only use Node Port if nodePort >= 0
+		if nodePort >= 0 {
+			nodePortText = strconv.Itoa(nodePort)
+		}
 		servicePort := control.ServicePort{
 			replicationControllerContainerPort.Name,
 			"TCP",
 			containerPort,
 			containerPort,
-			strconv.Itoa(nodePort),
+			nodePortText, // "" empty means not to use. 0 means auto-generated. > 0 means the port number to use
 		}
 		servicePortSlice = append(servicePortSlice, servicePort)
 	}

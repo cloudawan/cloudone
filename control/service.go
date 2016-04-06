@@ -67,6 +67,7 @@ func CreateService(kubeapiHost string, kubeapiPort int, namespace string, servic
 			portJsonMap["targetPort"] = targetPortNumber
 		}
 		nodePortNumber, err := strconv.Atoi(port.NodePort)
+		// "" empty or not a number means not to use. 0 means auto-generated. > 0 means the port number to use
 		if err == nil {
 			hasNodePort = true
 			if nodePortNumber > 0 {
@@ -75,6 +76,7 @@ func CreateService(kubeapiHost string, kubeapiPort int, namespace string, servic
 				// 0 means auto-generated without assignment
 			}
 		}
+
 		portJsonMapSlice = append(portJsonMapSlice, portJsonMap)
 	}
 
