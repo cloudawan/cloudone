@@ -33,6 +33,13 @@ func registerWebServiceDeployBlueGreen() {
 		Doc("Get all of the blue green deployment").
 		Do(returns200AllDeployBlueGreen, returns404, returns500))
 
+	ws.Route(ws.PUT("/").Filter(authorize).To(putDeployBlueGreen).
+		Doc("Update blue green dployment to switch deployment").
+		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
+		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
+		Do(returns200, returns400, returns404, returns500).
+		Reads(deploy.DeployBlueGreen{}))
+
 	ws.Route(ws.DELETE("/{imageinformation}").Filter(authorize).To(deleteDeployBlueGreen).
 		Doc("Delete blue green deployment").
 		Param(ws.PathParameter("imageinformation", "Image information").DataType("string")).
@@ -40,12 +47,17 @@ func registerWebServiceDeployBlueGreen() {
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
 		Do(returns200, returns404, returns500))
 
-	ws.Route(ws.PUT("/").Filter(authorize).To(putDeployBlueGreen).
-		Doc("Update blue green dployment to switch deployment").
+	ws.Route(ws.GET("/{imageinformation}").Filter(authorize).To(getDeployBlueGreen).
+		Doc("Get the blue green deployment with the image information").
+		Param(ws.PathParameter("imageinformation", "Image information").DataType("string")).
+		Do(returns200DeployBlueGreen, returns404, returns500))
+
+	ws.Route(ws.DELETE("/{imageinformation}").Filter(authorize).To(deleteDeployBlueGreen).
+		Doc("Delete blue green deployment").
+		Param(ws.PathParameter("imageinformation", "Image information").DataType("string")).
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
-		Do(returns200, returns400, returns404, returns500).
-		Reads(deploy.DeployBlueGreen{}))
+		Do(returns200, returns404, returns500))
 
 	ws.Route(ws.GET("/deployable/{imageinformation}").Filter(authorize).To(getAllDeployableNamespace).
 		Doc("Get all of the deployable namespace").
@@ -63,42 +75,6 @@ func getAllDeployBlueGreen(request *restful.Request, response *restful.Response)
 	}
 
 	response.WriteJson(deployBlueGreenSlice, "[]DeployBlueGreen")
-}
-
-func deleteDeployBlueGreen(request *restful.Request, response *restful.Response) {
-	kubeapiHost := request.QueryParameter("kubeapihost")
-	kubeapiPortText := request.QueryParameter("kubeapiport")
-	if kubeapiHost == "" || kubeapiPortText == "" {
-		errorText := fmt.Sprintf("Input text is incorrect kubeapiHost %s kubeapiPort %s", kubeapiHost, kubeapiPortText)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
-		return
-	}
-	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
-	if err != nil {
-		errorText := fmt.Sprintf("Could not parse kubeapiPortText %s with error %s", kubeapiPortText, err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
-		return
-	}
-
-	imageInformation := request.PathParameter("imageinformation")
-
-	err = deploy.GetStorage().DeleteDeployBlueGreen(imageInformation)
-	if err != nil {
-		errorText := fmt.Sprintf("Delete blue green deployment imageInformation %s failure %s", imageInformation, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
-		return
-	}
-
-	err = deploy.CleanAllServiceUnderBlueGreenDeployment(kubeapiHost, kubeapiPort, imageInformation)
-	if err != nil {
-		errorText := fmt.Sprintf("Delete blue green deployment service on Kubernetes failure imageInformation %s error %s", imageInformation, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
-		return
-	}
 }
 
 func putDeployBlueGreen(request *restful.Request, response *restful.Response) {
@@ -137,6 +113,56 @@ func putDeployBlueGreen(request *restful.Request, response *restful.Response) {
 	}
 }
 
+func deleteDeployBlueGreen(request *restful.Request, response *restful.Response) {
+	kubeapiHost := request.QueryParameter("kubeapihost")
+	kubeapiPortText := request.QueryParameter("kubeapiport")
+	if kubeapiHost == "" || kubeapiPortText == "" {
+		errorText := fmt.Sprintf("Input text is incorrect kubeapiHost %s kubeapiPort %s", kubeapiHost, kubeapiPortText)
+		log.Error(errorText)
+		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		return
+	}
+	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
+	if err != nil {
+		errorText := fmt.Sprintf("Could not parse kubeapiPortText %s with error %s", kubeapiPortText, err)
+		log.Error(errorText)
+		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	imageInformation := request.PathParameter("imageinformation")
+
+	err = deploy.GetStorage().DeleteDeployBlueGreen(imageInformation)
+	if err != nil {
+		errorText := fmt.Sprintf("Delete blue green deployment imageInformation %s failure %s", imageInformation, err)
+		log.Error(errorText)
+		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	err = deploy.CleanAllServiceUnderBlueGreenDeployment(kubeapiHost, kubeapiPort, imageInformation)
+	if err != nil {
+		errorText := fmt.Sprintf("Delete blue green deployment service on Kubernetes failure imageInformation %s error %s", imageInformation, err)
+		log.Error(errorText)
+		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		return
+	}
+}
+
+func getDeployBlueGreen(request *restful.Request, response *restful.Response) {
+	imageInformation := request.PathParameter("imageinformation")
+
+	deployBlueGreen, err := deploy.GetStorage().LoadDeployBlueGreen(imageInformation)
+	if err != nil {
+		errorText := fmt.Sprintf("Get the blue green deployment %s failure %s", imageInformation, err)
+		log.Error(errorText)
+		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	response.WriteJson(deployBlueGreen, "DeployBlueGreen")
+}
+
 func getAllDeployableNamespace(request *restful.Request, response *restful.Response) {
 	imageInformation := request.PathParameter("imageinformation")
 
@@ -154,6 +180,10 @@ func getAllDeployableNamespace(request *restful.Request, response *restful.Respo
 
 func returns200AllDeployBlueGreen(b *restful.RouteBuilder) {
 	b.Returns(http.StatusOK, "OK", []deploy.DeployBlueGreen{})
+}
+
+func returns200DeployBlueGreen(b *restful.RouteBuilder) {
+	b.Returns(http.StatusOK, "OK", deploy.DeployBlueGreen{})
 }
 
 func returns200AllDeployableNamespace(b *restful.RouteBuilder) {
