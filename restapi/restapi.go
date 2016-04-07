@@ -34,7 +34,7 @@ func StartRestAPIServer() {
 	registerWebServiceDeployClusterApplication()
 	registerWebServiceNodeMetric()
 	registerWebServiceNamespace()
-	registerWebServicePodLog()
+	registerWebServicePod()
 	registerWebServiceReplicationControllerNotifier()
 	registerWebServiceStatelessApplication()
 	registerWebServiceClusterApplication()

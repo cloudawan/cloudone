@@ -22,20 +22,56 @@ import (
 	"strconv"
 )
 
-func registerWebServicePodLog() {
+func registerWebServicePod() {
 	ws := new(restful.WebService)
-	ws.Path("/api/v1/podlogs")
+	ws.Path("/api/v1/pods")
 	ws.Consumes(restful.MIME_JSON)
 	ws.Produces(restful.MIME_JSON)
 	restful.Add(ws)
 
-	ws.Route(ws.GET("/{namespace}/{pod}").Filter(authorize).To(getPodLog).
+	ws.Route(ws.DELETE("/{namespace}/{pod}/").Filter(authorize).To(deletePod).
+		Doc("Delete the pod in the namespace").
+		Param(ws.PathParameter("namespace", "Namespace name").DataType("string")).
+		Param(ws.PathParameter("pod", "Pod name").DataType("string")).
+		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
+		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
+		Do(returns200, returns400, returns404, returns500))
+
+	ws.Route(ws.GET("/{namespace}/{pod}/logs").Filter(authorize).To(getPodLog).
 		Doc("Get log for pod").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("pod", "Kubernetes pod").DataType("string")).
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
 		Do(returns200PodLog, returns400, returns404, returns500))
+}
+
+func deletePod(request *restful.Request, response *restful.Response) {
+	kubeapiHost := request.QueryParameter("kubeapihost")
+	kubeapiPortText := request.QueryParameter("kubeapiport")
+	namespace := request.PathParameter("namespace")
+	pod := request.PathParameter("pod")
+	if kubeapiHost == "" || kubeapiPortText == "" || namespace == "" || pod == "" {
+		errorText := fmt.Sprintf("Input text is incorrect kubeapiHost %s kubeapiPort %s namespace %s pod %s", kubeapiHost, kubeapiPortText, namespace, pod)
+		log.Error(errorText)
+		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		return
+	}
+	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
+	if err != nil {
+		errorText := fmt.Sprintf("Could not parse kubeapiPortText %s with error %s", kubeapiPortText, err)
+		log.Error(errorText)
+		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	err = control.DeletePod(kubeapiHost, kubeapiPort, namespace, pod)
+	if err != nil {
+		errorText := fmt.Sprintf("Delete pod  %s in the namespace %s failure %s", namespace, pod, err)
+		log.Error(errorText)
+		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		return
+	}
 }
 
 func getPodLog(request *restful.Request, response *restful.Response) {
