@@ -28,7 +28,28 @@ const (
 )
 
 func init() {
+	createDefaultUser()
 	periodicallyCleanCache()
+}
+
+func createDefaultUser() {
+	user, _ := GetStorage().LoadUser("admin")
+	if user == nil {
+		permission := &rbac.Permission{"all", "*", "*", "*"}
+		permissionSlice := make([]*rbac.Permission, 0)
+		permissionSlice = append(permissionSlice, permission)
+		role := &rbac.Role{"admin", permissionSlice, "admin"}
+		roleSlice := make([]*rbac.Role, 0)
+		roleSlice = append(roleSlice, role)
+		resource := &rbac.Resource{"all", "*", "*"}
+		resourceSlice := make([]*rbac.Resource, 0)
+		resourceSlice = append(resourceSlice, resource)
+		user := rbac.CreateUser("admin", "password", roleSlice, resourceSlice, "admin")
+
+		if err := GetStorage().SaveUser(user); err != nil {
+			log.Critical(err)
+		}
+	}
 }
 
 var closed bool = false
