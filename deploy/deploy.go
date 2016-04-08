@@ -23,6 +23,12 @@ import (
 
 var waitingDuration = 5 * time.Second
 
+type DeployContainerPort struct {
+	Name          string
+	ContainerPort int
+	NodePort      int
+}
+
 type DeployInformation struct {
 	Namespace                 string
 	ImageInformationName      string
@@ -34,9 +40,8 @@ type DeployInformation struct {
 func DeployCreate(
 	kubeapiHost string, kubeapiPort int, namespace string, imageInformationName string,
 	version string, description string, replicaAmount int,
-	replicationControllerContainerPortSlice []control.ReplicationControllerContainerPort,
-	replicationControllerContainerEnvironmentSlice []control.ReplicationControllerContainerEnvironment,
-	nodePort int) error {
+	deployContainerPortSlice []DeployContainerPort,
+	replicationControllerContainerEnvironmentSlice []control.ReplicationControllerContainerEnvironment) error {
 
 	imageRecord, err := image.GetStorage().LoadImageRecord(imageInformationName, version)
 	if err != nil {
@@ -50,19 +55,14 @@ func DeployCreate(
 
 	// Automatically generate the basic default service. For advanced configuration, it should be modified in the service
 	servicePortSlice := make([]control.ServicePort, 0)
-	for _, replicationControllerContainerPort := range replicationControllerContainerPortSlice {
-		containerPort := strconv.Itoa(replicationControllerContainerPort.ContainerPort)
-		nodePortText := ""
-		// Only use Node Port if nodePort >= 0
-		if nodePort >= 0 {
-			nodePortText = strconv.Itoa(nodePort)
-		}
+	for _, deployContainerPort := range deployContainerPortSlice {
+		containerPort := strconv.Itoa(deployContainerPort.ContainerPort)
 		servicePort := control.ServicePort{
-			replicationControllerContainerPort.Name,
+			deployContainerPort.Name,
 			"TCP",
+			deployContainerPort.ContainerPort,
 			containerPort,
-			containerPort,
-			nodePortText, // "" empty means not to use. 0 means auto-generated. > 0 means the port number to use
+			deployContainerPort.NodePort, // -1 means not to use. 0 means auto-generated. > 0 means the port number to use
 		}
 		servicePortSlice = append(servicePortSlice, servicePort)
 	}
@@ -86,6 +86,12 @@ func DeployCreate(
 	}
 
 	// Replication controller
+	replicationControllerContainerPortSlice := make([]control.ReplicationControllerContainerPort, 0)
+	for _, deployContainerPort := range deployContainerPortSlice {
+		replicationControllerContainerPortSlice = append(replicationControllerContainerPortSlice,
+			control.ReplicationControllerContainerPort{deployContainerPort.Name, deployContainerPort.ContainerPort})
+	}
+
 	replicationControllerContainerSlice := make([]control.ReplicationControllerContainer, 0)
 	replicationControllerContainerSlice = append(
 		replicationControllerContainerSlice,

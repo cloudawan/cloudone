@@ -72,7 +72,7 @@ func UpdateDeployBlueGreen(kubeapiHost string, kubeapiPort int, deployBlueGreen 
 	portSlice := make([]control.ServicePort, 0)
 	// TODO read protocol rather than TCP
 	portSlice = append(portSlice, control.ServicePort{
-		portName, "TCP", strconv.Itoa(containerPort), strconv.Itoa(containerPort), strconv.Itoa(deployBlueGreen.NodePort)})
+		portName, "TCP", containerPort, strconv.Itoa(containerPort), deployBlueGreen.NodePort})
 
 	service := control.Service{
 		getBlueGreenServiceName(deployBlueGreen.ImageInformation),

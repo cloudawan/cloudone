@@ -35,9 +35,9 @@ type Service struct {
 type ServicePort struct {
 	Name       string
 	Protocol   string
-	Port       string
+	Port       int
 	TargetPort string
-	NodePort   string
+	NodePort   int
 }
 
 func CreateService(kubeapiHost string, kubeapiPort int, namespace string, service Service) (returnedError error) {
@@ -56,24 +56,19 @@ func CreateService(kubeapiHost string, kubeapiPort int, namespace string, servic
 		portJsonMap := make(map[string]interface{})
 		portJsonMap["name"] = port.Name
 		portJsonMap["protocol"] = port.Protocol
-		portNumber, err := strconv.Atoi(port.Port)
-		if err != nil {
-			portJsonMap["port"] = port.Port
-		} else {
-			portJsonMap["port"] = portNumber
-		}
+		portJsonMap["port"] = port.Port
 		targetPortNumber, err := strconv.Atoi(port.TargetPort)
-		if err == nil {
+		if err != nil {
+			portJsonMap["targetPort"] = port.TargetPort
+		} else {
 			portJsonMap["targetPort"] = targetPortNumber
 		}
-		nodePortNumber, err := strconv.Atoi(port.NodePort)
-		// "" empty or not a number means not to use. 0 means auto-generated. > 0 means the port number to use
-		if err == nil {
+
+		// < 0 not used, == 0 auto-generated, > 0 port number
+		if port.NodePort >= 0 {
 			hasNodePort = true
-			if nodePortNumber > 0 {
-				portJsonMap["nodePort"] = nodePortNumber
-			} else {
-				// 0 means auto-generated without assignment
+			if port.NodePort > 0 {
+				portJsonMap["nodePort"] = port.NodePort
 			}
 		}
 
@@ -158,13 +153,16 @@ func GetService(kubeapiHost string, kubeapiPort int, namespace string, serviceNa
 			unknownTypePort := port.(map[string]interface{})["port"]
 			switch knowTypePort := unknownTypePort.(type) {
 			case json.Number:
-				servicePort.Port = knowTypePort.String()
+				portInt64, _ := knowTypePort.Int64()
+				servicePort.Port = int(portInt64)
 			case string:
-				servicePort.Port = knowTypePort
+				servicePort.Port, _ = strconv.Atoi(knowTypePort)
 			case int64:
-				servicePort.Port = strconv.FormatInt(knowTypePort, 10)
+				servicePort.Port = int(knowTypePort)
 			case float64:
-				servicePort.Port = strconv.FormatFloat(knowTypePort, 'f', -1, 64)
+				servicePort.Port = int(knowTypePort)
+			default:
+				servicePort.Port = -1
 			}
 			unknownTypeTargetPort := port.(map[string]interface{})["targetPort"]
 			switch knowTypeTargetPort := unknownTypeTargetPort.(type) {
@@ -180,13 +178,16 @@ func GetService(kubeapiHost string, kubeapiPort int, namespace string, serviceNa
 			unknownTypeNodePort := port.(map[string]interface{})["nodePort"]
 			switch knowTypeNodePort := unknownTypeNodePort.(type) {
 			case json.Number:
-				servicePort.NodePort = knowTypeNodePort.String()
+				nodePortInt64, _ := knowTypeNodePort.Int64()
+				servicePort.NodePort = int(nodePortInt64)
 			case string:
-				servicePort.NodePort = knowTypeNodePort
+				servicePort.NodePort, _ = strconv.Atoi(knowTypeNodePort)
 			case int64:
-				servicePort.NodePort = strconv.FormatInt(knowTypeNodePort, 10)
+				servicePort.NodePort = int(knowTypeNodePort)
 			case float64:
-				servicePort.NodePort = strconv.FormatFloat(knowTypeNodePort, 'f', -1, 64)
+				servicePort.NodePort = int(knowTypeNodePort)
+			default:
+				servicePort.NodePort = -1
 			}
 			servicePortSlice = append(servicePortSlice, servicePort)
 		}
@@ -230,13 +231,14 @@ func GetAllService(kubeapiHost string, kubeapiPort int, namespace string) (retur
 				unknownTypePort := port.(map[string]interface{})["port"]
 				switch knowTypePort := unknownTypePort.(type) {
 				case json.Number:
-					servicePort.Port = knowTypePort.String()
+					portInt64, _ := knowTypePort.Int64()
+					servicePort.Port = int(portInt64)
 				case string:
-					servicePort.Port = knowTypePort
+					servicePort.Port, _ = strconv.Atoi(knowTypePort)
 				case int64:
-					servicePort.Port = strconv.FormatInt(knowTypePort, 10)
+					servicePort.Port = int(knowTypePort)
 				case float64:
-					servicePort.Port = strconv.FormatFloat(knowTypePort, 'f', -1, 64)
+					servicePort.Port = int(knowTypePort)
 				}
 				unknownTypeTargetPort := port.(map[string]interface{})["targetPort"]
 				switch knowTypeTargetPort := unknownTypeTargetPort.(type) {
@@ -252,13 +254,16 @@ func GetAllService(kubeapiHost string, kubeapiPort int, namespace string) (retur
 				unknownTypeNodePort := port.(map[string]interface{})["nodePort"]
 				switch knowTypeNodePort := unknownTypeNodePort.(type) {
 				case json.Number:
-					servicePort.NodePort = knowTypeNodePort.String()
+					nodePortInt64, _ := knowTypeNodePort.Int64()
+					servicePort.NodePort = int(nodePortInt64)
 				case string:
-					servicePort.NodePort = knowTypeNodePort
+					servicePort.NodePort, _ = strconv.Atoi(knowTypeNodePort)
 				case int64:
-					servicePort.NodePort = strconv.FormatInt(knowTypeNodePort, 10)
+					servicePort.NodePort = int(knowTypeNodePort)
 				case float64:
-					servicePort.NodePort = strconv.FormatFloat(knowTypeNodePort, 'f', -1, 64)
+					servicePort.NodePort = int(knowTypeNodePort)
+				default:
+					servicePort.NodePort = -1
 				}
 				servicePortSlice = append(servicePortSlice, servicePort)
 			}

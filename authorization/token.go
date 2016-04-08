@@ -46,6 +46,10 @@ func createDefaultUser() {
 		resourceSlice = append(resourceSlice, resource)
 		user := rbac.CreateUser("admin", "password", roleSlice, resourceSlice, "admin")
 
+		if err := GetStorage().SaveRole(role); err != nil {
+			log.Critical(err)
+		}
+
 		if err := GetStorage().SaveUser(user); err != nil {
 			log.Critical(err)
 		}
