@@ -398,6 +398,7 @@ func auditLogWithoutVerified(req *restful.Request, resp *restful.Response, chain
 	path := req.SelectedRoutePath()
 	queryParameterMap := req.Request.URL.Query()
 	pathParameterMap := req.PathParameters()
+	remoteAddress := req.Request.RemoteAddr
 
 	requestBody, _ := ioutil.ReadAll(req.Request.Body)
 	// Write data back for the later use
@@ -420,7 +421,7 @@ func auditLogWithoutVerified(req *restful.Request, resp *restful.Response, chain
 		}
 
 		// Header is not used since the header has no useful information for now
-		auditLog := audit.CreateAuditLog(componentName, path, userName, queryParameterMap, pathParameterMap, method, requestURI, string(requestBody), nil)
+		auditLog := audit.CreateAuditLog(componentName, path, userName, remoteAddress, queryParameterMap, pathParameterMap, method, requestURI, string(requestBody), nil)
 
 		url := "https://" + cloudoneAnalysisHost + ":" + strconv.Itoa(cloudoneAnalysisPort) + "/api/v1/auditlogs"
 
