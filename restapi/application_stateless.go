@@ -38,26 +38,26 @@ func registerWebServiceStatelessApplication() {
 	ws.Produces(restful.MIME_JSON)
 	restful.Add(ws)
 
-	ws.Route(ws.GET("/").Filter(authorize).To(getAllStatelessApplication).
+	ws.Route(ws.GET("/").Filter(authorize).Filter(auditLog).To(getAllStatelessApplication).
 		Doc("Get all of the configuration of stateless application").
 		Do(returns200AllStatelessApplication, returns404, returns500))
 
-	ws.Route(ws.GET("/{statelessapplication}").Filter(authorize).To(getStatelessApplication).
+	ws.Route(ws.GET("/{statelessapplication}").Filter(authorize).Filter(auditLog).To(getStatelessApplication).
 		Doc("Get the configuration of stateless application").
 		Param(ws.PathParameter("statelessapplication", "Stateless application name").DataType("string")).
 		Do(returns200StatelessApplication, returns404, returns500))
 
-	ws.Route(ws.POST("/").Filter(authorize).To(postStatelessApplication).
+	ws.Route(ws.POST("/").Filter(authorize).Filter(auditLog).To(postStatelessApplication).
 		Doc("Add a stateless application").
 		Do(returns200, returns400, returns404, returns500).
 		Reads(StatelessSerializableDescription{}))
 
-	ws.Route(ws.DELETE("/{statelessapplication}").Filter(authorize).To(deleteStatelessApplication).
+	ws.Route(ws.DELETE("/{statelessapplication}").Filter(authorize).Filter(auditLog).To(deleteStatelessApplication).
 		Doc("Delete an stateless application").
 		Param(ws.PathParameter("statelessapplication", "Stateless application name").DataType("string")).
 		Do(returns200, returns500))
 
-	ws.Route(ws.POST("/launch/{namespace}/{statelessapplication}").Filter(authorize).To(postLaunchStatelessApplication).
+	ws.Route(ws.POST("/launch/{namespace}/{statelessapplication}").Filter(authorize).Filter(auditLog).To(postLaunchStatelessApplication).
 		Doc("Launch a stateless application").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("statelessapplication", "stateless application").DataType("string")).

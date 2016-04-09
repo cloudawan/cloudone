@@ -29,7 +29,7 @@ func registerWebServiceNodeMetric() {
 	ws.Produces(restful.MIME_JSON)
 	restful.Add(ws)
 
-	ws.Route(ws.GET("/").Filter(authorize).To(getAllNodeMetric).
+	ws.Route(ws.GET("/").Filter(authorize).Filter(auditLog).To(getAllNodeMetric).
 		Doc("Get the node metric").
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).

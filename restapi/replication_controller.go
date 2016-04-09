@@ -34,14 +34,14 @@ func registerWebServiceKubernetesService() {
 	ws.Produces(restful.MIME_JSON)
 	restful.Add(ws)
 
-	ws.Route(ws.GET("/{namespace}").Filter(authorize).To(getAllReplicationController).
+	ws.Route(ws.GET("/{namespace}").Filter(authorize).Filter(auditLog).To(getAllReplicationController).
 		Doc("Get all replication controllers in the namespace").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
 		Do(returns200AllReplicationController, returns400, returns404, returns500))
 
-	ws.Route(ws.POST("/{namespace}").Filter(authorize).To(postReplicationController).
+	ws.Route(ws.POST("/{namespace}").Filter(authorize).Filter(auditLog).To(postReplicationController).
 		Doc("Add a replication controller in the namespace").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
@@ -49,7 +49,7 @@ func registerWebServiceKubernetesService() {
 		Do(returns200, returns400, returns404, returns500).
 		Reads(control.ReplicationController{}))
 
-	ws.Route(ws.GET("/{namespace}/{replicationcontroller}").Filter(authorize).To(getReplicationController).
+	ws.Route(ws.GET("/{namespace}/{replicationcontroller}").Filter(authorize).Filter(auditLog).To(getReplicationController).
 		Doc("Get replication controllers in the namespace").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("replicationcontroller", "Kubernetes replication controller name").DataType("string")).
@@ -57,7 +57,7 @@ func registerWebServiceKubernetesService() {
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
 		Do(returns200ReplicationController, returns400, returns404, returns500))
 
-	ws.Route(ws.DELETE("/{namespace}/{replicationcontroller}").Filter(authorize).To(deleteReplicationController).
+	ws.Route(ws.DELETE("/{namespace}/{replicationcontroller}").Filter(authorize).Filter(auditLog).To(deleteReplicationController).
 		Doc("Delete the replication controller in the namespace").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("replicationcontroller", "Kubernetes replication controller name").DataType("string")).
@@ -65,7 +65,7 @@ func registerWebServiceKubernetesService() {
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
 		Do(returns200, returns400, returns404, returns500))
 
-	ws.Route(ws.PUT("/size/{namespace}/{replicationcontroller}").Filter(authorize).To(putReplicationControllerSize).
+	ws.Route(ws.PUT("/size/{namespace}/{replicationcontroller}").Filter(authorize).Filter(auditLog).To(putReplicationControllerSize).
 		Doc("Configure the replication controller replica amount").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("replicationcontroller", "Kubernetes replication controller name").DataType("string")).
@@ -74,7 +74,7 @@ func registerWebServiceKubernetesService() {
 		Do(returns200, returns400, returns404, returns500).
 		Reads(SizeInput{}))
 
-	ws.Route(ws.POST("/json/{namespace}").Filter(authorize).To(postReplicationControllerFromJson).
+	ws.Route(ws.POST("/json/{namespace}").Filter(authorize).Filter(auditLog).To(postReplicationControllerFromJson).
 		Doc("Add a replication controller in the namespace from json source").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
@@ -82,7 +82,7 @@ func registerWebServiceKubernetesService() {
 		Do(returns200, returns400, returns404, returns500).
 		Reads(new(struct{})))
 
-	ws.Route(ws.PUT("/json/{namespace}/{replicationcontroller}").Filter(authorize).To(putReplicationControllerFromJson).
+	ws.Route(ws.PUT("/json/{namespace}/{replicationcontroller}").Filter(authorize).Filter(auditLog).To(putReplicationControllerFromJson).
 		Doc("Update a replication controller in the namespace from json source").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("replicationcontroller", "Kubernetes replication controller name").DataType("string")).

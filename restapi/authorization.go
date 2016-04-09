@@ -15,11 +15,17 @@
 package restapi
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/cloudawan/cloudone/authorization"
+	"github.com/cloudawan/cloudone/utility/configuration"
+	"github.com/cloudawan/cloudone_utility/audit"
 	"github.com/cloudawan/cloudone_utility/rbac"
+	"github.com/cloudawan/cloudone_utility/restclient"
 	"github.com/emicklei/go-restful"
+	"io/ioutil"
 	"net/http"
+	"strconv"
 )
 
 type UserData struct {
@@ -39,6 +45,7 @@ func registerWebServiceAuthorization() {
 	restful.Add(ws)
 
 	// Used for authorization token so don't need to be check authorization
+	// No audit since this is used by sytem rather than user
 	ws.Route(ws.GET("/tokens/{token}/components/{component}").To(getUserFromToken).
 		Doc("Get user data with the token").
 		Param(ws.PathParameter("token", "Token").DataType("string")).
@@ -46,61 +53,61 @@ func registerWebServiceAuthorization() {
 		Do(returns200User, returns400, returns404, returns500))
 
 	// Used for authorization token so don't need to be check authorization
-	ws.Route(ws.POST("/tokens/").To(postToken).
+	ws.Route(ws.POST("/tokens/").Filter(auditLogWithoutVerified).To(postToken).
 		Doc("Create the token").
 		Do(returns200Token, returns400, returns404, returns500).
 		Reads(UserData{}))
 
-	ws.Route(ws.GET("/tokens/expired").Filter(authorize).To(getAllTokenExpiredTime).
+	ws.Route(ws.GET("/tokens/expired").Filter(authorize).Filter(auditLog).To(getAllTokenExpiredTime).
 		Doc("Get all token's expired time").
 		Do(returns200AllTokenExpiredTime, returns500))
 
-	ws.Route(ws.GET("/users/").Filter(authorize).To(getAllUser).
+	ws.Route(ws.GET("/users/").Filter(authorize).Filter(auditLog).To(getAllUser).
 		Doc("Get all of the user").
 		Do(returns200AllUser, returns404, returns500))
 
-	ws.Route(ws.POST("/users/").Filter(authorize).To(postUser).
+	ws.Route(ws.POST("/users/").Filter(authorize).Filter(auditLogWithoutBody).To(postUser).
 		Doc("Create the user").
 		Do(returns200, returns400, returns404, returns500).
 		Reads(rbac.User{}))
 
-	ws.Route(ws.DELETE("/users/{name}").Filter(authorize).To(deleteUser).
+	ws.Route(ws.DELETE("/users/{name}").Filter(authorize).Filter(auditLog).To(deleteUser).
 		Doc("Delete the user").
 		Param(ws.PathParameter("name", "Name").DataType("string")).
 		Do(returns200, returns404, returns500))
 
-	ws.Route(ws.PUT("/users/{name}").Filter(authorize).To(putUser).
+	ws.Route(ws.PUT("/users/{name}").Filter(authorize).Filter(auditLogWithoutBody).To(putUser).
 		Doc("Modify the user").
 		Param(ws.PathParameter("name", "Name").DataType("string")).
 		Do(returns200, returns400, returns404, returns500).
 		Reads(rbac.User{}))
 
-	ws.Route(ws.GET("/users/{name}").Filter(authorize).To(getUser).
+	ws.Route(ws.GET("/users/{name}").Filter(authorize).Filter(auditLog).To(getUser).
 		Doc("Get all of the users").
 		Param(ws.PathParameter("name", "Name").DataType("string")).
 		Do(returns200User, returns404, returns500))
 
-	ws.Route(ws.GET("/roles/").Filter(authorize).To(getAllRole).
+	ws.Route(ws.GET("/roles/").Filter(authorize).Filter(auditLog).To(getAllRole).
 		Doc("Get all of the role").
 		Do(returns200AllRole, returns404, returns500))
 
-	ws.Route(ws.POST("/roles/").Filter(authorize).To(postRole).
+	ws.Route(ws.POST("/roles/").Filter(authorize).Filter(auditLog).To(postRole).
 		Doc("Create the role").
 		Do(returns200, returns400, returns404, returns500).
 		Reads(rbac.Role{}))
 
-	ws.Route(ws.DELETE("/roles/{name}").Filter(authorize).To(deleteRole).
+	ws.Route(ws.DELETE("/roles/{name}").Filter(authorize).Filter(auditLog).To(deleteRole).
 		Doc("Delete the role").
 		Param(ws.PathParameter("name", "Name").DataType("string")).
 		Do(returns200, returns404, returns500))
 
-	ws.Route(ws.PUT("/roles/{name}").Filter(authorize).To(putRole).
+	ws.Route(ws.PUT("/roles/{name}").Filter(authorize).Filter(auditLog).To(putRole).
 		Doc("Modify the role").
 		Param(ws.PathParameter("name", "Name").DataType("string")).
 		Do(returns200, returns400, returns404, returns500).
 		Reads(rbac.Role{}))
 
-	ws.Route(ws.GET("/roles/{name}").Filter(authorize).To(getRole).
+	ws.Route(ws.GET("/roles/{name}").Filter(authorize).Filter(auditLog).To(getRole).
 		Doc("Get all of the roles").
 		Param(ws.PathParameter("name", "Name").DataType("string")).
 		Do(returns200Role, returns404, returns500))
@@ -383,4 +390,48 @@ func returns200AllRole(b *restful.RouteBuilder) {
 
 func returns200Role(b *restful.RouteBuilder) {
 	b.Returns(http.StatusOK, "OK", rbac.Role{})
+}
+
+func auditLogWithoutVerified(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
+	requestURI := req.Request.URL.RequestURI()
+	method := req.Request.Method
+	path := req.SelectedRoutePath()
+	queryParameterMap := req.Request.URL.Query()
+	pathParameterMap := req.PathParameters()
+
+	requestBody, _ := ioutil.ReadAll(req.Request.Body)
+	// Write data back for the later use
+	req.Request.Body = ioutil.NopCloser(bytes.NewReader(requestBody))
+
+	go func() {
+		userData := UserData{}
+		req.ReadEntity(&userData)
+		userName := userData.Username
+
+		cloudoneAnalysisHost, ok := configuration.LocalConfiguration.GetString("cloudoneAnalysisHost")
+		if ok == false {
+			log.Error("Fail to get configuration cloudoneAnalysisHost")
+			return
+		}
+		cloudoneAnalysisPort, ok := configuration.LocalConfiguration.GetInt("cloudoneAnalysisPort")
+		if ok == false {
+			log.Error("Fail to get configuration cloudoneAnalysisPort")
+			return
+		}
+
+		// Header is not used since the header has no useful information for now
+		auditLog := audit.CreateAuditLog(componentName, path, userName, queryParameterMap, pathParameterMap, method, requestURI, string(requestBody), nil)
+
+		url := "https://" + cloudoneAnalysisHost + ":" + strconv.Itoa(cloudoneAnalysisPort) + "/api/v1/auditlogs"
+
+		headerMap := make(map[string]string)
+		headerMap["token"] = authorization.SystemAdminToken
+
+		_, err := restclient.RequestPost(url, auditLog, headerMap, false)
+		if err != nil {
+			log.Error("Fail to send audit log with error %s", err)
+		}
+	}()
+
+	chain.ProcessFilter(req, resp)
 }

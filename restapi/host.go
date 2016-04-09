@@ -28,27 +28,27 @@ func registerWebServiceHost() {
 	ws.Produces(restful.MIME_JSON)
 	restful.Add(ws)
 
-	ws.Route(ws.GET("/credentials/").Filter(authorize).To(getAllCredential).
+	ws.Route(ws.GET("/credentials/").Filter(authorize).Filter(auditLog).To(getAllCredential).
 		Doc("Get all of the credential").
 		Do(returns200AllCredential, returns404, returns500))
 
-	ws.Route(ws.POST("/credentials/").Filter(authorize).To(postCredential).
+	ws.Route(ws.POST("/credentials/").Filter(authorize).Filter(auditLogWithoutBody).To(postCredential).
 		Doc("Create the credential").
 		Do(returns200, returns400, returns404, returns500).
 		Reads(host.Credential{}))
 
-	ws.Route(ws.DELETE("/credentials/{ip}").Filter(authorize).To(deleteCredential).
+	ws.Route(ws.DELETE("/credentials/{ip}").Filter(authorize).Filter(auditLog).To(deleteCredential).
 		Doc("Delete the credential").
 		Param(ws.PathParameter("ip", "IP").DataType("string")).
 		Do(returns200, returns404, returns500))
 
-	ws.Route(ws.PUT("/credentials/{ip}").Filter(authorize).To(putCredential).
+	ws.Route(ws.PUT("/credentials/{ip}").Filter(authorize).Filter(auditLogWithoutBody).To(putCredential).
 		Doc("Modify the credential").
 		Param(ws.PathParameter("ip", "IP").DataType("string")).
 		Do(returns200, returns400, returns404, returns500).
 		Reads(host.Credential{}))
 
-	ws.Route(ws.GET("/credentials/{ip}").Filter(authorize).To(getCredential).
+	ws.Route(ws.GET("/credentials/{ip}").Filter(authorize).Filter(auditLog).To(getCredential).
 		Doc("Get all of the credentials").
 		Param(ws.PathParameter("ip", "IP").DataType("string")).
 		Do(returns200Credential, returns404, returns500))

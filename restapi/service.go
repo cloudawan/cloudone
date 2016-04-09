@@ -39,14 +39,14 @@ func registerWebServiceReplicationController() {
 	ws.Produces(restful.MIME_JSON)
 	restful.Add(ws)
 
-	ws.Route(ws.GET("/{namespace}").Filter(authorize).To(getAllKubernetesService).
+	ws.Route(ws.GET("/{namespace}").Filter(authorize).Filter(auditLog).To(getAllKubernetesService).
 		Doc("Get all of the kubernetes service in the namespace").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
 		Do(returns200AllKubernetesService, returns400, returns404, returns500))
 
-	ws.Route(ws.POST("/{namespace}").Filter(authorize).To(postKubernetesService).
+	ws.Route(ws.POST("/{namespace}").Filter(authorize).Filter(auditLog).To(postKubernetesService).
 		Doc("Add a kubernetes service in the namespace").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
@@ -54,7 +54,7 @@ func registerWebServiceReplicationController() {
 		Do(returns200, returns400, returns404, returns500).
 		Reads(ServiceInputDescription{}))
 
-	ws.Route(ws.DELETE("/{namespace}/{service}").Filter(authorize).To(deleteKubernetesService).
+	ws.Route(ws.DELETE("/{namespace}/{service}").Filter(authorize).Filter(auditLog).To(deleteKubernetesService).
 		Doc("Delete the kubernetes service in the namespace").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("service", "Kubernetes service name").DataType("string")).
@@ -62,7 +62,7 @@ func registerWebServiceReplicationController() {
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
 		Do(returns200, returns400, returns404, returns500))
 
-	ws.Route(ws.POST("/json/{namespace}").Filter(authorize).To(postKubernetesServiceFromJson).
+	ws.Route(ws.POST("/json/{namespace}").Filter(authorize).Filter(auditLog).To(postKubernetesServiceFromJson).
 		Doc("Add an kubernetes service in the namespace from json source").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
@@ -70,7 +70,7 @@ func registerWebServiceReplicationController() {
 		Do(returns200, returns400, returns404, returns500).
 		Reads(new(struct{})))
 
-	ws.Route(ws.PUT("/json/{namespace}/{service}").Filter(authorize).To(putKubernetesServiceFromJson).
+	ws.Route(ws.PUT("/json/{namespace}/{service}").Filter(authorize).Filter(auditLog).To(putKubernetesServiceFromJson).
 		Doc("Add an kubernetes service in the namespace from json source").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("service", "Kubernetes service name").DataType("string")).

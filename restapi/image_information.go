@@ -42,21 +42,21 @@ func registerWebServiceImageInformation() {
 	ws.Produces(restful.MIME_JSON)
 	restful.Add(ws)
 
-	ws.Route(ws.GET("/").Filter(authorize).To(getAllImageInformation).
+	ws.Route(ws.GET("/").Filter(authorize).Filter(auditLog).To(getAllImageInformation).
 		Doc("Get all of the image information").
 		Do(returns200AllImageInformation, returns404, returns500))
 
-	ws.Route(ws.DELETE("/{imageinformationname}").Filter(authorize).To(deleteImageInformationAndRelatedRecords).
+	ws.Route(ws.DELETE("/{imageinformationname}").Filter(authorize).Filter(auditLog).To(deleteImageInformationAndRelatedRecords).
 		Doc("Delete image information and related records").
 		Param(ws.PathParameter("imageinformationname", "Image information name").DataType("string")).
 		Do(returns200, returns400, returns404, returns500))
 
-	ws.Route(ws.POST("/create").Filter(authorize).To(postImageInformationCreate).
+	ws.Route(ws.POST("/create").Filter(authorize).Filter(auditLog).To(postImageInformationCreate).
 		Doc("Create image build from source code").
 		Do(returns200, returns400, returns404, returns500).
 		Reads(ImageInformationCreateInput{}))
 
-	ws.Route(ws.PUT("/upgrade").Filter(authorize).To(putImageInformationUpgrade).
+	ws.Route(ws.PUT("/upgrade").Filter(authorize).Filter(auditLog).To(putImageInformationUpgrade).
 		Doc("Upgrade image build from source code").
 		Do(returns200, returns400, returns404, returns500).
 		Reads(ImageInformationUpgradeInput{}))

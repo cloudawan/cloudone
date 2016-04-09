@@ -37,7 +37,9 @@ var configurationContent = `
 	"etcdEndpoints": ["http://127.0.0.1:4001"],
 	"etcdHeaderTimeoutPerRequestInMilliSecond": 2000,
 	"etcdBasePath": "/cloudawan/cloudone",
-	"storageTypeDefault": 3
+	"storageTypeDefault": 3,
+	"cloudoneAnalysisHost": "127.0.0.1",
+	"cloudoneAnalysisPort": 8082
 }
 `
 

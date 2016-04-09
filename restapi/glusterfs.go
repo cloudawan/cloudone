@@ -47,43 +47,43 @@ func registerWebServiceGlusterfs() {
 	ws.Produces(restful.MIME_JSON)
 	restful.Add(ws)
 
-	ws.Route(ws.GET("/clusters/").Filter(authorize).To(getAllGlusterfsCluster).
+	ws.Route(ws.GET("/clusters/").Filter(authorize).Filter(auditLog).To(getAllGlusterfsCluster).
 		Doc("Get all of the gluster cluster configuration").
 		Do(returns200AllGlusterfsCluster, returns404, returns500))
 
-	ws.Route(ws.POST("/clusters/").Filter(authorize).To(postGlusterfsCluster).
+	ws.Route(ws.POST("/clusters/").Filter(authorize).Filter(auditLogWithoutBody).To(postGlusterfsCluster).
 		Doc("Create gluster cluster configuration").
 		Do(returns200, returns400, returns404, returns500).
 		Reads(GlusterfsClusterInput{}))
 
-	ws.Route(ws.DELETE("/clusters/{cluster}").Filter(authorize).To(deleteGlusterfsCluster).
+	ws.Route(ws.DELETE("/clusters/{cluster}").Filter(authorize).Filter(auditLog).To(deleteGlusterfsCluster).
 		Doc("Delete the gluster cluster configuration").
 		Param(ws.PathParameter("cluster", "Cluster name").DataType("string")).
 		Do(returns200, returns404, returns500))
 
-	ws.Route(ws.PUT("/clusters/{cluster}").Filter(authorize).To(putGlusterfsCluster).
+	ws.Route(ws.PUT("/clusters/{cluster}").Filter(authorize).Filter(auditLogWithoutBody).To(putGlusterfsCluster).
 		Doc("Modify gluster cluster configuration").
 		Param(ws.PathParameter("cluster", "Cluster name").DataType("string")).
 		Do(returns200, returns400, returns404, returns500).
 		Reads(GlusterfsClusterInput{}))
 
-	ws.Route(ws.GET("/clusters/{cluster}").Filter(authorize).To(getGlusterfsCluster).
+	ws.Route(ws.GET("/clusters/{cluster}").Filter(authorize).Filter(auditLog).To(getGlusterfsCluster).
 		Doc("Get all of the glusterfs configuration").
 		Param(ws.PathParameter("cluster", "Cluster name").DataType("string")).
 		Do(returns200GlusterfsCluster, returns404, returns500))
 
-	ws.Route(ws.GET("/clusters/{cluster}/volumes/").Filter(authorize).To(getAllGlusterfsVolume).
+	ws.Route(ws.GET("/clusters/{cluster}/volumes/").Filter(authorize).Filter(auditLog).To(getAllGlusterfsVolume).
 		Doc("Get all of the glusterfs volume").
 		Param(ws.PathParameter("cluster", "Cluster name").DataType("string")).
 		Do(returns200AllGlusterfsVolume, returns404, returns500))
 
-	ws.Route(ws.POST("/clusters/{cluster}/volumes/").Filter(authorize).To(postGlusterfsVolume).
+	ws.Route(ws.POST("/clusters/{cluster}/volumes/").Filter(authorize).Filter(auditLog).To(postGlusterfsVolume).
 		Doc("Create and start the glusterfs volume").
 		Param(ws.PathParameter("cluster", "Cluster name").DataType("string")).
 		Do(returns200, returns400, returns404, returns500).
 		Reads(GlusterfsVolumeInput{}))
 
-	ws.Route(ws.DELETE("/clusters/{cluster}/volumes/{volume}").Filter(authorize).To(deleteGlusterfsVolume).
+	ws.Route(ws.DELETE("/clusters/{cluster}/volumes/{volume}").Filter(authorize).Filter(auditLog).To(deleteGlusterfsVolume).
 		Doc("Stop and delete the gluster volume deployment").
 		Param(ws.PathParameter("cluster", "Cluster name").DataType("string")).
 		Param(ws.PathParameter("volume", "Volume name").DataType("string")).

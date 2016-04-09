@@ -16,6 +16,7 @@ package restapi
 
 import (
 	"github.com/cloudawan/cloudone/utility/configuration"
+	"github.com/cloudawan/cloudone_utility/audit"
 	"github.com/emicklei/go-restful"
 	"github.com/emicklei/go-restful/swagger"
 	"net/http"
@@ -42,6 +43,13 @@ func StartRestAPIServer() {
 	registerWebServiceHealthCheck()
 	registerWebServiceHost()
 	registerWebServiceAuthorization()
+
+	// Place the method+path to description mapping to map for audit
+	for _, rws := range restful.DefaultContainer.RegisteredWebServices() {
+		for _, r := range rws.Routes() {
+			audit.AddDescription(r.String(), r.Doc)
+		}
+	}
 
 	// You can install the Swagger Service which provides a nice Web UI on your REST API
 	// You need to download the Swagger HTML5 assets and change the FilePath location in the config below.

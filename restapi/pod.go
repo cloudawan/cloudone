@@ -29,7 +29,7 @@ func registerWebServicePod() {
 	ws.Produces(restful.MIME_JSON)
 	restful.Add(ws)
 
-	ws.Route(ws.DELETE("/{namespace}/{pod}/").Filter(authorize).To(deletePod).
+	ws.Route(ws.DELETE("/{namespace}/{pod}/").Filter(authorize).Filter(auditLog).To(deletePod).
 		Doc("Delete the pod in the namespace").
 		Param(ws.PathParameter("namespace", "Namespace name").DataType("string")).
 		Param(ws.PathParameter("pod", "Pod name").DataType("string")).
@@ -37,7 +37,7 @@ func registerWebServicePod() {
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
 		Do(returns200, returns400, returns404, returns500))
 
-	ws.Route(ws.GET("/{namespace}/{pod}/logs").Filter(authorize).To(getPodLog).
+	ws.Route(ws.GET("/{namespace}/{pod}/logs").Filter(authorize).Filter(auditLog).To(getPodLog).
 		Doc("Get log for pod").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("pod", "Kubernetes pod").DataType("string")).

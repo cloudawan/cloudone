@@ -27,8 +27,11 @@ const (
 	cacheTTL           = cacheCheckInterval * 60
 )
 
+var SystemAdminToken string = ""
+
 func init() {
 	createDefaultUser()
+	createSystemUserInMemory()
 	periodicallyCleanCache()
 }
 
@@ -54,6 +57,30 @@ func createDefaultUser() {
 			log.Critical(err)
 		}
 	}
+}
+
+func createSystemUserInMemory() {
+	permission := &rbac.Permission{"system-all", "*", "*", "*"}
+	permissionSlice := make([]*rbac.Permission, 0)
+	permissionSlice = append(permissionSlice, permission)
+	role := &rbac.Role{"system-admin", permissionSlice, "system-admin"}
+	roleSlice := make([]*rbac.Role, 0)
+	roleSlice = append(roleSlice, role)
+	resource := &rbac.Resource{"system-all", "*", "*"}
+	resourceSlice := make([]*rbac.Resource, 0)
+	resourceSlice = append(resourceSlice, resource)
+	// Use time as password and have it encrypted so no one other than system could use
+	user := rbac.CreateUser("system", time.Now().String(), roleSlice, resourceSlice, "system-admin")
+
+	token, err := generateToken(user)
+	if err != nil {
+		log.Critical(err)
+		return
+	}
+
+	// Set the maximum duration
+	rbac.SetCache(token, user, time.Duration(1<<63-1))
+	SystemAdminToken = token
 }
 
 var closed bool = false
@@ -124,10 +151,14 @@ func CreateToken(name string, password string) (string, error) {
 		return "", errors.New("Incorrect User or Password")
 	}
 
+	return generateToken(user)
+}
+
+func generateToken(user *rbac.User) (string, error) {
 	// Create the token
 	token := jwt.New(jwt.SigningMethodHS512)
 	// Set some claims
-	token.Claims["username"] = name
+	token.Claims["username"] = user.Name
 	token.Claims["expired"] = time.Now().Add(cacheTTL).Format(time.RFC3339)
 	// Sign
 	signedToken, err := token.SignedString([]byte(signingKey))

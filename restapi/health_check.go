@@ -28,7 +28,7 @@ func registerWebServiceHealthCheck() {
 	ws.Produces(restful.MIME_JSON)
 	restful.Add(ws)
 
-	ws.Route(ws.GET("/").Filter(authorize).To(getAllStatus).
+	ws.Route(ws.GET("/").Filter(authorize).Filter(auditLog).To(getAllStatus).
 		Doc("Get all status").
 		Do(returns200Map, returns400, returns404, returns500))
 }
