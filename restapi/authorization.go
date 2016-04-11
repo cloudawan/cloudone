@@ -120,7 +120,7 @@ func getUserFromToken(request *restful.Request, response *restful.Response) {
 	user, err := authorization.GetUserFromToken(token)
 	if err != nil {
 		errorText := fmt.Sprintf("Could not get user with token %s error %s", token, err)
-		log.Error(errorText)
+		log.Debug(errorText)
 		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
 		return
 	}

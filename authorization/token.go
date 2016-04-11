@@ -114,26 +114,25 @@ func GetUserFromToken(token string) (*rbac.User, error) {
 
 		expiredTime, err := time.Parse(time.RFC3339, expiredText)
 		if err != nil {
-			log.Error("Fail to parse expired time. Token %s error %s", token, err)
+			log.Error("Fail to parse expired time. Token %v error %s", token, err)
 			return nil, err
 		}
 
 		if expiredTime.Before(time.Now()) {
-			log.Error("Token is expired. Token %s ", token)
+			log.Debug("Token is expired. Token %v ", token)
 			return nil, errors.New("Token is expired")
 		}
 		return []byte(signingKey), nil
 	})
 
 	if err != nil {
-		log.Error(err)
 		return nil, err
 	} else {
 		user := rbac.GetCache(token)
 		if user != nil {
 			return user, nil
 		} else {
-			log.Error("User not in the cache. Token %s", token)
+			log.Error("User not in the cache. Token %v", token)
 			return nil, errors.New("User not in the cache")
 		}
 	}

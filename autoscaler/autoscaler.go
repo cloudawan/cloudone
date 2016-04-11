@@ -87,7 +87,7 @@ func CheckAndExecuteAutoScaler(replicationControllerAutoScaler *ReplicationContr
 func CheckAndExecuteAutoScalerOnReplicationController(replicationControllerAutoScaler *ReplicationControllerAutoScaler, replicationControllerName string) (bool, int, error) {
 	replicationControllerMetric, err := monitor.MonitorReplicationController(replicationControllerAutoScaler.KubeapiHost, replicationControllerAutoScaler.KubeapiPort, replicationControllerAutoScaler.Namespace, replicationControllerName)
 	if err != nil {
-		log.Error("Get ReplicationController data failure: %s where replicationControllerAutoScaler %s", err.Error(), replicationControllerAutoScaler)
+		log.Error("Get ReplicationController data failure: %s where replicationControllerAutoScaler %v", err.Error(), replicationControllerAutoScaler)
 		return false, -1, err
 	}
 	toIncrease, toDecrease := false, false
@@ -105,13 +105,13 @@ func CheckAndExecuteAutoScalerOnReplicationController(replicationControllerAutoS
 	if toIncrease {
 		resized, size, err := control.ResizeReplicationController(replicationControllerAutoScaler.KubeapiHost, replicationControllerAutoScaler.KubeapiPort, replicationControllerAutoScaler.Namespace, replicationControllerName, 1, replicationControllerAutoScaler.MaximumReplica, replicationControllerAutoScaler.MinimumReplica)
 		if err != nil {
-			log.Error("ResizeReplicationController failure: %s where ReplicationControllerAutoScaler %s", err.Error(), replicationControllerAutoScaler)
+			log.Error("ResizeReplicationController failure: %s where ReplicationControllerAutoScaler %v", err.Error(), replicationControllerAutoScaler)
 		}
 		return resized, size, err
 	} else if toDecrease {
 		resized, size, err := control.ResizeReplicationController(replicationControllerAutoScaler.KubeapiHost, replicationControllerAutoScaler.KubeapiPort, replicationControllerAutoScaler.Namespace, replicationControllerName, -1, replicationControllerAutoScaler.MaximumReplica, replicationControllerAutoScaler.MinimumReplica)
 		if err != nil {
-			log.Error("ResizeReplicationController failure: %s where ReplicationControllerAutoScaler %s", err.Error(), replicationControllerAutoScaler)
+			log.Error("ResizeReplicationController failure: %s where ReplicationControllerAutoScaler %v", err.Error(), replicationControllerAutoScaler)
 		}
 		return resized, size, err
 	} else {
