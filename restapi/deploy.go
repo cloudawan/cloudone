@@ -30,6 +30,7 @@ type DeployCreateInput struct {
 	ReplicaAmount        int
 	PortSlice            []deploy.DeployContainerPort
 	EnvironmentSlice     []control.ReplicationControllerContainerEnvironment
+	ResourceMap          map[string]interface{}
 }
 
 type DeployUpdateInput struct {
@@ -154,6 +155,7 @@ func postDeployCreate(request *restful.Request, response *restful.Response) {
 		deployCreateInput.ReplicaAmount,
 		deployCreateInput.PortSlice,
 		deployCreateInput.EnvironmentSlice,
+		deployCreateInput.ResourceMap,
 	)
 
 	if err != nil {

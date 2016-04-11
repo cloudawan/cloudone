@@ -45,6 +45,7 @@ type ReplicationControllerContainer struct {
 	Image            string
 	PortSlice        []ReplicationControllerContainerPort
 	EnvironmentSlice []ReplicationControllerContainerEnvironment
+	ResourceMap      map[string]interface{}
 }
 
 type ReplicationControllerContainerPort struct {
@@ -71,6 +72,7 @@ func CreateReplicationController(kubeapiHost string, kubeapiPort int, namespace 
 		containerJsonMap := make(map[string]interface{})
 		containerJsonMap["name"] = replicationControllerContainer.Name
 		containerJsonMap["image"] = replicationControllerContainer.Image
+		containerJsonMap["resources"] = replicationControllerContainer.ResourceMap
 
 		portJsonMapSlice := make([]interface{}, 0)
 		for _, replicationControllerContainerPort := range replicationControllerContainer.PortSlice {
@@ -239,6 +241,8 @@ func GetReplicationController(kubeapiHost string, kubeapiPort int, namespace str
 					replicationControllerContainer.EnvironmentSlice = append(replicationControllerContainer.EnvironmentSlice, ReplicationControllerContainerEnvironment{name, value})
 				}
 
+				replicationControllerContainer.ResourceMap, _ = container.(map[string]interface{})["resources"].(map[string]interface{})
+
 				replicationController.ContainerSlice = append(replicationController.ContainerSlice, replicationControllerContainer)
 			}
 		}
@@ -383,6 +387,7 @@ func RollingUpdateReplicationControllerWithSingleContainer(kubeapiHost string,
 	newReplicationController.ContainerSlice[0].Image = newImage
 	newReplicationController.ContainerSlice[0].PortSlice = oldReplicationController.ContainerSlice[0].PortSlice
 	newReplicationController.ContainerSlice[0].EnvironmentSlice = environmentSlice
+	newReplicationController.ContainerSlice[0].ResourceMap = oldReplicationController.ContainerSlice[0].ResourceMap
 
 	err = CreateReplicationController(kubeapiHost, kubeapiPort, namespace, newReplicationController)
 	if err != nil {
