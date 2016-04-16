@@ -48,7 +48,7 @@ func createDefaultUser() {
 		resourceSlice := make([]*rbac.Resource, 0)
 		resourceSlice = append(resourceSlice, resource)
 		metaDataMap := make(map[string]string)
-		user := rbac.CreateUser("admin", "password", roleSlice, resourceSlice, "admin", metaDataMap)
+		user := rbac.CreateUser("admin", "password", roleSlice, resourceSlice, "admin", metaDataMap, nil, false)
 
 		if err := GetStorage().SaveRole(role); err != nil {
 			log.Critical(err)
@@ -72,7 +72,7 @@ func createSystemUserInMemory() {
 	resourceSlice = append(resourceSlice, resource)
 	metaDataMap := make(map[string]string)
 	// Use time as password and have it encrypted so no one other than system could use
-	user := rbac.CreateUser("system", time.Now().String(), roleSlice, resourceSlice, "system-admin", metaDataMap)
+	user := rbac.CreateUser("system", time.Now().String(), roleSlice, resourceSlice, "system-admin", metaDataMap, nil, false)
 
 	token, err := generateToken(user)
 	if err != nil {
@@ -150,6 +150,16 @@ func CreateToken(name string, password string) (string, error) {
 	if user.CheckPassword(password) == false {
 		log.Error("Incorrect User %s or Password %s", name, password)
 		return "", errors.New("Incorrect User or Password")
+	}
+
+	if user.ExpiredTime != nil && time.Now().After(*user.ExpiredTime) {
+		log.Error("User %s is expired", name)
+		return "", errors.New("User is expired")
+	}
+
+	if user.Disabled {
+		log.Error("User %s is disabled", name)
+		return "", errors.New("User is disabled")
 	}
 
 	return generateToken(user)

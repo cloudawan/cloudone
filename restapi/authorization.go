@@ -195,7 +195,7 @@ func postUser(request *restful.Request, response *restful.Response) {
 		return
 	}
 
-	createdUser := rbac.CreateUser(user.Name, user.EncodedPassword, user.RoleSlice, user.ResourceSlice, user.Description, user.MetaDataMap)
+	createdUser := rbac.CreateUser(user.Name, user.EncodedPassword, user.RoleSlice, user.ResourceSlice, user.Description, user.MetaDataMap, user.ExpiredTime, user.Disabled)
 
 	err = authorization.GetStorage().SaveUser(createdUser)
 	if err != nil {
@@ -234,7 +234,7 @@ func putUser(request *restful.Request, response *restful.Response) {
 		return
 	}
 
-	createdUser := rbac.CreateUser(user.Name, user.EncodedPassword, user.RoleSlice, user.ResourceSlice, user.Description, user.MetaDataMap)
+	createdUser := rbac.CreateUser(user.Name, user.EncodedPassword, user.RoleSlice, user.ResourceSlice, user.Description, user.MetaDataMap, user.ExpiredTime, user.Disabled)
 
 	err = authorization.GetStorage().SaveUser(createdUser)
 	if err != nil {

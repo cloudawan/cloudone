@@ -76,6 +76,8 @@ func (storageEtcd *StorageEtcd) SaveUser(user *rbac.User) error {
 		user.ResourceSlice,
 		user.Description,
 		user.MetaDataMap,
+		user.ExpiredTime,
+		user.Disabled,
 	}
 
 	byteSlice, err := json.Marshal(savedUser)
