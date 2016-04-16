@@ -215,7 +215,7 @@ func LaunchClusterApplicationPython(kubeapiHost string, kubeapiPort int, namespa
 	log.Debug(string(out))
 	if err != nil {
 		log.Error("Run python script file for cluster application error %s", err)
-		return err
+		return errors.New("Error: " + err.Error() + " Output: " + string(out))
 	}
 
 	// Remove working space
