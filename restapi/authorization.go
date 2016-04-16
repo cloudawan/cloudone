@@ -87,6 +87,12 @@ func registerWebServiceAuthorization() {
 		Param(ws.PathParameter("name", "Name").DataType("string")).
 		Do(returns200User, returns404, returns500))
 
+	ws.Route(ws.PUT("/users/{name}/metadata").Filter(authorize).Filter(auditLogWithoutBody).To(putUserMetaData).
+		Doc("Modify the user metadata").
+		Param(ws.PathParameter("name", "Name").DataType("string")).
+		Do(returns200, returns400, returns404, returns500).
+		Reads(make(map[string]string)))
+
 	ws.Route(ws.GET("/roles/").Filter(authorize).Filter(auditLog).To(getAllRole).
 		Doc("Get all of the role").
 		Do(returns200AllRole, returns404, returns500))
@@ -189,7 +195,7 @@ func postUser(request *restful.Request, response *restful.Response) {
 		return
 	}
 
-	createdUser := rbac.CreateUser(user.Name, user.EncodedPassword, user.RoleSlice, user.ResourceSlice, user.Description)
+	createdUser := rbac.CreateUser(user.Name, user.EncodedPassword, user.RoleSlice, user.ResourceSlice, user.Description, user.MetaDataMap)
 
 	err = authorization.GetStorage().SaveUser(createdUser)
 	if err != nil {
@@ -228,7 +234,7 @@ func putUser(request *restful.Request, response *restful.Response) {
 		return
 	}
 
-	createdUser := rbac.CreateUser(user.Name, user.EncodedPassword, user.RoleSlice, user.ResourceSlice, user.Description)
+	createdUser := rbac.CreateUser(user.Name, user.EncodedPassword, user.RoleSlice, user.ResourceSlice, user.Description, user.MetaDataMap)
 
 	err = authorization.GetStorage().SaveUser(createdUser)
 	if err != nil {
@@ -263,6 +269,38 @@ func getUser(request *restful.Request, response *restful.Response) {
 	}
 
 	response.WriteJson(user, "User")
+}
+
+func putUserMetaData(request *restful.Request, response *restful.Response) {
+	name := request.PathParameter("name")
+
+	metaDataMap := make(map[string]string)
+	err := request.ReadEntity(&metaDataMap)
+
+	if err != nil {
+		errorText := fmt.Sprintf("PUT parse metadata input failure with error %s", err)
+		log.Error(errorText)
+		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	oldUser, _ := authorization.GetStorage().LoadUser(name)
+	if oldUser == nil {
+		errorText := fmt.Sprintf("The user with name %s doesn't exist", name)
+		log.Error(errorText)
+		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	oldUser.MetaDataMap = metaDataMap
+
+	err = authorization.GetStorage().SaveUser(oldUser)
+	if err != nil {
+		errorText := fmt.Sprintf("Save user %v with error %s", oldUser, err)
+		log.Error(errorText)
+		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		return
+	}
 }
 
 func getAllRole(request *restful.Request, response *restful.Response) {

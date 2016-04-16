@@ -47,7 +47,8 @@ func createDefaultUser() {
 		resource := &rbac.Resource{"all", "*", "*"}
 		resourceSlice := make([]*rbac.Resource, 0)
 		resourceSlice = append(resourceSlice, resource)
-		user := rbac.CreateUser("admin", "password", roleSlice, resourceSlice, "admin")
+		metaDataMap := make(map[string]string)
+		user := rbac.CreateUser("admin", "password", roleSlice, resourceSlice, "admin", metaDataMap)
 
 		if err := GetStorage().SaveRole(role); err != nil {
 			log.Critical(err)
@@ -69,8 +70,9 @@ func createSystemUserInMemory() {
 	resource := &rbac.Resource{"system-all", "*", "*"}
 	resourceSlice := make([]*rbac.Resource, 0)
 	resourceSlice = append(resourceSlice, resource)
+	metaDataMap := make(map[string]string)
 	// Use time as password and have it encrypted so no one other than system could use
-	user := rbac.CreateUser("system", time.Now().String(), roleSlice, resourceSlice, "system-admin")
+	user := rbac.CreateUser("system", time.Now().String(), roleSlice, resourceSlice, "system-admin", metaDataMap)
 
 	token, err := generateToken(user)
 	if err != nil {
