@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/cloudawan/cloudone/control"
+	"github.com/cloudawan/cloudone_utility/deepcopy"
 	"github.com/cloudawan/cloudone_utility/random"
 	"io/ioutil"
 	"os"
@@ -35,7 +36,7 @@ type Cluster struct {
 	ScriptContent             string
 }
 
-func LaunchClusterApplication(kubeapiHost string, kubeapiPort int, namespace string, name string, environmentSlice []interface{}, size int) error {
+func LaunchClusterApplication(kubeapiHost string, kubeapiPort int, namespace string, name string, environmentSlice []interface{}, size int, replicationControllerExtraJsonMap map[string]interface{}) error {
 	cluster, err := GetStorage().LoadClusterApplication(name)
 	if err != nil {
 		log.Error("Load cluster application error %s", err)
@@ -44,16 +45,16 @@ func LaunchClusterApplication(kubeapiHost string, kubeapiPort int, namespace str
 
 	switch cluster.ScriptType {
 	case "none":
-		return LaunchClusterApplicationNoScript(kubeapiHost, kubeapiPort, namespace, cluster, environmentSlice, size)
+		return LaunchClusterApplicationNoScript(kubeapiHost, kubeapiPort, namespace, cluster, environmentSlice, size, replicationControllerExtraJsonMap)
 	case "python":
-		return LaunchClusterApplicationPython(kubeapiHost, kubeapiPort, namespace, cluster, environmentSlice, size)
+		return LaunchClusterApplicationPython(kubeapiHost, kubeapiPort, namespace, cluster, environmentSlice, size, replicationControllerExtraJsonMap)
 	default:
 		log.Error("No such script type: %s", cluster.ScriptType)
 		return errors.New("No such script type: " + cluster.ScriptType)
 	}
 }
 
-func LaunchClusterApplicationNoScript(kubeapiHost string, kubeapiPort int, namespace string, cluster *Cluster, environmentSlice []interface{}, size int) error {
+func LaunchClusterApplicationNoScript(kubeapiHost string, kubeapiPort int, namespace string, cluster *Cluster, environmentSlice []interface{}, size int, replicationControllerExtraJsonMap map[string]interface{}) error {
 	replicationControllerJsonMap := make(map[string]interface{})
 	err := json.Unmarshal([]byte(cluster.ReplicationControllerJson), &replicationControllerJsonMap)
 	if err != nil {
@@ -66,6 +67,12 @@ func LaunchClusterApplicationNoScript(kubeapiHost string, kubeapiPort int, names
 	if err != nil {
 		log.Error("Unmarshal service json for cluster application error %s", err)
 		return err
+	}
+
+	// Configure extra json body
+	// It is used for user to input any configuration
+	if replicationControllerExtraJsonMap != nil {
+		deepcopy.DeepOverwriteJsonMap(replicationControllerExtraJsonMap, replicationControllerJsonMap)
 	}
 
 	// Add environment variable
@@ -114,12 +121,18 @@ func LaunchClusterApplicationNoScript(kubeapiHost string, kubeapiPort int, names
 	return nil
 }
 
-func LaunchClusterApplicationPython(kubeapiHost string, kubeapiPort int, namespace string, cluster *Cluster, environmentSlice []interface{}, size int) error {
+func LaunchClusterApplicationPython(kubeapiHost string, kubeapiPort int, namespace string, cluster *Cluster, environmentSlice []interface{}, size int, replicationControllerExtraJsonMap map[string]interface{}) error {
 	replicationControllerJsonMap := make(map[string]interface{})
 	err := json.Unmarshal([]byte(cluster.ReplicationControllerJson), &replicationControllerJsonMap)
 	if err != nil {
 		log.Error("Unmarshal replication controller json for cluster application error %s", err)
 		return err
+	}
+
+	// Configure extra json body
+	// It is used for user to input any configuration
+	if replicationControllerExtraJsonMap != nil {
+		deepcopy.DeepOverwriteJsonMap(replicationControllerExtraJsonMap, replicationControllerJsonMap)
 	}
 
 	// Add environment variable

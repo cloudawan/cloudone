@@ -31,6 +31,7 @@ type DeployCreateInput struct {
 	PortSlice            []deploy.DeployContainerPort
 	EnvironmentSlice     []control.ReplicationControllerContainerEnvironment
 	ResourceMap          map[string]interface{}
+	ExtraJsonMap         map[string]interface{}
 }
 
 type DeployUpdateInput struct {
@@ -156,6 +157,7 @@ func postDeployCreate(request *restful.Request, response *restful.Response) {
 		deployCreateInput.PortSlice,
 		deployCreateInput.EnvironmentSlice,
 		deployCreateInput.ResourceMap,
+		deployCreateInput.ExtraJsonMap,
 	)
 
 	if err != nil {

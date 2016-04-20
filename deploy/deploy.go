@@ -42,7 +42,8 @@ func DeployCreate(
 	version string, description string, replicaAmount int,
 	deployContainerPortSlice []DeployContainerPort,
 	replicationControllerContainerEnvironmentSlice []control.ReplicationControllerContainerEnvironment,
-	resourceMap map[string]interface{}) error {
+	resourceMap map[string]interface{},
+	extraJsonMap map[string]interface{}) error {
 
 	imageRecord, err := image.GetStorage().LoadImageRecord(imageInformationName, version)
 	if err != nil {
@@ -115,6 +116,7 @@ func DeployCreate(
 			replicationControllerName,
 		},
 		replicationControllerContainerSlice,
+		extraJsonMap,
 	}
 
 	err = control.CreateReplicationController(kubeapiHost, kubeapiPort,

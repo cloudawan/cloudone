@@ -54,6 +54,7 @@ func DeletePod(kubeapiHost string, kubeapiPort int, namespace string, podName st
 	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/pods/" + podName
 	_, err := restclient.RequestDelete(url, nil, nil, true)
 	if err != nil {
+		log.Error(err)
 		return err
 	} else {
 		return nil

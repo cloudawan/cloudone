@@ -29,6 +29,7 @@ type ReplicationController struct {
 	Selector       ReplicationControllerSelector
 	Label          ReplicationControllerLabel
 	ContainerSlice []ReplicationControllerContainer
+	ExtraJsonMap   map[string]interface{}
 }
 
 type ReplicationControllerSelector struct {
@@ -132,6 +133,12 @@ func CreateReplicationController(kubeapiHost string, kubeapiPort int, namespace 
 	volumeJsonMapSlice := make([]interface{}, 0)
 	volumeJsonMapSlice = append(volumeJsonMapSlice, volumeJsonMap)
 	bodyJsonMap["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["volumes"] = volumeJsonMapSlice
+
+	// Configure extra json body
+	// It is used for user to input any configuration
+	if replicationController.ExtraJsonMap != nil {
+		deepcopy.DeepOverwriteJsonMap(replicationController.ExtraJsonMap, bodyJsonMap)
+	}
 
 	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/replicationcontrollers/"
 	_, err := restclient.RequestPost(url, bodyJsonMap, nil, true)
@@ -381,6 +388,7 @@ func RollingUpdateReplicationControllerWithSingleContainer(kubeapiHost string,
 			newReplicationControllerName,
 		},
 		make([]ReplicationControllerContainer, 1),
+		nil,
 	}
 	newReplicationController.Label.Name = newReplicationControllerName
 	newReplicationController.ContainerSlice[0].Name = newReplicationControllerName

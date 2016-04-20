@@ -33,6 +33,12 @@ type ClusterDescription struct {
 	ScriptContent             string
 }
 
+type ClusterLaunch struct {
+	Size                              int
+	EnvironmentSlice                  []interface{}
+	ReplicationControllerExtraJsonMap map[string]interface{}
+}
+
 func registerWebServiceClusterApplication() {
 	ws := new(restful.WebService)
 	ws.Path("/api/v1/clusterapplications")
@@ -67,7 +73,7 @@ func registerWebServiceClusterApplication() {
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
 		Param(ws.QueryParameter("size", "How many instances to launch").DataType("int")).
 		Do(returns200, returns400, returns404, returns500).
-		Reads(new(struct{})))
+		Reads(ClusterLaunch{}))
 }
 
 func getAllClusterApplication(request *restful.Request, response *restful.Response) {
@@ -131,7 +137,6 @@ func postLaunchClusterApplication(request *restful.Request, response *restful.Re
 	kubeapiPortText := request.QueryParameter("kubeapiport")
 	namespace := request.PathParameter("namespace")
 	name := request.PathParameter("clusterapplication")
-	sizeText := request.QueryParameter("size")
 
 	if kubeapiHost == "" || kubeapiPortText == "" || namespace == "" {
 		errorText := fmt.Sprintf("Input text is incorrect kubeapiHost %s kubeapiPort %s namespace %s", kubeapiHost, kubeapiPortText, namespace)
@@ -146,16 +151,16 @@ func postLaunchClusterApplication(request *restful.Request, response *restful.Re
 		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
 		return
 	}
-	size, err := strconv.Atoi(sizeText)
+
+	clusterLaunch := ClusterLaunch{}
+	err = request.ReadEntity(&clusterLaunch)
+
 	if err != nil {
-		errorText := fmt.Sprintf("Could not parse sizeText %s with error %s", sizeText, err)
+		errorText := fmt.Sprintf("POST read body failure with error %s", err)
 		log.Error(errorText)
 		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
 		return
 	}
-
-	environmentSlice := make([]interface{}, 0)
-	err = request.ReadEntity(&environmentSlice)
 
 	exist, err := monitor.ExistReplicationController(kubeapiHost, kubeapiPort, namespace, name)
 	if exist {
@@ -165,7 +170,7 @@ func postLaunchClusterApplication(request *restful.Request, response *restful.Re
 		return
 	}
 
-	err = application.LaunchClusterApplication(kubeapiHost, kubeapiPort, namespace, name, environmentSlice, size)
+	err = application.LaunchClusterApplication(kubeapiHost, kubeapiPort, namespace, name, clusterLaunch.EnvironmentSlice, clusterLaunch.Size, clusterLaunch.ReplicationControllerExtraJsonMap)
 	if err != nil {
 		errorText := fmt.Sprintf("Could not launch cluster application %s with kubeapiHost %s, kubeapiPort %d, namespace %s, error %s", name, kubeapiHost, kubeapiPort, namespace, err)
 		log.Error(errorText)
