@@ -17,6 +17,7 @@ package restapi
 import (
 	"fmt"
 	"github.com/cloudawan/cloudone/application"
+	"github.com/cloudawan/cloudone/deploy"
 	"github.com/cloudawan/cloudone/monitor"
 	"github.com/emicklei/go-restful"
 	"net/http"
@@ -173,6 +174,14 @@ func postLaunchClusterApplication(request *restful.Request, response *restful.Re
 	err = application.LaunchClusterApplication(kubeapiHost, kubeapiPort, namespace, name, clusterLaunch.EnvironmentSlice, clusterLaunch.Size, clusterLaunch.ReplicationControllerExtraJsonMap)
 	if err != nil {
 		errorText := fmt.Sprintf("Could not launch cluster application %s with kubeapiHost %s, kubeapiPort %d, namespace %s, error %s", name, kubeapiHost, kubeapiPort, namespace, err)
+		log.Error(errorText)
+		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	err = deploy.InitializeDeployClusterApplication(kubeapiHost, kubeapiPort, namespace, name, clusterLaunch.EnvironmentSlice, clusterLaunch.Size, clusterLaunch.ReplicationControllerExtraJsonMap)
+	if err != nil {
+		errorText := fmt.Sprintf("Could not create deploy cluster application %s with kubeapiHost %s, kubeapiPort %d, namespace %s, error %s", name, kubeapiHost, kubeapiPort, namespace, err)
 		log.Error(errorText)
 		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
 		return

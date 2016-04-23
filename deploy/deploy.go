@@ -35,6 +35,28 @@ type DeployInformation struct {
 	CurrentVersion            string
 	CurrentVersionDescription string
 	Description               string
+	ReplicaAmount             int
+	ContainerPortSlice        []DeployContainerPort
+	EnvironmentSlice          []control.ReplicationControllerContainerEnvironment
+	ResourceMap               map[string]interface{}
+	ExtraJsonMap              map[string]interface{}
+	CreatedTime               time.Time
+}
+
+func GetDeployInformationInNamespace(namespace string) ([]DeployInformation, error) {
+	deployInformationSlice, err := GetStorage().LoadAllDeployInformation()
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	filteredDeployInformationSlice := make([]DeployInformation, 0)
+	for _, deployInformation := range deployInformationSlice {
+		if deployInformation.Namespace == namespace {
+			filteredDeployInformationSlice = append(filteredDeployInformationSlice, deployInformation)
+		}
+	}
+	return filteredDeployInformationSlice, nil
 }
 
 func DeployCreate(
@@ -132,6 +154,12 @@ func DeployCreate(
 		version,
 		imageRecord.Description,
 		description,
+		replicaAmount,
+		deployContainerPortSlice,
+		replicationControllerContainerEnvironmentSlice,
+		resourceMap,
+		extraJsonMap,
+		time.Now(),
 	}
 
 	err = GetStorage().saveDeployInformation(deployInformation)

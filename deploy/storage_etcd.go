@@ -25,12 +25,17 @@ type StorageEtcd struct {
 
 func (storageEtcd *StorageEtcd) initialize() error {
 	if err := etcd.EtcdClient.CreateDirectoryIfNotExist(etcd.EtcdClient.EtcdBasePath + "/deploy_information"); err != nil {
-		log.Error("Create if not existing deploy informationdirectory error: %s", err)
+		log.Error("Create if not existing deploy information directory error: %s", err)
 		return err
 	}
 
 	if err := etcd.EtcdClient.CreateDirectoryIfNotExist(etcd.EtcdClient.EtcdBasePath + "/deploy_blue_green"); err != nil {
 		log.Error("Create if not existing deploy blue green directory error: %s", err)
+		return err
+	}
+
+	if err := etcd.EtcdClient.CreateDirectoryIfNotExist(etcd.EtcdClient.EtcdBasePath + "/deploy_cluster_application"); err != nil {
+		log.Error("Create if not existing deploy cluster application directory error: %s", err)
 		return err
 	}
 
@@ -226,4 +231,103 @@ func (storageEtcd *StorageEtcd) LoadAllDeployBlueGreen() ([]DeployBlueGreen, err
 	}
 
 	return deployBlueGreenSlice, nil
+}
+
+func (storageEtcd *StorageEtcd) getKeyDeployClusterApplication(namespace string, name string) string {
+	return namespace + "." + name
+}
+
+func (storageEtcd *StorageEtcd) DeleteDeployClusterApplication(namespace string, name string) error {
+	keysAPI, err := etcd.EtcdClient.GetKeysAPI()
+	if err != nil {
+		log.Error("Get keysAPI error %s", err)
+		return err
+	}
+
+	key := storageEtcd.getKeyDeployClusterApplication(namespace, name)
+	response, err := keysAPI.Delete(context.Background(), etcd.EtcdClient.EtcdBasePath+"/deploy_cluster_application/"+key, nil)
+	if err != nil {
+		log.Error("Delete deploy cluster application with namespace %s name %s error: %s", namespace, name, err)
+		log.Error(response)
+		return err
+	}
+
+	return nil
+}
+
+func (storageEtcd *StorageEtcd) SaveDeployClusterApplication(deployClusterApplication *DeployClusterApplication) error {
+	keysAPI, err := etcd.EtcdClient.GetKeysAPI()
+	if err != nil {
+		log.Error("Get keysAPI error %s", err)
+		return err
+	}
+
+	byteSlice, err := json.Marshal(deployClusterApplication)
+	if err != nil {
+		log.Error("Marshal deploy cluster application %v error %s", deployClusterApplication, err)
+		return err
+	}
+
+	key := storageEtcd.getKeyDeployClusterApplication(deployClusterApplication.Namespace, deployClusterApplication.Name)
+	response, err := keysAPI.Set(context.Background(), etcd.EtcdClient.EtcdBasePath+"/deploy_cluster_application/"+key, string(byteSlice), nil)
+	if err != nil {
+		log.Error("Save deploy cluster application %v error: %s", deployClusterApplication, err)
+		log.Error(response)
+		return err
+	}
+
+	return nil
+}
+
+func (storageEtcd *StorageEtcd) LoadDeployClusterApplication(namespace string, name string) (*DeployClusterApplication, error) {
+	keysAPI, err := etcd.EtcdClient.GetKeysAPI()
+	if err != nil {
+		log.Error("Get keysAPI error %s", err)
+		return nil, err
+	}
+
+	key := storageEtcd.getKeyDeployClusterApplication(namespace, name)
+	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/deploy_cluster_application/"+key, nil)
+	if err != nil {
+		log.Error("Load deploy cluster application with namespace %s name %s error: %s", namespace, name, err)
+		log.Error(response)
+		return nil, err
+	}
+
+	deployClusterApplication := new(DeployClusterApplication)
+	err = json.Unmarshal([]byte(response.Node.Value), &deployClusterApplication)
+	if err != nil {
+		log.Error("Unmarshal deploy cluster application %v error %s", response.Node.Value, err)
+		return nil, err
+	}
+
+	return deployClusterApplication, nil
+}
+
+func (storageEtcd *StorageEtcd) LoadAllDeployClusterApplication() ([]DeployClusterApplication, error) {
+	keysAPI, err := etcd.EtcdClient.GetKeysAPI()
+	if err != nil {
+		log.Error("Get keysAPI error %s", err)
+		return nil, err
+	}
+
+	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/deploy_cluster_application", nil)
+	if err != nil {
+		log.Error("Load all deploy cluster application error: %s", err)
+		log.Error(response)
+		return nil, err
+	}
+
+	deployClusterApplicationSlice := make([]DeployClusterApplication, 0)
+	for _, node := range response.Node.Nodes {
+		deployClusterApplication := DeployClusterApplication{}
+		err := json.Unmarshal([]byte(node.Value), &deployClusterApplication)
+		if err != nil {
+			log.Error("Unmarshal deploy cluster application %v error %s", node.Value, err)
+			return nil, err
+		}
+		deployClusterApplicationSlice = append(deployClusterApplicationSlice, deployClusterApplication)
+	}
+
+	return deployClusterApplicationSlice, nil
 }

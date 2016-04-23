@@ -20,9 +20,12 @@ import (
 )
 
 type StorageCassandra struct {
+	dummyError DummyError
 }
 
 func (storageCassandra *StorageCassandra) initialize() error {
+	storageCassandra.dummyError = DummyError{"Dummy support nothing"}
+
 	tableSchemaDeployInformation := `
 	CREATE TABLE IF NOT EXISTS deploy_information (
 	namespace  varchar,
@@ -225,4 +228,20 @@ func (storageCassandra *StorageCassandra) LoadAllDeployBlueGreen() ([]DeployBlue
 	} else {
 		return deployBlueGreenSlice, nil
 	}
+}
+
+func (storageCassandra *StorageCassandra) DeleteDeployClusterApplication(namespace string, name string) error {
+	return &storageCassandra.dummyError
+}
+
+func (storageCassandra *StorageCassandra) SaveDeployClusterApplication(deployClusterApplication *DeployClusterApplication) error {
+	return &storageCassandra.dummyError
+}
+
+func (storageCassandra *StorageCassandra) LoadDeployClusterApplication(namespace string, name string) (*DeployClusterApplication, error) {
+	return nil, &storageCassandra.dummyError
+}
+
+func (storageCassandra *StorageCassandra) LoadAllDeployClusterApplication() ([]DeployClusterApplication, error) {
+	return nil, &storageCassandra.dummyError
 }

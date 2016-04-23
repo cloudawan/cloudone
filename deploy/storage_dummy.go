@@ -81,3 +81,19 @@ func (storageDummy *StorageDummy) LoadDeployBlueGreen(imageInformation string) (
 func (storageDummy *StorageDummy) LoadAllDeployBlueGreen() ([]DeployBlueGreen, error) {
 	return nil, &storageDummy.dummyError
 }
+
+func (storageDummy *StorageDummy) DeleteDeployClusterApplication(namespace string, name string) error {
+	return &storageDummy.dummyError
+}
+
+func (storageDummy *StorageDummy) SaveDeployClusterApplication(deployClusterApplication *DeployClusterApplication) error {
+	return &storageDummy.dummyError
+}
+
+func (storageDummy *StorageDummy) LoadDeployClusterApplication(namespace string, name string) (*DeployClusterApplication, error) {
+	return nil, &storageDummy.dummyError
+}
+
+func (storageDummy *StorageDummy) LoadAllDeployClusterApplication() ([]DeployClusterApplication, error) {
+	return nil, &storageDummy.dummyError
+}

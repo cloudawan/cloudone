@@ -91,4 +91,8 @@ type Storage interface {
 	saveDeployBlueGreen(deployBlueGreen *DeployBlueGreen) error
 	LoadDeployBlueGreen(imageInformation string) (*DeployBlueGreen, error)
 	LoadAllDeployBlueGreen() ([]DeployBlueGreen, error)
+	DeleteDeployClusterApplication(namespace string, name string) error
+	SaveDeployClusterApplication(deployClusterApplication *DeployClusterApplication) error
+	LoadDeployClusterApplication(namespace string, name string) (*DeployClusterApplication, error)
+	LoadAllDeployClusterApplication() ([]DeployClusterApplication, error)
 }

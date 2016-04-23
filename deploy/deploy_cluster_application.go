@@ -24,107 +24,39 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"time"
 )
 
 type DeployClusterApplication struct {
-	Name                           string
-	Size                           int
-	ServiceName                    string
-	ReplicationControllerNameSlice []string
+	Name                              string
+	Namespace                         string
+	Size                              int
+	EnvironmentSlice                  []interface{}
+	ReplicationControllerExtraJsonMap map[string]interface{}
+	ServiceName                       string
+	ReplicationControllerNameSlice    []string
+	CreatedTime                       time.Time
 }
 
-func GetAllDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespace string) ([]DeployClusterApplication, error) {
-	clusterSlice, err := application.GetStorage().LoadAllClusterApplication()
-	if err != nil {
-		log.Error("Fail to load all cluster application error %s", err)
-		return nil, err
-	}
-
+func InitializeDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespace string, name string, environmentSlice []interface{}, size int, replicationControllerExtraJsonMap map[string]interface{}) error {
 	replicationControllerAndRelatedPodSlice, err := control.GetAllReplicationControllerAndRelatedPodSlice(kubeapiHost, kubeapiPort, namespace)
 	if err != nil {
 		log.Error("Fail to get all replication controller name error %s", err)
-		return nil, err
+		return err
 	}
 
 	serviceSlice, err := control.GetAllService(kubeapiHost, kubeapiPort, namespace)
 	if err != nil {
 		log.Error("Fail to get all service error %s", err)
-		return nil, err
-	}
-
-	deployClusterApplicationSlice := make([]DeployClusterApplication, 0)
-	for _, cluster := range clusterSlice {
-		// Service
-		serviceExist := false
-		selectorMap := make(map[string]interface{})
-		for _, service := range serviceSlice {
-			if service.Name == cluster.Name {
-				serviceExist = true
-				for key, value := range service.Selector {
-					selectorMap[key] = value
-				}
-			}
-		}
-
-		// Replication Controller
-		size := 0
-		owningReplicationControllerNameSlice := make([]string, 0)
-		if len(selectorMap) > 0 {
-			for _, replicationControllerAndRelatedPod := range replicationControllerAndRelatedPodSlice {
-				// if all selectors in service are in the replication controller, the service owns the replication controller
-				allFit := true
-				for key, value := range selectorMap {
-					if value != replicationControllerAndRelatedPod.Selector[key] {
-						allFit = false
-						break
-					}
-				}
-				if allFit {
-					size += len(replicationControllerAndRelatedPod.PodSlice)
-					owningReplicationControllerNameSlice = append(owningReplicationControllerNameSlice, replicationControllerAndRelatedPod.Name)
-				}
-			}
-		}
-
-		// Service is must since it is used to provide endpoint for others to use
-		if serviceExist {
-			deployClusterApplication := DeployClusterApplication{
-				cluster.Name,
-				size,
-				cluster.Name,
-				owningReplicationControllerNameSlice,
-			}
-			deployClusterApplicationSlice = append(deployClusterApplicationSlice, deployClusterApplication)
-		}
-	}
-
-	return deployClusterApplicationSlice, nil
-}
-
-func GetDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespace string, name string) (*DeployClusterApplication, error) {
-	cluster, err := application.GetStorage().LoadClusterApplication(name)
-	if err != nil {
-		log.Error("Fail to load cluster application with name %s error %s", name, err)
-		return nil, err
-	}
-
-	replicationControllerAndRelatedPodSlice, err := control.GetAllReplicationControllerAndRelatedPodSlice(kubeapiHost, kubeapiPort, namespace)
-	if err != nil {
-		log.Error("Fail to get all replication controller name error %s", err)
-		return nil, err
-	}
-
-	serviceSlice, err := control.GetAllService(kubeapiHost, kubeapiPort, namespace)
-	if err != nil {
-		log.Error("Fail to get all service error %s", err)
-		return nil, err
+		return err
 	}
 
 	// Service
+	serviceName := name
 	serviceExist := false
 	selectorMap := make(map[string]interface{})
 	for _, service := range serviceSlice {
-		if service.Name == cluster.Name {
+		if service.Name == serviceName {
 			serviceExist = true
 			for key, value := range service.Selector {
 				selectorMap[key] = value
@@ -133,7 +65,6 @@ func GetDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespace 
 	}
 
 	// Replication Controller
-	size := 0
 	owningReplicationControllerNameSlice := make([]string, 0)
 	if len(selectorMap) > 0 {
 		for _, replicationControllerAndRelatedPod := range replicationControllerAndRelatedPodSlice {
@@ -146,7 +77,6 @@ func GetDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespace 
 				}
 			}
 			if allFit {
-				size += len(replicationControllerAndRelatedPod.PodSlice)
 				owningReplicationControllerNameSlice = append(owningReplicationControllerNameSlice, replicationControllerAndRelatedPod.Name)
 			}
 		}
@@ -155,16 +85,42 @@ func GetDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespace 
 	// Service is must since it is used to provide endpoint for others to use
 	if serviceExist {
 		deployClusterApplication := &DeployClusterApplication{
-			cluster.Name,
+			name,
+			namespace,
 			size,
-			cluster.Name,
+			environmentSlice,
+			replicationControllerExtraJsonMap,
+			serviceName,
 			owningReplicationControllerNameSlice,
+			time.Now(),
 		}
-		return deployClusterApplication, nil
+
+		return GetStorage().SaveDeployClusterApplication(deployClusterApplication)
 	} else {
 		log.Error("The service doesn't exist for cluster application deployment with name %s", name)
-		return nil, errors.New("The service doesn't exist for cluster application deployment with name " + name)
+		return errors.New("The service doesn't exist for cluster application deployment with name " + name)
 	}
+}
+
+func GetAllDeployClusterApplication(namespace string) ([]DeployClusterApplication, error) {
+	deployClusterApplicationSlice, err := GetStorage().LoadAllDeployClusterApplication()
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	filteredDeployClusterApplicationSlice := make([]DeployClusterApplication, 0)
+	for _, deployClusterApplication := range deployClusterApplicationSlice {
+		if deployClusterApplication.Namespace == namespace {
+			filteredDeployClusterApplicationSlice = append(filteredDeployClusterApplicationSlice, deployClusterApplication)
+		}
+	}
+
+	return filteredDeployClusterApplicationSlice, nil
+}
+
+func GetDeployClusterApplication(namespace string, name string) (*DeployClusterApplication, error) {
+	return GetStorage().LoadDeployClusterApplication(namespace, name)
 }
 
 func ResizeDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespace string, name string, environmentSlice []interface{}, size int) error {
@@ -245,20 +201,16 @@ func ResizeDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespa
 
 	switch cluster.ScriptType {
 	case "none":
-		deployClusterApplicationSlice, err := GetAllDeployClusterApplication(kubeapiHost, kubeapiPort, namespace)
+		deployClusterApplication, err := GetDeployClusterApplication(namespace, name)
 		if err != nil {
-			log.Error("Get deploy cluster application slice error %s", err)
+			log.Error("Get deploy cluster application error %s", err)
 			return err
 		}
-		for _, deployClusterApplication := range deployClusterApplicationSlice {
-			if deployClusterApplication.Name == name {
-				for _, replicationControllerName := range deployClusterApplication.ReplicationControllerNameSlice {
-					err := control.UpdateReplicationControllerSize(kubeapiHost, kubeapiPort, namespace, replicationControllerName, size)
-					if err != nil {
-						log.Error("Resize replication controller %s error %s", replicationControllerName, err)
-						return err
-					}
-				}
+		for _, replicationControllerName := range deployClusterApplication.ReplicationControllerNameSlice {
+			err := control.UpdateReplicationControllerSize(kubeapiHost, kubeapiPort, namespace, replicationControllerName, size)
+			if err != nil {
+				log.Error("Resize replication controller %s error %s", replicationControllerName, err)
+				return err
 			}
 		}
 	case "python":
@@ -276,7 +228,7 @@ func ResizeDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespa
 		log.Debug(string(out))
 		if err != nil {
 			log.Error("Run python script file for cluster application error %s", err)
-			return err
+			return errors.New("Error: " + err.Error() + " Output: " + string(out))
 		}
 	default:
 		log.Error("No such script type: %s", cluster.ScriptType)
@@ -287,6 +239,20 @@ func ResizeDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespa
 	err = os.RemoveAll(workingDirectory)
 	if err != nil {
 		log.Error("Remove the working directory for cluster application error %s", err)
+		return err
+	}
+
+	// Update deploy data
+	deployClusterApplication, err := GetStorage().LoadDeployClusterApplication(namespace, name)
+	if err != nil {
+		log.Error("Update the deploy cluster application with error %s", err)
+		return err
+	}
+	deployClusterApplication.Size = size
+	deployClusterApplication.EnvironmentSlice = environmentSlice
+	err = GetStorage().SaveDeployClusterApplication(deployClusterApplication)
+	if err != nil {
+		log.Error("Save the deploy cluster application error %s", err)
 		return err
 	}
 
@@ -321,27 +287,24 @@ func DeleteDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespa
 
 	switch cluster.ScriptType {
 	case "none":
-		deployClusterApplicationSlice, err := GetAllDeployClusterApplication(kubeapiHost, kubeapiPort, namespace)
+		deployClusterApplication, err := GetDeployClusterApplication(namespace, name)
 		if err != nil {
-			log.Error("Get deploy cluster application slice error %s", err)
+			log.Error("Get deploy cluster application error %s", err)
 			return err
 		}
-		for _, deployClusterApplication := range deployClusterApplicationSlice {
-			if deployClusterApplication.Name == name {
-				for _, replicationControllerName := range deployClusterApplication.ReplicationControllerNameSlice {
-					err := control.DeleteReplicationControllerAndRelatedPod(kubeapiHost, kubeapiPort, namespace, replicationControllerName)
-					if err != nil {
-						log.Error("Delete replication controller %s error %s", replicationControllerName, err)
-						return err
-					}
-				}
 
-				err := control.DeleteService(kubeapiHost, kubeapiPort, namespace, deployClusterApplication.ServiceName)
-				if err != nil {
-					log.Error("Delete service %s error %s", deployClusterApplication.ServiceName, err)
-					return err
-				}
+		for _, replicationControllerName := range deployClusterApplication.ReplicationControllerNameSlice {
+			err := control.DeleteReplicationControllerAndRelatedPod(kubeapiHost, kubeapiPort, namespace, replicationControllerName)
+			if err != nil {
+				log.Error("Delete replication controller %s error %s", replicationControllerName, err)
+				return err
 			}
+		}
+
+		err = control.DeleteService(kubeapiHost, kubeapiPort, namespace, deployClusterApplication.ServiceName)
+		if err != nil {
+			log.Error("Delete service %s error %s", deployClusterApplication.ServiceName, err)
+			return err
 		}
 	case "python":
 		command := exec.Command("python", scriptFileName,
@@ -355,7 +318,7 @@ func DeleteDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespa
 		log.Debug(string(out))
 		if err != nil {
 			log.Error("Run python script file for cluster application error %s", err)
-			return err
+			return errors.New("Error: " + err.Error() + " Output: " + string(out))
 		}
 	default:
 		log.Error("No such script type: %s", cluster.ScriptType)
@@ -366,6 +329,13 @@ func DeleteDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespa
 	err = os.RemoveAll(workingDirectory)
 	if err != nil {
 		log.Error("Remove the working directory for cluster application error %s", err)
+		return err
+	}
+
+	// Remove deploy cluster application
+	err = GetStorage().DeleteDeployClusterApplication(namespace, name)
+	if err != nil {
+		log.Error("Delete the deploy cluster application error %s", err)
 		return err
 	}
 

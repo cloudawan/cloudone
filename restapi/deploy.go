@@ -52,6 +52,11 @@ func registerWebServiceDeploy() {
 		Doc("Get all of the deplpoy information").
 		Do(returns200AllDeployInformation, returns404, returns500))
 
+	ws.Route(ws.GET("/{namespace}").Filter(authorize).Filter(auditLog).To(getDeployInformationInNamespace).
+		Doc("Get all of the deplpoy information in the namespace").
+		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
+		Do(returns200AllDeployInformation, returns404, returns500))
+
 	ws.Route(ws.DELETE("/{namespace}/{imageinformation}").Filter(authorize).Filter(auditLog).To(deleteDeployInformation).
 		Doc("Delete deploy information").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
@@ -81,6 +86,20 @@ func getAllDeployInformation(request *restful.Request, response *restful.Respons
 	deployInformationSlice, err := deploy.GetStorage().LoadAllDeployInformation()
 	if err != nil {
 		errorText := fmt.Sprintf("Get all deploy information failure %s", err)
+		log.Error(errorText)
+		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	response.WriteJson(deployInformationSlice, "[]DeployInformation")
+}
+
+func getDeployInformationInNamespace(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+
+	deployInformationSlice, err := deploy.GetDeployInformationInNamespace(namespace)
+	if err != nil {
+		errorText := fmt.Sprintf("Get all deploy information in the namespace %s failure %s", namespace, err)
 		log.Error(errorText)
 		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
 		return
