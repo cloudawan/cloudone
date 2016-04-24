@@ -112,7 +112,7 @@ func postKubernetesNamespace(request *restful.Request, response *restful.Respons
 	err = control.CreateNamespace(kubeapiHost, kubeapiPort, namespace.Name)
 
 	if err != nil {
-		errorText := fmt.Sprintf("Create namespace failure kubeapiHost %s kubeapiPort %s namespace %s", kubeapiHost, kubeapiPort, namespace)
+		errorText := fmt.Sprintf("Create namespace failure kubeapiHost %s kubeapiPort %s namespace %s error %s", kubeapiHost, kubeapiPort, namespace, err)
 		log.Error(errorText)
 		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
 		return
