@@ -244,6 +244,33 @@ func DeployDelete(kubeapiHost string, kubeapiPort int, namespace string, imageIn
 	return nil
 }
 
+func DeployResize(kubeapiHost string, kubeapiPort int, namespace string, imageInformation string, size int) error {
+	deployInformation, err := GetStorage().LoadDeployInformation(namespace, imageInformation)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	replicationControllerName := deployInformation.ImageInformationName + deployInformation.CurrentVersion
+
+	delta := size - deployInformation.ReplicaAmount
+
+	_, _, err = control.ResizeReplicationController(kubeapiHost, kubeapiPort, namespace, replicationControllerName, delta, deployInformation.ReplicaAmount+delta, 1)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	deployInformation.ReplicaAmount = size
+	err = GetStorage().saveDeployInformation(deployInformation)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	return nil
+}
+
 func IsImageRecordUsed(imageInformationName string, imageRecordVersion string) (bool, error) {
 	deployInformationSlice, err := GetStorage().LoadAllDeployInformation()
 	if err != nil {

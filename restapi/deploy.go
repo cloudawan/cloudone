@@ -80,6 +80,15 @@ func registerWebServiceDeploy() {
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
 		Do(returns200, returns400, returns404, returns500).
 		Reads(DeployUpdateInput{}))
+
+	ws.Route(ws.PUT("/resize/{namespace}/{imageinformation}").Filter(authorize).Filter(auditLog).To(putDeployResize).
+		Doc("Resize dployment from selected image build and version").
+		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
+		Param(ws.PathParameter("imageinformation", "Image information").DataType("string")).
+		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
+		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
+		Param(ws.QueryParameter("size", "Size").DataType("int")).
+		Do(returns200, returns400, returns404, returns500))
 }
 
 func getAllDeployInformation(request *restful.Request, response *restful.Response) {
@@ -227,6 +236,42 @@ func putDeployUpdate(request *restful.Request, response *restful.Response) {
 
 	if err != nil {
 		errorText := fmt.Sprintf("Deploy update failure kubeapiHost %s kubeapiPort %s namespace %s deploy update input %s error %s", kubeapiHost, kubeapiPort, namespace, deployUpdateInput, err)
+		log.Error(errorText)
+		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		return
+	}
+}
+
+func putDeployResize(request *restful.Request, response *restful.Response) {
+	kubeapiHost := request.QueryParameter("kubeapihost")
+	kubeapiPortText := request.QueryParameter("kubeapiport")
+	sizeText := request.QueryParameter("size")
+	namespace := request.PathParameter("namespace")
+	imageinformation := request.PathParameter("imageinformation")
+	if kubeapiHost == "" || kubeapiPortText == "" || sizeText == "" {
+		errorText := fmt.Sprintf("Input text is incorrect kubeapiHost %s kubeapiPort %s size %d", kubeapiHost, kubeapiPortText, sizeText)
+		log.Error(errorText)
+		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		return
+	}
+	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
+	if err != nil {
+		errorText := fmt.Sprintf("Could not parse kubeapiPortText %s with error %s", kubeapiPortText, err)
+		log.Error(errorText)
+		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		return
+	}
+	size, err := strconv.Atoi(sizeText)
+	if err != nil {
+		errorText := fmt.Sprintf("Could not parse sizeText %s with error %s", sizeText, err)
+		log.Error(errorText)
+		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	err = deploy.DeployResize(kubeapiHost, kubeapiPort, namespace, imageinformation, size)
+	if err != nil {
+		errorText := fmt.Sprintf("Deploy resize failure kubeapiHost %s kubeapiPort %s namespace %s imageinformation %s size %d error %s", kubeapiHost, kubeapiPort, namespace, imageinformation, size, err)
 		log.Error(errorText)
 		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
 		return
