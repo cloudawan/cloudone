@@ -270,6 +270,12 @@ func DeleteDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespa
 		return err
 	}
 
+	deployClusterApplication, err := GetDeployClusterApplication(namespace, name)
+	if err != nil {
+		log.Error("Get deploy cluster application error %s", err)
+		return err
+	}
+
 	// Remove deploy cluster application
 	err = GetStorage().DeleteDeployClusterApplication(namespace, name)
 	if err != nil {
@@ -298,12 +304,6 @@ func DeleteDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespa
 
 	switch cluster.ScriptType {
 	case "none":
-		deployClusterApplication, err := GetDeployClusterApplication(namespace, name)
-		if err != nil {
-			log.Error("Get deploy cluster application error %s", err)
-			return err
-		}
-
 		for _, replicationControllerName := range deployClusterApplication.ReplicationControllerNameSlice {
 			err := control.DeleteReplicationControllerAndRelatedPod(kubeapiHost, kubeapiPort, namespace, replicationControllerName)
 			if err != nil {
