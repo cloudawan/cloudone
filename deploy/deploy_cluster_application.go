@@ -266,6 +266,13 @@ func DeleteDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespa
 		return err
 	}
 
+	// Remove deploy cluster application
+	err = GetStorage().DeleteDeployClusterApplication(namespace, name)
+	if err != nil {
+		log.Error("Delete the deploy cluster application error %s", err)
+		return err
+	}
+
 	// Generate random work space
 	workingDirectory := "/tmp/tmp_" + random.UUID()
 	scriptFileName := "script"
@@ -329,13 +336,6 @@ func DeleteDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespa
 	err = os.RemoveAll(workingDirectory)
 	if err != nil {
 		log.Error("Remove the working directory for cluster application error %s", err)
-		return err
-	}
-
-	// Remove deploy cluster application
-	err = GetStorage().DeleteDeployClusterApplication(namespace, name)
-	if err != nil {
-		log.Error("Delete the deploy cluster application error %s", err)
 		return err
 	}
 
