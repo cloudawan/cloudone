@@ -29,8 +29,12 @@ func registerWebServiceDeployClusterApplication() {
 	ws.Produces(restful.MIME_JSON)
 	restful.Add(ws)
 
-	ws.Route(ws.GET("/{namespace}/").Filter(authorize).Filter(auditLog).To(getAllDeployClusterApplication).
+	ws.Route(ws.GET("/").Filter(authorize).Filter(auditLog).To(getAllDeployClusterApplication).
 		Doc("Get all of the cluster application deployment").
+		Do(returns200AllDeployCluster, returns404, returns500))
+
+	ws.Route(ws.GET("/{namespace}/").Filter(authorize).Filter(auditLog).To(getAllDeployClusterApplicationInNamespace).
+		Doc("Get all of the cluster application deployment in namespace").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Do(returns200AllDeployCluster, returns404, returns500))
 
@@ -60,9 +64,21 @@ func registerWebServiceDeployClusterApplication() {
 }
 
 func getAllDeployClusterApplication(request *restful.Request, response *restful.Response) {
+	deployClusterApplicationSlice, err := deploy.GetAllDeployClusterApplication()
+	if err != nil {
+		errorText := fmt.Sprintf("Get all cluster application deployment error %s", err)
+		log.Error(errorText)
+		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	response.WriteJson(deployClusterApplicationSlice, "[]DeployClusterApplication")
+}
+
+func getAllDeployClusterApplicationInNamespace(request *restful.Request, response *restful.Response) {
 	namespace := request.PathParameter("namespace")
 
-	deployClusterApplicationSlice, err := deploy.GetAllDeployClusterApplication(namespace)
+	deployClusterApplicationSlice, err := deploy.GetAllDeployClusterApplicationInNamespace(namespace)
 	if err != nil {
 		errorText := fmt.Sprintf("Get all cluster application deployment in namespace %s error %s", namespace, err)
 		log.Error(errorText)

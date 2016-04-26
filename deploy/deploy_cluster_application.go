@@ -102,7 +102,11 @@ func InitializeDeployClusterApplication(kubeapiHost string, kubeapiPort int, nam
 	}
 }
 
-func GetAllDeployClusterApplication(namespace string) ([]DeployClusterApplication, error) {
+func GetAllDeployClusterApplication() ([]DeployClusterApplication, error) {
+	return GetStorage().LoadAllDeployClusterApplication()
+}
+
+func GetAllDeployClusterApplicationInNamespace(namespace string) ([]DeployClusterApplication, error) {
 	deployClusterApplicationSlice, err := GetStorage().LoadAllDeployClusterApplication()
 	if err != nil {
 		log.Error(err)

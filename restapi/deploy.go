@@ -57,6 +57,12 @@ func registerWebServiceDeploy() {
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Do(returns200AllDeployInformation, returns404, returns500))
 
+	ws.Route(ws.GET("/{namespace}/{imageinformation}").Filter(authorize).Filter(auditLog).To(getDeployInformation).
+		Doc("Get the deplpoy information").
+		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
+		Param(ws.PathParameter("imageinformation", "Image information").DataType("string")).
+		Do(returns200DeployInformation, returns404, returns500))
+
 	ws.Route(ws.DELETE("/{namespace}/{imageinformation}").Filter(authorize).Filter(auditLog).To(deleteDeployInformation).
 		Doc("Delete deploy information").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
@@ -115,6 +121,21 @@ func getDeployInformationInNamespace(request *restful.Request, response *restful
 	}
 
 	response.WriteJson(deployInformationSlice, "[]DeployInformation")
+}
+
+func getDeployInformation(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+	imageinformation := request.PathParameter("imageinformation")
+
+	deployInformation, err := deploy.GetStorage().LoadDeployInformation(namespace, imageinformation)
+	if err != nil {
+		errorText := fmt.Sprintf("Get the deploy information %s in the namespace %s failure %s", imageinformation, namespace, err)
+		log.Error(errorText)
+		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		return
+	}
+
+	response.WriteJson(deployInformation, "DeployInformation")
 }
 
 func deleteDeployInformation(request *restful.Request, response *restful.Response) {
@@ -280,4 +301,8 @@ func putDeployResize(request *restful.Request, response *restful.Response) {
 
 func returns200AllDeployInformation(b *restful.RouteBuilder) {
 	b.Returns(http.StatusOK, "OK", []deploy.DeployInformation{})
+}
+
+func returns200DeployInformation(b *restful.RouteBuilder) {
+	b.Returns(http.StatusOK, "OK", deploy.DeployInformation{})
 }
