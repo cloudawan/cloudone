@@ -41,8 +41,13 @@ func GetAllNamespaceName(kubeapiHost string, kubeapiPort int) (returnedNameSlice
 	for _, data := range jsonMap["items"].([]interface{}) {
 		name, ok := data.(map[string]interface{})["metadata"].(map[string]interface{})["name"].(string)
 		if ok {
-			nameSlice = append(nameSlice, name)
+			statusJsonMap, _ := data.(map[string]interface{})["status"].(map[string]interface{})
+			phase, _ := statusJsonMap["phase"].(string)
+			if phase == "Active" {
+				nameSlice = append(nameSlice, name)
+			}
 		}
+
 	}
 
 	return nameSlice, nil
