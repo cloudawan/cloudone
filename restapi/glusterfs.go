@@ -68,7 +68,7 @@ func registerWebServiceGlusterfs() {
 		Reads(GlusterfsClusterInput{}))
 
 	ws.Route(ws.GET("/clusters/{cluster}").Filter(authorize).Filter(auditLog).To(getGlusterfsCluster).
-		Doc("Get all of the glusterfs configuration").
+		Doc("Get the glusterfs configuration").
 		Param(ws.PathParameter("cluster", "Cluster name").DataType("string")).
 		Do(returns200GlusterfsCluster, returns404, returns500))
 
