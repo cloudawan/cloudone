@@ -49,7 +49,7 @@ func BuildCreate(imageInformation *ImageInformation) error {
 	imageRecord, outputMessage, err := Build(imageInformation, imageInformation.Description)
 	if err != nil {
 		log.Error("Build error: %s Output message: %s", err, outputMessage)
-		return err
+		return errors.New("Build error: " + err.Error() + " Output message: " + outputMessage)
 	}
 
 	// Save image record
@@ -80,7 +80,7 @@ func BuildUpgrade(imageInformationName string, description string) error {
 	imageRecord, outputMessage, err := Build(imageInformation, description)
 	if err != nil {
 		log.Error("Build error: %s Output message: %s", err, outputMessage)
-		return err
+		return errors.New("Build error: " + err.Error() + " Output message: " + outputMessage)
 	}
 
 	// Save image record
