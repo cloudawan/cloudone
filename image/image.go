@@ -45,18 +45,18 @@ type ImageRecord struct {
 	CreatedTime      time.Time
 }
 
-func BuildCreate(imageInformation *ImageInformation) error {
+func BuildCreate(imageInformation *ImageInformation) (string, error) {
 	imageRecord, outputMessage, err := Build(imageInformation, imageInformation.Description)
 	if err != nil {
 		log.Error("Build error: %s Output message: %s", err, outputMessage)
-		return errors.New("Build error: " + err.Error() + " Output message: " + outputMessage)
+		return outputMessage, err
 	}
 
 	// Save image record
 	err = GetStorage().saveImageRecord(imageRecord)
 	if err != nil {
 		log.Error("Save image record error: %s", err)
-		return err
+		return outputMessage, err
 	}
 
 	imageInformation.CurrentVersion = imageRecord.Version
@@ -64,30 +64,30 @@ func BuildCreate(imageInformation *ImageInformation) error {
 	err = GetStorage().saveImageInformation(imageInformation)
 	if err != nil {
 		log.Error("Save image information error: %s", err)
-		return err
+		return outputMessage, err
 	}
 
-	return nil
+	return outputMessage, nil
 }
 
-func BuildUpgrade(imageInformationName string, description string) error {
+func BuildUpgrade(imageInformationName string, description string) (string, error) {
 	imageInformation, err := GetStorage().LoadImageInformation(imageInformationName)
 	if err != nil {
 		log.Error("Load image information error: %s", err)
-		return err
+		return "", err
 	}
 
 	imageRecord, outputMessage, err := Build(imageInformation, description)
 	if err != nil {
 		log.Error("Build error: %s Output message: %s", err, outputMessage)
-		return errors.New("Build error: " + err.Error() + " Output message: " + outputMessage)
+		return outputMessage, err
 	}
 
 	// Save image record
 	err = GetStorage().saveImageRecord(imageRecord)
 	if err != nil {
 		log.Error("Save image record error: %s", err)
-		return err
+		return outputMessage, err
 	}
 
 	imageInformation.CurrentVersion = imageRecord.Version
@@ -95,10 +95,10 @@ func BuildUpgrade(imageInformationName string, description string) error {
 	err = GetStorage().saveImageInformation(imageInformation)
 	if err != nil {
 		log.Error("Save image information error: %s", err)
-		return err
+		return outputMessage, err
 	}
 
-	return nil
+	return outputMessage, nil
 }
 
 func Build(imageInformation *ImageInformation, description string) (*ImageRecord, string, error) {
@@ -163,8 +163,9 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 	command = exec.Command("git", "log")
 	command.Dir = workingDirectory + string(os.PathSeparator) + sourceCodeProject
 	out, err = command.CombinedOutput()
-	outputByteSlice = append(outputByteSlice, out...)
 	if err != nil {
+		// Only show the git log when the error happens
+		outputByteSlice = append(outputByteSlice, out...)
 		log.Error("Git log %s error: %s", imageInformation, err)
 		return nil, string(outputByteSlice), err
 	}

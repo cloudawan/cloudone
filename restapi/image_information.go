@@ -15,6 +15,7 @@
 package restapi
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/cloudawan/cloudone/deploy"
 	"github.com/cloudawan/cloudone/image"
@@ -111,13 +112,29 @@ func postImageInformationCreate(request *restful.Request, response *restful.Resp
 		return
 	}
 
-	err = image.BuildCreate(imageInformation)
+	outputMessage, err := image.BuildCreate(imageInformation)
+
+	jsonMap := make(map[string]interface{})
+	jsonMap["OutputMessage"] = outputMessage
+	statusCode := 200
 	if err != nil {
+		statusCode = 404
 		errorText := fmt.Sprintf("Build create failure imageInformation %s error %s", imageInformation, err)
 		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap["Error"] = errorText
+	}
+	result, err := json.Marshal(jsonMap)
+
+	if err != nil {
+		errorText := fmt.Sprintf("Marshal output message with error %s", err)
+		log.Error(errorText)
+		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
 		return
 	}
+
+	response.WriteErrorString(statusCode, string(result))
+
+	return
 }
 
 func putImageInformationUpgrade(request *restful.Request, response *restful.Response) {
@@ -131,16 +148,31 @@ func putImageInformationUpgrade(request *restful.Request, response *restful.Resp
 		return
 	}
 
-	err = image.BuildUpgrade(
+	outputMessage, err := image.BuildUpgrade(
 		imageInformationUpgradeInput.ImageInformationName,
 		imageInformationUpgradeInput.Description)
+
+	jsonMap := make(map[string]interface{})
+	jsonMap["OutputMessage"] = outputMessage
+	statusCode := 200
 	if err != nil {
+		statusCode = 404
 		errorText := fmt.Sprintf("Build upgrade failure imageInformationName %s error %s",
 			imageInformationUpgradeInput.ImageInformationName, err)
 		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap["Error"] = errorText
+	}
+	result, err := json.Marshal(jsonMap)
+
+	if err != nil {
+		errorText := fmt.Sprintf("Marshal output message with error %s", err)
+		log.Error(errorText)
+		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
 		return
 	}
+
+	response.WriteErrorString(statusCode, string(result))
+	return
 }
 
 func returns200AllImageInformation(b *restful.RouteBuilder) {
