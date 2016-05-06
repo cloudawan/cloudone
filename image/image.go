@@ -163,9 +163,8 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 	command = exec.Command("git", "log", "-1")
 	command.Dir = workingDirectory + string(os.PathSeparator) + sourceCodeProject
 	out, err = command.CombinedOutput()
+	outputByteSlice = append(outputByteSlice, out...)
 	if err != nil {
-		// Only show the git log when the error happens
-		outputByteSlice = append(outputByteSlice, out...)
 		log.Error("Git log %s error: %s", imageInformation, err)
 		return nil, string(outputByteSlice), err
 	}
