@@ -160,7 +160,7 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 		return nil, string(outputByteSlice), err
 	}
 
-	command = exec.Command("git", "log")
+	command = exec.Command("git", "log", "-1")
 	command.Dir = workingDirectory + string(os.PathSeparator) + sourceCodeProject
 	out, err = command.CombinedOutput()
 	if err != nil {
