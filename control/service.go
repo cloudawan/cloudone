@@ -16,7 +16,6 @@ package control
 
 import (
 	"encoding/json"
-	"github.com/cloudawan/cloudone_utility/deepcopy"
 	"github.com/cloudawan/cloudone_utility/logger"
 	"github.com/cloudawan/cloudone_utility/restclient"
 	"strconv"
@@ -307,10 +306,18 @@ func UpdateServiceWithJson(kubeapiHost string, kubeapiPort int, namespace string
 	result, err := restclient.RequestGet(url, nil, true)
 	jsonMap, _ := result.(map[string]interface{})
 
-	deepcopy.DeepOverwriteJsonMap(bodyJsonMap, jsonMap)
+	metadataJsonMap, _ := jsonMap["metadata"].(map[string]interface{})
+	resourceVersion, _ := metadataJsonMap["resourceVersion"].(string)
+
+	specJsonMap, _ := jsonMap["spec"].(map[string]interface{})
+	clusterIP, _ := specJsonMap["clusterIP"].(string)
+
+	// Update requires the resoruce version and cluster ip
+	bodyJsonMap["metadata"].(map[string]interface{})["resourceVersion"] = resourceVersion
+	bodyJsonMap["spec"].(map[string]interface{})["clusterIP"] = clusterIP
 
 	url = "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/services/" + serviceName
-	_, err = restclient.RequestPut(url, jsonMap, nil, true)
+	_, err = restclient.RequestPut(url, bodyJsonMap, nil, true)
 
 	if err != nil {
 		log.Error(err)

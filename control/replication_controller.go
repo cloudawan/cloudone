@@ -456,10 +456,14 @@ func UpdateReplicationControllerWithJson(kubeapiHost string, kubeapiPort int, na
 	result, err := restclient.RequestGet(url, nil, true)
 	jsonMap, _ := result.(map[string]interface{})
 
-	deepcopy.DeepOverwriteJsonMap(bodyJsonMap, jsonMap)
+	metadataJsonMap, _ := jsonMap["metadata"].(map[string]interface{})
+	resourceVersion, _ := metadataJsonMap["resourceVersion"].(string)
+
+	// Update requires the resoruce version
+	bodyJsonMap["metadata"].(map[string]interface{})["resourceVersion"] = resourceVersion
 
 	url = "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/replicationcontrollers/" + replicationControllerName
-	_, err = restclient.RequestPut(url, jsonMap, nil, true)
+	_, err = restclient.RequestPut(url, bodyJsonMap, nil, true)
 
 	if err != nil {
 		log.Error(err)
