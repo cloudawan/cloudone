@@ -64,18 +64,18 @@ func BuildCreate(imageInformation *ImageInformation) (string, error) {
 		return outputMessage, err
 	}
 
-	// Save build log
-	err = SendBuildLog(imageRecord, outputMessage)
-	if err != nil {
-		log.Error("Save build log error: %s", err)
-		return outputMessage, err
-	}
-
 	imageInformation.CurrentVersion = imageRecord.Version
 	// Save image information
 	err = GetStorage().saveImageInformation(imageInformation)
 	if err != nil {
 		log.Error("Save image information error: %s", err)
+		return outputMessage, err
+	}
+
+	// Save build log
+	err = SendBuildLog(imageRecord, outputMessage)
+	if err != nil {
+		log.Error("Save build log error: %s", err)
 		return outputMessage, err
 	}
 
