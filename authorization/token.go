@@ -74,14 +74,16 @@ func createSystemUserInMemory() {
 	// Use time as password and have it encrypted so no one other than system could use
 	user := rbac.CreateUser("system", time.Now().String(), roleSlice, resourceSlice, "system-admin", metaDataMap, nil, false)
 
-	token, err := generateToken(user)
+	// Set the duration to 100 years
+	duration := time.Duration(time.Hour * 24 * 365 * 100)
+
+	token, err := generateToken(user, duration)
 	if err != nil {
 		log.Critical(err)
 		return
 	}
 
-	// Set the maximum duration
-	rbac.SetCache(token, user, time.Duration(1<<63-1))
+	rbac.SetCache(token, user, duration)
 	SystemAdminToken = token
 }
 
@@ -162,15 +164,15 @@ func CreateToken(name string, password string) (string, error) {
 		return "", errors.New("User is disabled")
 	}
 
-	return generateToken(user)
+	return generateToken(user, cacheTTL)
 }
 
-func generateToken(user *rbac.User) (string, error) {
+func generateToken(user *rbac.User, duration time.Duration) (string, error) {
 	// Create the token
 	token := jwt.New(jwt.SigningMethodHS512)
 	// Set some claims
 	token.Claims["username"] = user.Name
-	token.Claims["expired"] = time.Now().Add(cacheTTL).Format(time.RFC3339)
+	token.Claims["expired"] = time.Now().Add(duration).Format(time.RFC3339)
 	// Sign
 	signedToken, err := token.SignedString([]byte(signingKey))
 	if err != nil {
