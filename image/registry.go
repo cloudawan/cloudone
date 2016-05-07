@@ -18,10 +18,13 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/cloudawan/cloudone/authorization"
 	"github.com/cloudawan/cloudone/host"
+	"github.com/cloudawan/cloudone/utility/configuration"
 	"github.com/cloudawan/cloudone_utility/restclient"
 	"github.com/cloudawan/cloudone_utility/sshclient"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -68,6 +71,12 @@ func DeleteImageInformationAndRelatedRecord(imageInformationName string) error {
 		buffer.WriteString(err.Error())
 	}
 
+	err = RequestDeleteBuildLogBelongingToImageInformation(imageInformationName)
+	if err != nil {
+		hasError = true
+		buffer.WriteString(err.Error())
+	}
+
 	if hasError {
 		log.Error(buffer.String())
 		return errors.New(buffer.String())
@@ -75,10 +84,12 @@ func DeleteImageInformationAndRelatedRecord(imageInformationName string) error {
 		return nil
 	}
 }
+
 func DeleteImageRecord(imageInformationName string, imageRecordVersion string) error {
 	imageRecord, err := GetStorage().LoadImageRecord(imageInformationName, imageRecordVersion)
 	if err != nil {
 		log.Error(err)
+		return err
 	}
 
 	repository := imageRecord.Path[:len(imageRecord.Path)-(len(imageRecord.Version)+1)] // Remove :version. +1 due to :
@@ -105,6 +116,12 @@ func DeleteImageRecord(imageInformationName string, imageRecordVersion string) e
 	}
 
 	err = GetStorage().DeleteImageRecord(imageInformationName, imageRecordVersion)
+	if err != nil {
+		hasError = true
+		buffer.WriteString(err.Error())
+	}
+
+	err = RequestDeleteBuildLog(imageInformationName, imageRecordVersion)
 	if err != nil {
 		hasError = true
 		buffer.WriteString(err.Error())
@@ -213,4 +230,54 @@ func RemoveImageFromAllHost(imageIdentifierSlice []ImageIdentifier) error {
 	} else {
 		return nil
 	}
+}
+
+func RequestDeleteBuildLogBelongingToImageInformation(imageInformationName string) error {
+	cloudoneAnalysisHost, ok := configuration.LocalConfiguration.GetString("cloudoneAnalysisHost")
+	if ok == false {
+		log.Error("Fail to get configuration cloudoneAnalysisHost")
+		return errors.New("Fail to get configuration cloudoneAnalysisHost")
+	}
+	cloudoneAnalysisPort, ok := configuration.LocalConfiguration.GetInt("cloudoneAnalysisPort")
+	if ok == false {
+		log.Error("Fail to get configuration cloudoneAnalysisPort")
+		return errors.New("Fail to get configuration cloudoneAnalysisPort")
+	}
+
+	url := "https://" + cloudoneAnalysisHost + ":" + strconv.Itoa(cloudoneAnalysisPort) + "/api/v1/buildlogs/" + imageInformationName
+
+	headerMap := make(map[string]string)
+	headerMap["token"] = authorization.SystemAdminToken
+
+	_, err := restclient.RequestDelete(url, nil, headerMap, false)
+	if err != nil {
+		log.Error("Fail to request delete build image information %s log with error %s", imageInformationName, err)
+	}
+
+	return err
+}
+
+func RequestDeleteBuildLog(imageInformationName string, imageRecordVersion string) error {
+	cloudoneAnalysisHost, ok := configuration.LocalConfiguration.GetString("cloudoneAnalysisHost")
+	if ok == false {
+		log.Error("Fail to get configuration cloudoneAnalysisHost")
+		return errors.New("Fail to get configuration cloudoneAnalysisHost")
+	}
+	cloudoneAnalysisPort, ok := configuration.LocalConfiguration.GetInt("cloudoneAnalysisPort")
+	if ok == false {
+		log.Error("Fail to get configuration cloudoneAnalysisPort")
+		return errors.New("Fail to get configuration cloudoneAnalysisPort")
+	}
+
+	url := "https://" + cloudoneAnalysisHost + ":" + strconv.Itoa(cloudoneAnalysisPort) + "/api/v1/buildlogs/" + imageInformationName + "/" + imageRecordVersion
+
+	headerMap := make(map[string]string)
+	headerMap["token"] = authorization.SystemAdminToken
+
+	_, err := restclient.RequestDelete(url, nil, headerMap, false)
+	if err != nil {
+		log.Error("Fail to request delete build image information %s version %s log with error %s", imageInformationName, imageRecordVersion, err)
+	}
+
+	return err
 }

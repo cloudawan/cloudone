@@ -18,11 +18,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/cloudawan/cloudone/authorization"
+	"github.com/cloudawan/cloudone/utility/configuration"
+	"github.com/cloudawan/cloudone_utility/build"
 	"github.com/cloudawan/cloudone_utility/filetransfer/sftp"
+	"github.com/cloudawan/cloudone_utility/restclient"
 	"github.com/sfreiberg/simplessh"
 	"io"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -59,6 +64,13 @@ func BuildCreate(imageInformation *ImageInformation) (string, error) {
 		return outputMessage, err
 	}
 
+	// Save build log
+	err = SendBuildLog(imageRecord, outputMessage)
+	if err != nil {
+		log.Error("Save build log error: %s", err)
+		return outputMessage, err
+	}
+
 	imageInformation.CurrentVersion = imageRecord.Version
 	// Save image information
 	err = GetStorage().saveImageInformation(imageInformation)
@@ -87,6 +99,13 @@ func BuildUpgrade(imageInformationName string, description string) (string, erro
 	err = GetStorage().saveImageRecord(imageRecord)
 	if err != nil {
 		log.Error("Save image record error: %s", err)
+		return outputMessage, err
+	}
+
+	// Save build log
+	err = SendBuildLog(imageRecord, outputMessage)
+	if err != nil {
+		log.Error("Save build log error: %s", err)
 		return outputMessage, err
 	}
 
@@ -650,4 +669,37 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 	os.RemoveAll(workingDirectory)
 
 	return &imageRecord, string(outputByteSlice), nil
+}
+
+func SendBuildLog(imageRecord *ImageRecord, outputMessage string) error {
+	cloudoneAnalysisHost, ok := configuration.LocalConfiguration.GetString("cloudoneAnalysisHost")
+	if ok == false {
+		log.Error("Fail to get configuration cloudoneAnalysisHost")
+		return errors.New("Fail to get configuration cloudoneAnalysisHost")
+	}
+	cloudoneAnalysisPort, ok := configuration.LocalConfiguration.GetInt("cloudoneAnalysisPort")
+	if ok == false {
+		log.Error("Fail to get configuration cloudoneAnalysisPort")
+		return errors.New("Fail to get configuration cloudoneAnalysisPort")
+	}
+
+	buildLog := build.BuildLog{
+		imageRecord.ImageInformation,
+		imageRecord.Version,
+		imageRecord.VersionInfo,
+		imageRecord.CreatedTime,
+		outputMessage,
+	}
+
+	url := "https://" + cloudoneAnalysisHost + ":" + strconv.Itoa(cloudoneAnalysisPort) + "/api/v1/buildlogs"
+
+	headerMap := make(map[string]string)
+	headerMap["token"] = authorization.SystemAdminToken
+
+	_, err := restclient.RequestPost(url, buildLog, headerMap, false)
+	if err != nil {
+		log.Error("Fail to send build log %v with error %s", buildLog, err)
+	}
+
+	return err
 }
