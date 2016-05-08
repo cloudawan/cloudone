@@ -16,7 +16,7 @@ package restapi
 
 import (
 	"bytes"
-	"fmt"
+	"encoding/json"
 	"github.com/cloudawan/cloudone/control"
 	"github.com/emicklei/go-restful"
 	"net/http"
@@ -39,14 +39,14 @@ func registerWebServiceKubernetesService() {
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
-		Do(returns200AllReplicationController, returns400, returns404, returns500))
+		Do(returns200AllReplicationController, returns400, returns422, returns500))
 
 	ws.Route(ws.POST("/{namespace}").Filter(authorize).Filter(auditLog).To(postReplicationController).
 		Doc("Add a replication controller in the namespace").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
-		Do(returns200, returns400, returns404, returns500).
+		Do(returns200, returns400, returns422, returns500).
 		Reads(control.ReplicationController{}))
 
 	ws.Route(ws.GET("/{namespace}/{replicationcontroller}").Filter(authorize).Filter(auditLog).To(getReplicationController).
@@ -55,7 +55,7 @@ func registerWebServiceKubernetesService() {
 		Param(ws.PathParameter("replicationcontroller", "Kubernetes replication controller name").DataType("string")).
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
-		Do(returns200ReplicationController, returns400, returns404, returns500))
+		Do(returns200ReplicationController, returns400, returns422, returns500))
 
 	ws.Route(ws.DELETE("/{namespace}/{replicationcontroller}").Filter(authorize).Filter(auditLog).To(deleteReplicationController).
 		Doc("Delete the replication controller in the namespace").
@@ -63,7 +63,7 @@ func registerWebServiceKubernetesService() {
 		Param(ws.PathParameter("replicationcontroller", "Kubernetes replication controller name").DataType("string")).
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
-		Do(returns200, returns400, returns404, returns500))
+		Do(returns200, returns400, returns422, returns500))
 
 	ws.Route(ws.PUT("/size/{namespace}/{replicationcontroller}").Filter(authorize).Filter(auditLog).To(putReplicationControllerSize).
 		Doc("Configure the replication controller replica amount").
@@ -71,7 +71,7 @@ func registerWebServiceKubernetesService() {
 		Param(ws.PathParameter("replicationcontroller", "Kubernetes replication controller name").DataType("string")).
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
-		Do(returns200, returns400, returns404, returns500).
+		Do(returns200, returns400, returns422, returns500).
 		Reads(SizeInput{}))
 
 	ws.Route(ws.POST("/json/{namespace}").Filter(authorize).Filter(auditLog).To(postReplicationControllerFromJson).
@@ -79,7 +79,7 @@ func registerWebServiceKubernetesService() {
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
-		Do(returns200, returns400, returns404, returns500).
+		Do(returns200, returns400, returns422, returns500).
 		Reads(new(struct{})))
 
 	ws.Route(ws.PUT("/json/{namespace}/{replicationcontroller}").Filter(authorize).Filter(auditLog).To(putReplicationControllerFromJson).
@@ -88,7 +88,7 @@ func registerWebServiceKubernetesService() {
 		Param(ws.PathParameter("replicationcontroller", "Kubernetes replication controller name").DataType("string")).
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
-		Do(returns200, returns400, returns404, returns500).
+		Do(returns200, returns400, returns422, returns500).
 		Reads(new(struct{})))
 }
 
@@ -96,25 +96,39 @@ func getAllReplicationController(request *restful.Request, response *restful.Res
 	kubeapiHost := request.QueryParameter("kubeapihost")
 	kubeapiPortText := request.QueryParameter("kubeapiport")
 	namespace := request.PathParameter("namespace")
-	if kubeapiHost == "" || kubeapiPortText == "" || namespace == "" {
-		errorText := fmt.Sprintf("Input text is incorrect kubeapiHost %s kubeapiPort %s namespace %s", kubeapiHost, kubeapiPortText, namespace)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+	if kubeapiHost == "" || kubeapiPortText == "" {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost and kubeapiport are required."
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not parse kubeapiPortText %s with error %s", kubeapiPortText, err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	replicationControllerAndRelatedPodSlice, err := control.GetAllReplicationControllerAndRelatedPodSlice(kubeapiHost, kubeapiPort, namespace)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not load all replication controller and related pod with kubeapiHost %s kubeapiPort %d namespace %s error %s", kubeapiHost, kubeapiPort, namespace, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get all replication controller and related pods failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["namespace"] = namespace
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 
@@ -125,36 +139,55 @@ func postReplicationController(request *restful.Request, response *restful.Respo
 	kubeapiHost := request.QueryParameter("kubeapihost")
 	kubeapiPortText := request.QueryParameter("kubeapiport")
 	namespace := request.PathParameter("namespace")
-	if kubeapiHost == "" || kubeapiPortText == "" || namespace == "" {
-		errorText := fmt.Sprintf("Input text is incorrect kubeapiHost %s kubeapiPort %s namespace %s", kubeapiHost, kubeapiPortText, namespace)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+	if kubeapiHost == "" || kubeapiPortText == "" {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost and kubeapiport are required."
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not parse kubeapiPortText %s with error %s", kubeapiPortText, err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	replicationController := new(control.ReplicationController)
 	err = request.ReadEntity(&replicationController)
-
 	if err != nil {
-		errorText := fmt.Sprintf("POST namespace %s kubeapiHost %s kubeapiPort %s failure with error %s", namespace, kubeapiHost, kubeapiPort, err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Read body failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["namespace"] = namespace
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	err = control.CreateReplicationController(kubeapiHost, kubeapiPort, namespace, *replicationController)
-
 	if err != nil {
-		errorText := fmt.Sprintf("Create replication controller failure kubeapiHost %s kubeapiPort %s namespace %s replication controller %s error %s", kubeapiHost, kubeapiPort, namespace, replicationController, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Create replication controller failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["namespace"] = namespace
+		jsonMap["replicationController"] = replicationController
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }
@@ -163,26 +196,41 @@ func getReplicationController(request *restful.Request, response *restful.Respon
 	kubeapiHost := request.QueryParameter("kubeapihost")
 	kubeapiPortText := request.QueryParameter("kubeapiport")
 	namespace := request.PathParameter("namespace")
-	replicationcontroller := request.PathParameter("replicationcontroller")
-	if kubeapiHost == "" || kubeapiPortText == "" || namespace == "" {
-		errorText := fmt.Sprintf("Input text is incorrect kubeapiHost %s kubeapiPort %s namespace %s", kubeapiHost, kubeapiPortText, namespace)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+	replicationControllerName := request.PathParameter("replicationcontroller")
+	if kubeapiHost == "" || kubeapiPortText == "" {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost and kubeapiport are required."
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not parse kubeapiPortText %s with error %s", kubeapiPortText, err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
-	replicationController, err := control.GetReplicationController(kubeapiHost, kubeapiPort, namespace, replicationcontroller)
+	replicationController, err := control.GetReplicationController(kubeapiHost, kubeapiPort, namespace, replicationControllerName)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not get replication controller %s with kubeapiHost %s kubeapiPort %d namespace %s error %s", replicationcontroller, kubeapiHost, kubeapiPort, namespace, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get replication controller failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["namespace"] = namespace
+		jsonMap["replicationController"] = replicationControllerName
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 
@@ -193,27 +241,41 @@ func deleteReplicationController(request *restful.Request, response *restful.Res
 	kubeapiHost := request.QueryParameter("kubeapihost")
 	kubeapiPortText := request.QueryParameter("kubeapiport")
 	namespace := request.PathParameter("namespace")
-	replicationcontroller := request.PathParameter("replicationcontroller")
-	if kubeapiHost == "" || kubeapiPortText == "" || namespace == "" || replicationcontroller == "" {
-		errorText := fmt.Sprintf("Input text is incorrect kubeapiHost %s kubeapiHost %s namespace %s replication controller %s", kubeapiHost, kubeapiPortText, namespace, replicationcontroller)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+	replicationController := request.PathParameter("replicationcontroller")
+	if kubeapiHost == "" || kubeapiPortText == "" {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost and kubeapiport are required."
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not parse kubeapiPortText %s with error %s", kubeapiPortText, err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
-	err = control.DeleteReplicationControllerAndRelatedPod(kubeapiHost, kubeapiPort, namespace, replicationcontroller)
-
+	err = control.DeleteReplicationControllerAndRelatedPod(kubeapiHost, kubeapiPort, namespace, replicationController)
 	if err != nil {
-		errorText := fmt.Sprintf("Delete replication controller failure kubeapiHost %s kubeapiPort %s namespace %s replication controller %s", kubeapiHost, kubeapiPort, namespace, replicationcontroller)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Delete replication controller failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["namespace"] = namespace
+		jsonMap["replicationController"] = replicationController
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }
@@ -222,37 +284,58 @@ func putReplicationControllerSize(request *restful.Request, response *restful.Re
 	kubeapiHost := request.QueryParameter("kubeapihost")
 	kubeapiPortText := request.QueryParameter("kubeapiport")
 	namespace := request.PathParameter("namespace")
-	replicationcontroller := request.PathParameter("replicationcontroller")
-	if kubeapiHost == "" || kubeapiPortText == "" || namespace == "" || replicationcontroller == "" {
-		errorText := fmt.Sprintf("Input text is incorrect kubeapiHost %s kubeapiHost %s namespace %s replication controller %s", kubeapiHost, kubeapiPortText, namespace, replicationcontroller)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+	replicationController := request.PathParameter("replicationcontroller")
+	if kubeapiHost == "" || kubeapiPortText == "" {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost and kubeapiport are required."
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not parse kubeapiPortText %s with error %s", kubeapiPortText, err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	sizeInput := SizeInput{}
 	err = request.ReadEntity(&sizeInput)
-
 	if err != nil {
-		errorText := fmt.Sprintf("PUT namespace %s replicationcontroller %s kubeapiHost %s kubeapiPort %s failure with error %s", namespace, replicationcontroller, kubeapiHost, kubeapiPort, err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Read body failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["namespace"] = namespace
+		jsonMap["replicationController"] = replicationController
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
-	err = control.UpdateReplicationControllerSize(kubeapiHost, kubeapiPort, namespace, replicationcontroller, sizeInput.Size)
-
+	err = control.UpdateReplicationControllerSize(kubeapiHost, kubeapiPort, namespace, replicationController, sizeInput.Size)
 	if err != nil {
-		errorText := fmt.Sprintf("Fail to resize to size %d namespace %s replicationcontroller %s kubeapiHost %s kubeapiPort %s failure with error %s", sizeInput.Size, namespace, replicationcontroller, kubeapiHost, kubeapiPort, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Resize replication controller failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["namespace"] = namespace
+		jsonMap["replicationController"] = replicationController
+		jsonMap["size"] = sizeInput.Size
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }
@@ -261,36 +344,55 @@ func postReplicationControllerFromJson(request *restful.Request, response *restf
 	kubeapiHost := request.QueryParameter("kubeapihost")
 	kubeapiPortText := request.QueryParameter("kubeapiport")
 	namespace := request.PathParameter("namespace")
-	if kubeapiHost == "" || kubeapiPortText == "" || namespace == "" {
-		errorText := fmt.Sprintf("Input text is incorrect kubeapiHost %s kubeapiPort %s namespace %s", kubeapiHost, kubeapiPortText, namespace)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+	if kubeapiHost == "" || kubeapiPortText == "" {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost and kubeapiport are required."
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not parse kubeapiPortText %s with error %s", kubeapiPortText, err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	replicationController := make(map[string]interface{})
 	err = request.ReadEntity(&replicationController)
-
 	if err != nil {
-		errorText := fmt.Sprintf("POST namespace %s kubeapiHost %s kubeapiPort %s failure with error %s", namespace, kubeapiHost, kubeapiPort, err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Read body failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["namespace"] = namespace
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	err = control.CreateReplicationControllerWithJson(kubeapiHost, kubeapiPort, namespace, replicationController)
-
 	if err != nil {
-		errorText := fmt.Sprintf("Create replication controller failure kubeapiHost %s kubeapiPort %s namespace %s replication controller %s error %s", kubeapiHost, kubeapiPort, namespace, replicationController, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Create replication controller failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["namespace"] = namespace
+		jsonMap["replicationController"] = replicationController
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }
@@ -300,44 +402,70 @@ func putReplicationControllerFromJson(request *restful.Request, response *restfu
 	kubeapiPortText := request.QueryParameter("kubeapiport")
 	namespace := request.PathParameter("namespace")
 	replicationcontrollerName := request.PathParameter("replicationcontroller")
-	if kubeapiHost == "" || kubeapiPortText == "" || namespace == "" {
-		errorText := fmt.Sprintf("Input text is incorrect kubeapiHost %s kubeapiPort %s namespace %s", kubeapiHost, kubeapiPortText, namespace)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+	if kubeapiHost == "" || kubeapiPortText == "" {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost and kubeapiport are required."
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not parse kubeapiPortText %s with error %s", kubeapiPortText, err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	replicationController := make(map[string]interface{})
 	err = request.ReadEntity(&replicationController)
-
 	if err != nil {
-		errorText := fmt.Sprintf("PUT namespace %s kubeapiHost %s kubeapiPort %s failure with error %s", namespace, kubeapiHost, kubeapiPort, err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Read body failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["namespace"] = namespace
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	err = control.UpdateReplicationControllerWithJson(kubeapiHost, kubeapiPort, namespace, replicationcontrollerName, replicationController)
-
 	if err != nil {
-		errorText := fmt.Sprintf("Update replication controller failure kubeapiHost %s kubeapiPort %s namespace %s replication controller %s error %s", kubeapiHost, kubeapiPort, namespace, replicationController, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Update replication controller failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["namespace"] = namespace
+		jsonMap["replicationController"] = replicationController
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 
 	podNameSlice, err := control.GetAllPodNameBelongToReplicationController(kubeapiHost, kubeapiPort, namespace, replicationcontrollerName)
 	if err != nil {
-		errorText := fmt.Sprintf("Get all pod name belonging to replication controller failure kubeapiHost %s kubeapiPort %s namespace %s replication controller %s error %s", kubeapiHost, kubeapiPort, namespace, replicationController, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get all pod name belonging to replication controller failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["namespace"] = namespace
+		jsonMap["replicationController"] = replicationController
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 
@@ -353,9 +481,16 @@ func putReplicationControllerFromJson(request *restful.Request, response *restfu
 	}
 
 	if hasError {
-		errorText := fmt.Sprintf("Delete pods belonging to replication controller failure kubeapiHost %s kubeapiPort %s namespace %s replication controller %s error %s", kubeapiHost, kubeapiPort, namespace, replicationController, errorByteBuffer.String())
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Delete pods belonging to replication controller failure"
+		jsonMap["ErrorMessage"] = errorByteBuffer.String()
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["namespace"] = namespace
+		jsonMap["replicationController"] = replicationController
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }

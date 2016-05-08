@@ -15,7 +15,7 @@
 package restapi
 
 import (
-	"fmt"
+	"encoding/json"
 	"github.com/cloudawan/cloudone/monitor"
 	"github.com/emicklei/go-restful"
 	"net/http"
@@ -33,7 +33,7 @@ func registerWebServiceNodeMetric() {
 		Doc("Get the node metric").
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
-		Do(returns200AllNodeMetric, returns400, returns404, returns500))
+		Do(returns200AllNodeMetric, returns400, returns422, returns500))
 
 }
 
@@ -41,29 +41,41 @@ func getAllNodeMetric(request *restful.Request, response *restful.Response) {
 	kubeapiHost := request.QueryParameter("kubeapihost")
 	kubeapiPortText := request.QueryParameter("kubeapiport")
 	if kubeapiHost == "" || kubeapiPortText == "" {
-		errorText := fmt.Sprintf("Input text is incorrect kubeapiHost %s kubeapiPort %s", kubeapiHost, kubeapiPortText)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost and kubeapiport are required."
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not parse kubeapiPortText %s with error %s", kubeapiPortText, err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	nodeMetricSlice, err := monitor.MonitorNode(kubeapiHost, kubeapiPort)
-
 	if err != nil {
-		errorText := fmt.Sprintf("Fail to get Node metric kubeapiHost %s kubeapiPort %s with error %s", kubeapiHost, kubeapiPortText, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get node metric failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPort"] = kubeapiPort
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
-	} else {
-		response.WriteJson(nodeMetricSlice, "[]NodeMetric")
 	}
+
+	response.WriteJson(nodeMetricSlice, "[]NodeMetric")
 }
 
 func returns200AllNodeMetric(b *restful.RouteBuilder) {

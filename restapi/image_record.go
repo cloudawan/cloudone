@@ -15,7 +15,7 @@
 package restapi
 
 import (
-	"fmt"
+	"encoding/json"
 	"github.com/cloudawan/cloudone/deploy"
 	"github.com/cloudawan/cloudone/image"
 	"github.com/emicklei/go-restful"
@@ -32,22 +32,27 @@ func registerWebServiceImageRecord() {
 	ws.Route(ws.GET("/{imageinformationname}").Filter(authorize).Filter(auditLog).To(getImageRecordBelongToImageInformation).
 		Doc("Get all of the image record belong to the image information").
 		Param(ws.PathParameter("imageinformationname", "Image information name").DataType("string")).
-		Do(returns200ImageRecordSlice, returns404, returns500))
+		Do(returns200ImageRecordSlice, returns422, returns500))
 
 	ws.Route(ws.DELETE("/{imageinformationname}/{imagerecordversion}").Filter(authorize).Filter(auditLog).To(deleteImageRecordBelongToImageInformation).
 		Doc("Delete image record belong to the image information").
 		Param(ws.PathParameter("imageinformationname", "Image information name").DataType("string")).
 		Param(ws.PathParameter("imagerecordversion", "Image record version").DataType("string")).
-		Do(returns200, returns400, returns404, returns500))
+		Do(returns200, returns400, returns422, returns500))
 }
 
 func getImageRecordBelongToImageInformation(request *restful.Request, response *restful.Response) {
 	imageInformationName := request.PathParameter("imageinformationname")
+
 	imageRecordSlice, err := image.GetStorage().LoadImageRecordWithImageInformationName(imageInformationName)
 	if err != nil {
-		errorText := fmt.Sprintf("Get image record belong to the image information %s failure %s", imageInformationName, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get all image reocrd belonging to the image information failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["imageInformationName"] = imageInformationName
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 
@@ -60,23 +65,38 @@ func deleteImageRecordBelongToImageInformation(request *restful.Request, respons
 
 	used, err := deploy.IsImageRecordUsed(imageInformationName, imageRecordVersion)
 	if err != nil {
-		errorText := fmt.Sprintf("Check whether image record is used error version %s belong to the image information %s failure %s", imageRecordVersion, imageInformationName, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Check whether image reocrd is used failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["imageInformationName"] = imageInformationName
+		jsonMap["imageRecordVersion"] = imageRecordVersion
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 	if used {
-		errorText := fmt.Sprintf("Image record is used version %s belong to the image information %s", imageRecordVersion, imageInformationName)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Can't delete used image record"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["imageInformationName"] = imageInformationName
+		jsonMap["imageRecordVersion"] = imageRecordVersion
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	err = image.DeleteImageRecord(imageInformationName, imageRecordVersion)
 	if err != nil {
-		errorText := fmt.Sprintf("Delete image record version %s belong to the image information %s failure %s", imageRecordVersion, imageInformationName, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Delete image reocrd belonging to the image information failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["imageInformationName"] = imageInformationName
+		jsonMap["imageRecordVersion"] = imageRecordVersion
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }

@@ -99,6 +99,14 @@ func returns404(b *restful.RouteBuilder) {
 	b.Returns(http.StatusNotFound, "Not found", nil)
 }
 
+func returns409(b *restful.RouteBuilder) {
+	b.Returns(http.StatusConflict, "Conflict", nil)
+}
+
+func returns422(b *restful.RouteBuilder) {
+	b.Returns(422, "Unprocessable Entity", nil)
+}
+
 func returns500(b *restful.RouteBuilder) {
 	b.Returns(http.StatusInternalServerError, "Internal error", nil)
 }

@@ -15,7 +15,7 @@
 package restapi
 
 import (
-	"fmt"
+	"encoding/json"
 	"github.com/cloudawan/cloudone/application"
 	"github.com/cloudawan/cloudone/monitor"
 	"github.com/emicklei/go-restful"
@@ -70,9 +70,12 @@ func registerWebServiceStatelessApplication() {
 func getAllStatelessApplication(request *restful.Request, response *restful.Response) {
 	statelessSlice, err := application.GetStorage().LoadAllStatelessApplication()
 	if err != nil {
-		errorText := fmt.Sprintf("Get read database fail with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get all stateless application failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 	response.WriteJson(statelessSlice, "[]Stateless")
@@ -83,9 +86,13 @@ func getStatelessApplication(request *restful.Request, response *restful.Respons
 
 	statelessSerializable, err := application.RetrieveStatelessApplication(name)
 	if err != nil {
-		errorText := fmt.Sprintf("Get read database fail with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get stateless application failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["name"] = name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
@@ -95,11 +102,13 @@ func getStatelessApplication(request *restful.Request, response *restful.Respons
 func postStatelessApplication(request *restful.Request, response *restful.Response) {
 	statelessSerializable := new(application.StatelessSerializable)
 	err := request.ReadEntity(&statelessSerializable)
-
 	if err != nil {
-		errorText := fmt.Sprintf("POST read body failure with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Read body failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
@@ -107,9 +116,13 @@ func postStatelessApplication(request *restful.Request, response *restful.Respon
 		statelessSerializable.ReplicationControllerJson, statelessSerializable.ServiceJson,
 		statelessSerializable.Environment)
 	if err != nil {
-		errorText := fmt.Sprintf("POST fail to save %s to database with error %s", statelessSerializable, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Save stateless application failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["statelessSerializable"] = statelessSerializable
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }
@@ -118,9 +131,13 @@ func deleteStatelessApplication(request *restful.Request, response *restful.Resp
 	name := request.PathParameter("statelessapplication")
 	err := application.GetStorage().DeleteStatelessApplication(name)
 	if err != nil {
-		errorText := fmt.Sprintf("Delete stateless application %s fail with error %s", name, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Delete stateless application failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["name"] = name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 }
@@ -130,37 +147,70 @@ func postLaunchStatelessApplication(request *restful.Request, response *restful.
 	kubeapiPortText := request.QueryParameter("kubeapiport")
 	namespace := request.PathParameter("namespace")
 	name := request.PathParameter("statelessapplication")
-
-	if kubeapiHost == "" || kubeapiPortText == "" || namespace == "" {
-		errorText := fmt.Sprintf("Input text is incorrect kubeapiHost %s kubeapiPort %s namespace %s", kubeapiHost, kubeapiPortText, namespace)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+	if kubeapiHost == "" || kubeapiPortText == "" {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost and kubeapiport are required."
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not parse kubeapiPortText %s with error %s", kubeapiPortText, err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	environmentSlice := make([]interface{}, 0)
 	err = request.ReadEntity(&environmentSlice)
+	if err != nil {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Read body failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["namespace"] = namespace
+		jsonMap["name"] = name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
+		return
+	}
 
 	exist, err := monitor.ExistReplicationController(kubeapiHost, kubeapiPort, namespace, name)
 	if exist {
-		errorText := fmt.Sprintf("Replication controller already exists kubeapiHost %s, kubeapiPort %d, namespace %s, name %s", kubeapiHost, kubeapiPort, namespace, name)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "The replication controller to use already exists"
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["namespace"] = namespace
+		jsonMap["name"] = name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(409, string(errorMessageByteSlice))
 		return
 	}
 
 	err = application.LaunchStatelessApplication(kubeapiHost, kubeapiPort, namespace, name, environmentSlice)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not launch stateless application %s with kubeapiHost %s, kubeapiPort %d, namespace %s, error %s", name, kubeapiHost, kubeapiPort, namespace, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Launch stateless application failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["namespace"] = namespace
+		jsonMap["name"] = name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }

@@ -15,7 +15,7 @@
 package restapi
 
 import (
-	"fmt"
+	"encoding/json"
 	"github.com/cloudawan/cloudone/execute"
 	"github.com/cloudawan/cloudone/monitor"
 	"github.com/cloudawan/cloudone/notification"
@@ -39,11 +39,11 @@ func registerWebServiceReplicationControllerNotifier() {
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("kind", "selector or replicationController").DataType("string")).
 		Param(ws.PathParameter("name", "name").DataType("string")).
-		Do(returns200ReplicationControllerNotifier, returns404, returns500))
+		Do(returns200ReplicationControllerNotifier, returns404, returns422, returns500))
 
 	ws.Route(ws.PUT("/").Filter(authorize).Filter(auditLog).To(putReplicationControllerNotifier).
 		Doc("Add (if not existing) or update an notifier for the replication controller in the namespace").
-		Do(returns200, returns400, returns404, returns500).
+		Do(returns200, returns400, returns422, returns500).
 		Reads(notification.ReplicationControllerNotifierSerializable{}))
 
 	ws.Route(ws.DELETE("/{namespace}/{kind}/{name}").Filter(authorize).Filter(auditLog).To(deleteReplicationControllerNotifier).
@@ -51,58 +51,67 @@ func registerWebServiceReplicationControllerNotifier() {
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("kind", "selector or replicationController").DataType("string")).
 		Param(ws.PathParameter("name", "name").DataType("string")).
-		Do(returns200, returns500))
+		Do(returns200, returns422, returns500))
 
 	ws.Route(ws.GET("/emailserversmtp/").Filter(authorize).Filter(auditLog).To(getAllEmailServerSMTP).
 		Doc("Get all of the configuration of email server stmp").
-		Do(returns200AllEmailServerSMTP, returns500))
+		Do(returns200AllEmailServerSMTP, returns422, returns500))
 
 	ws.Route(ws.POST("/emailserversmtp/").Filter(authorize).Filter(auditLogWithoutBody).To(postEmailServerSMTP).
 		Doc("Create the configuration of email server stmp").
-		Do(returns200, returns400, returns404, returns500).
+		Do(returns200, returns400, returns409, returns422, returns500).
 		Reads(notification.EmailServerSMTP{}))
 
 	ws.Route(ws.GET("/emailserversmtp/{name}").Filter(authorize).Filter(auditLog).To(getEmailServerSMTP).
 		Doc("Get all of the configuration of email server stmp").
 		Param(ws.PathParameter("emailserversmtpname", "email server smtp name").DataType("string")).
-		Do(returns200EmailServerSMTP, returns404, returns500))
+		Do(returns200EmailServerSMTP, returns422, returns500))
 
 	ws.Route(ws.DELETE("/emailserversmtp/{name}").Filter(authorize).Filter(auditLog).To(deleteEmailServerSMTP).
 		Doc("Delete the configuration of email server stmp").
 		Param(ws.PathParameter("emailserversmtpname", "email server smtp name").DataType("string")).
-		Do(returns200, returns500))
+		Do(returns200, returns422, returns500))
 
 	ws.Route(ws.GET("/smsnexmo/").Filter(authorize).Filter(auditLog).To(getAllSMSNexmo).
 		Doc("Get all of the configuration of sms nexmo").
-		Do(returns200AllSMSNexmo, returns500))
+		Do(returns200AllSMSNexmo, returns422, returns500))
 
 	ws.Route(ws.POST("/smsnexmo/").Filter(authorize).Filter(auditLogWithoutBody).To(postSMSNexmo).
 		Doc("Create the configuration of sms nexmo").
-		Do(returns200, returns400, returns404, returns500).
+		Do(returns200, returns400, returns409, returns422, returns500).
 		Reads(notification.SMSNexmo{}))
 
 	ws.Route(ws.GET("/smsnexmo/{name}").Filter(authorize).Filter(auditLog).To(getSMSNexmo).
 		Doc("Get all of the configuration of sms nexmo").
 		Param(ws.PathParameter("smsnexmo", "sms nexmo name").DataType("string")).
-		Do(returns200SMSNexmo, returns404, returns500))
+		Do(returns200SMSNexmo, returns422, returns500))
 
 	ws.Route(ws.DELETE("/smsnexmo/{name}").Filter(authorize).Filter(auditLog).To(deleteSMSNexmo).
 		Doc("Delete the configuration of sms nexmo").
 		Param(ws.PathParameter("smsnexmo", "sms nexmo name").DataType("string")).
-		Do(returns200, returns500))
+		Do(returns200, returns422, returns500))
 }
 
 func getAllReplicationControllerNotifier(request *restful.Request, response *restful.Response) {
 	replicationControllerNotifierMap := execute.GetReplicationControllerNotifierMap()
+
 	replicationControllerNotifierSerializableSlice := make([]notification.ReplicationControllerNotifierSerializable, 0)
 	for _, replicationControllerNotifier := range replicationControllerNotifierMap {
 		replicationControllerNotifierSerializable, err := notification.ConvertToSerializable(replicationControllerNotifier)
 		if err != nil {
-			log.Error(err)
+			jsonMap := make(map[string]interface{})
+			jsonMap["Error"] = "Convert replication controller notifer failure"
+			jsonMap["ErrorMessage"] = err.Error()
+			jsonMap["replicationControllerNotifier"] = replicationControllerNotifier
+			errorMessageByteSlice, _ := json.Marshal(jsonMap)
+			log.Error(jsonMap)
+			response.WriteErrorString(422, string(errorMessageByteSlice))
+			return
 		} else {
 			replicationControllerNotifierSerializableSlice = append(replicationControllerNotifierSerializableSlice, replicationControllerNotifierSerializable)
 		}
 	}
+
 	response.WriteJson(replicationControllerNotifierSerializableSlice, "[]ReplicationControllerNotifierSerializable")
 }
 
@@ -110,28 +119,45 @@ func getReplicationControllerNotifier(request *restful.Request, response *restfu
 	namespace := request.PathParameter("namespace")
 	kind := request.PathParameter("kind")
 	name := request.PathParameter("name")
+
 	exist, replicationControllerNotifier := execute.GetReplicationControllerNotifier(namespace, kind, name)
-	if exist {
-		replicationControllerNotifierSerializable, err := notification.ConvertToSerializable(replicationControllerNotifier)
-		if err != nil {
-			log.Error(err)
-		} else {
-			response.WriteJson(replicationControllerNotifierSerializable, "ReplicationControllerNotifierSerializable")
-		}
-	} else {
-		response.WriteErrorString(404, `{"Error": "No such ReplicationControllerNotifier exists"}`)
+	if exist == false {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "The replication controller notifer doesn't exist"
+		jsonMap["namespace"] = namespace
+		jsonMap["kind"] = kind
+		jsonMap["name"] = name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
+		return
 	}
+
+	replicationControllerNotifierSerializable, err := notification.ConvertToSerializable(replicationControllerNotifier)
+	if err != nil {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Convert replication controller notifer failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["replicationControllerNotifier"] = replicationControllerNotifier
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
+		return
+	}
+
+	response.WriteJson(replicationControllerNotifierSerializable, "ReplicationControllerNotifierSerializable")
 }
 
 func putReplicationControllerNotifier(request *restful.Request, response *restful.Response) {
-
 	replicationControllerNotifierSerializable := new(notification.ReplicationControllerNotifierSerializable)
 	err := request.ReadEntity(&replicationControllerNotifierSerializable)
-
 	if err != nil {
-		errorText := fmt.Sprintf("PUT notifier %s failure with error %s", replicationControllerNotifierSerializable, err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Read body failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
@@ -141,42 +167,83 @@ func putReplicationControllerNotifier(request *restful.Request, response *restfu
 		if err != nil {
 			for _, name := range nameSlice {
 				exist, err := monitor.ExistReplicationController(replicationControllerNotifierSerializable.KubeapiHost, replicationControllerNotifierSerializable.KubeapiPort, replicationControllerNotifierSerializable.Namespace, name)
+				if err != nil {
+					jsonMap := make(map[string]interface{})
+					jsonMap["Error"] = "Check whether the replication controller exists or not failure"
+					jsonMap["ErrorMessage"] = err.Error()
+					jsonMap["replicationControllerNotifierSerializable"] = replicationControllerNotifierSerializable
+					errorMessageByteSlice, _ := json.Marshal(jsonMap)
+					log.Error(jsonMap)
+					response.WriteErrorString(422, string(errorMessageByteSlice))
+					return
+				}
 				if exist == false {
-					errorText := fmt.Sprintf("PUT notifier %s fail to test the existence of replication controller with error %s", replicationControllerNotifierSerializable, err)
-					log.Error(errorText)
-					response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+					jsonMap := make(map[string]interface{})
+					jsonMap["Error"] = "The replication controller to notify doesn't exist"
+					jsonMap["ErrorMessage"] = err.Error()
+					jsonMap["replicationControllerNotifierSerializable"] = replicationControllerNotifierSerializable
+					errorMessageByteSlice, _ := json.Marshal(jsonMap)
+					log.Error(jsonMap)
+					response.WriteErrorString(404, string(errorMessageByteSlice))
 					return
 				}
 			}
 		}
 	case "replicationController":
 		exist, err := monitor.ExistReplicationController(replicationControllerNotifierSerializable.KubeapiHost, replicationControllerNotifierSerializable.KubeapiPort, replicationControllerNotifierSerializable.Namespace, replicationControllerNotifierSerializable.Name)
+		if err != nil {
+			jsonMap := make(map[string]interface{})
+			jsonMap["Error"] = "Check whether the replication controller exists or not failure"
+			jsonMap["ErrorMessage"] = err.Error()
+			jsonMap["replicationControllerNotifierSerializable"] = replicationControllerNotifierSerializable
+			errorMessageByteSlice, _ := json.Marshal(jsonMap)
+			log.Error(jsonMap)
+			response.WriteErrorString(422, string(errorMessageByteSlice))
+			return
+		}
 		if exist == false {
-			errorText := fmt.Sprintf("PUT notifier %s fail to test the existence of replication controller with error %s", replicationControllerNotifierSerializable, err)
-			log.Error(errorText)
-			response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+			jsonMap := make(map[string]interface{})
+			jsonMap["Error"] = "The replication controller to notify doesn't exist"
+			jsonMap["ErrorMessage"] = err.Error()
+			jsonMap["replicationControllerNotifierSerializable"] = replicationControllerNotifierSerializable
+			errorMessageByteSlice, _ := json.Marshal(jsonMap)
+			log.Error(jsonMap)
+			response.WriteErrorString(400, string(errorMessageByteSlice))
 			return
 		}
 	default:
-		errorText := fmt.Sprintf("PUT notifier %s has no such kind %s", replicationControllerNotifierSerializable, replicationControllerNotifierSerializable.Kind)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "No such kind"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["replicationControllerNotifierSerializable"] = replicationControllerNotifierSerializable
+		jsonMap["kind"] = replicationControllerNotifierSerializable.Kind
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	replicationControllerNotifier, err := notification.ConvertFromSerializable(*replicationControllerNotifierSerializable)
 	if err != nil {
-		errorText := fmt.Sprintf("PUT notifier %s fail to convert with error %s", replicationControllerNotifierSerializable, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Convert replication controller notifier failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["replicationControllerNotifierSerializable"] = replicationControllerNotifierSerializable
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	err = notification.GetStorage().SaveReplicationControllerNotifierSerializable(replicationControllerNotifierSerializable)
 	if err != nil {
-		errorText := fmt.Sprintf("PUT notifier %s fail to save to database with error %s", replicationControllerNotifierSerializable, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Save replication controller notifier failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["replicationControllerNotifierSerializable"] = replicationControllerNotifierSerializable
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 
@@ -184,27 +251,42 @@ func putReplicationControllerNotifier(request *restful.Request, response *restfu
 }
 
 func deleteReplicationControllerNotifier(request *restful.Request, response *restful.Response) {
-	replicationControllerNotifier := new(notification.ReplicationControllerNotifier)
-	replicationControllerNotifier.Namespace = request.PathParameter("namespace")
-	replicationControllerNotifier.Kind = request.PathParameter("kind")
-	replicationControllerNotifier.Name = request.PathParameter("name")
+	namespace := request.PathParameter("namespace")
+	kind := request.PathParameter("kind")
+	name := request.PathParameter("name")
+
+	replicationControllerNotifier := &notification.ReplicationControllerNotifier{}
+	replicationControllerNotifier.Namespace = namespace
+	replicationControllerNotifier.Kind = kind
+	replicationControllerNotifier.Name = name
 	replicationControllerNotifier.Check = false
-	err := notification.GetStorage().DeleteReplicationControllerNotifierSerializable(replicationControllerNotifier.Namespace, replicationControllerNotifier.Kind, replicationControllerNotifier.Name)
+
+	err := notification.GetStorage().DeleteReplicationControllerNotifierSerializable(namespace, kind, name)
 	if err != nil {
-		errorText := fmt.Sprintf("Delete namespace %s kind %s name %s fail to delete with error %s", replicationControllerNotifier.Namespace, replicationControllerNotifier.Kind, replicationControllerNotifier.Name, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Delete replication controller notifier failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["namespace"] = namespace
+		jsonMap["kind"] = kind
+		jsonMap["name"] = name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
+
 	execute.AddReplicationControllerNotifier(replicationControllerNotifier)
 }
 
 func getAllEmailServerSMTP(request *restful.Request, response *restful.Response) {
 	emailServerSMTPSlice, err := notification.GetStorage().LoadAllEmailServerSMTP()
 	if err != nil {
-		errorText := fmt.Sprintf("Could not get all smtp email server with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get all smtp email server failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 
@@ -214,27 +296,37 @@ func getAllEmailServerSMTP(request *restful.Request, response *restful.Response)
 func postEmailServerSMTP(request *restful.Request, response *restful.Response) {
 	emailServerSMTP := &notification.EmailServerSMTP{}
 	err := request.ReadEntity(&emailServerSMTP)
-
 	if err != nil {
-		errorText := fmt.Sprintf("POST parse smtp email server input failure with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Read body failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	existingEmailServerSMTP, _ := notification.GetStorage().LoadEmailServerSMTP(emailServerSMTP.Name)
 	if existingEmailServerSMTP != nil {
-		errorText := fmt.Sprintf("The smtp email server with name %s exists", emailServerSMTP.Name)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "The smtp email server to create already exists"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["name"] = emailServerSMTP.Name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(409, string(errorMessageByteSlice))
 		return
 	}
 
 	err = notification.GetStorage().SaveEmailServerSMTP(emailServerSMTP)
 	if err != nil {
-		errorText := fmt.Sprintf("Save smtp email server %v with error %s", emailServerSMTP, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Save smtp email server failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["emailServerSMTP"] = emailServerSMTP
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }
@@ -244,9 +336,13 @@ func getEmailServerSMTP(request *restful.Request, response *restful.Response) {
 
 	emailServerSMTP, err := notification.GetStorage().LoadEmailServerSMTP(name)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not get smtp email server %s with error %s", name, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get smtp email server failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["name"] = name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 
@@ -258,9 +354,13 @@ func deleteEmailServerSMTP(request *restful.Request, response *restful.Response)
 
 	err := notification.GetStorage().DeleteEmailServerSMTP(name)
 	if err != nil {
-		errorText := fmt.Sprintf("Delete smtp email server %s with error %s", name, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Delete smtp email server failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["name"] = name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }
@@ -268,9 +368,12 @@ func deleteEmailServerSMTP(request *restful.Request, response *restful.Response)
 func getAllSMSNexmo(request *restful.Request, response *restful.Response) {
 	smsNexmoSlice, err := notification.GetStorage().LoadAllSMSNexmo()
 	if err != nil {
-		errorText := fmt.Sprintf("Could not get all sms nexmo with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get all sms nexmo failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 
@@ -280,27 +383,37 @@ func getAllSMSNexmo(request *restful.Request, response *restful.Response) {
 func postSMSNexmo(request *restful.Request, response *restful.Response) {
 	smsNexmo := &notification.SMSNexmo{}
 	err := request.ReadEntity(&smsNexmo)
-
 	if err != nil {
-		errorText := fmt.Sprintf("POST parse sms nexmo input failure with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Read body failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	existingSMSNexmo, _ := notification.GetStorage().LoadSMSNexmo(smsNexmo.Name)
 	if existingSMSNexmo != nil {
-		errorText := fmt.Sprintf("The sms nexmo with name %s exists", smsNexmo.Name)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "The sms nexmo to create already exists"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["name"] = smsNexmo.Name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(409, string(errorMessageByteSlice))
 		return
 	}
 
 	err = notification.GetStorage().SaveSMSNexmo(smsNexmo)
 	if err != nil {
-		errorText := fmt.Sprintf("Save sms nexmo %v with error %s", smsNexmo, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Save sms nexmo failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["smsNexmo"] = smsNexmo
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }
@@ -310,9 +423,13 @@ func getSMSNexmo(request *restful.Request, response *restful.Response) {
 
 	smsNexmo, err := notification.GetStorage().LoadSMSNexmo(name)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not get sms nexmo %s with error %s", name, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get sms nexmo failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["name"] = name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 
@@ -324,9 +441,13 @@ func deleteSMSNexmo(request *restful.Request, response *restful.Response) {
 
 	err := notification.GetStorage().DeleteSMSNexmo(name)
 	if err != nil {
-		errorText := fmt.Sprintf("Delete sms nexmo %s with error %s", name, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Delete sms nexmo failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["name"] = name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }

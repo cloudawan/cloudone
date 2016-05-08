@@ -16,7 +16,7 @@ package restapi
 
 import (
 	"bytes"
-	"fmt"
+	"encoding/json"
 	"github.com/cloudawan/cloudone/authorization"
 	"github.com/cloudawan/cloudone/utility/configuration"
 	"github.com/cloudawan/cloudone_utility/audit"
@@ -50,12 +50,12 @@ func registerWebServiceAuthorization() {
 		Doc("Get user data with the token").
 		Param(ws.PathParameter("token", "Token").DataType("string")).
 		Param(ws.PathParameter("component", "Component").DataType("string")).
-		Do(returns200User, returns400, returns404, returns500))
+		Do(returns200User, returns404, returns500))
 
 	// Used for authorization token so don't need to be check authorization
 	ws.Route(ws.POST("/tokens/").Filter(auditLogWithoutVerified).To(postToken).
 		Doc("Create the token").
-		Do(returns200Token, returns400, returns404, returns500).
+		Do(returns200Token, returns400, returns422, returns500).
 		Reads(UserData{}))
 
 	ws.Route(ws.GET("/tokens/expired").Filter(authorize).Filter(auditLog).To(getAllTokenExpiredTime).
@@ -68,7 +68,7 @@ func registerWebServiceAuthorization() {
 
 	ws.Route(ws.POST("/users/").Filter(authorize).Filter(auditLogWithoutBody).To(postUser).
 		Doc("Create the user").
-		Do(returns200, returns400, returns404, returns500).
+		Do(returns200, returns400, returns409, returns422, returns500).
 		Reads(rbac.User{}))
 
 	ws.Route(ws.DELETE("/users/{name}").Filter(authorize).Filter(auditLog).To(deleteUser).
@@ -79,7 +79,7 @@ func registerWebServiceAuthorization() {
 	ws.Route(ws.PUT("/users/{name}").Filter(authorize).Filter(auditLogWithoutBody).To(putUser).
 		Doc("Modify the user").
 		Param(ws.PathParameter("name", "Name").DataType("string")).
-		Do(returns200, returns400, returns404, returns500).
+		Do(returns200, returns400, returns404, returns422, returns500).
 		Reads(rbac.User{}))
 
 	ws.Route(ws.GET("/users/{name}").Filter(authorize).Filter(auditLog).To(getUser).
@@ -90,7 +90,7 @@ func registerWebServiceAuthorization() {
 	ws.Route(ws.PUT("/users/{name}/metadata").Filter(authorize).Filter(auditLogWithoutBody).To(putUserMetaData).
 		Doc("Modify the user metadata").
 		Param(ws.PathParameter("name", "Name").DataType("string")).
-		Do(returns200, returns400, returns404, returns500).
+		Do(returns200, returns400, returns404, returns422, returns500).
 		Reads(make(map[string]string)))
 
 	ws.Route(ws.GET("/roles/").Filter(authorize).Filter(auditLog).To(getAllRole).
@@ -99,7 +99,7 @@ func registerWebServiceAuthorization() {
 
 	ws.Route(ws.POST("/roles/").Filter(authorize).Filter(auditLog).To(postRole).
 		Doc("Create the role").
-		Do(returns200, returns400, returns404, returns500).
+		Do(returns200, returns400, returns409, returns422, returns500).
 		Reads(rbac.Role{}))
 
 	ws.Route(ws.DELETE("/roles/{name}").Filter(authorize).Filter(auditLog).To(deleteRole).
@@ -110,7 +110,7 @@ func registerWebServiceAuthorization() {
 	ws.Route(ws.PUT("/roles/{name}").Filter(authorize).Filter(auditLog).To(putRole).
 		Doc("Modify the role").
 		Param(ws.PathParameter("name", "Name").DataType("string")).
-		Do(returns200, returns400, returns404, returns500).
+		Do(returns200, returns400, returns404, returns422, returns500).
 		Reads(rbac.Role{}))
 
 	ws.Route(ws.GET("/roles/{name}").Filter(authorize).Filter(auditLog).To(getRole).
@@ -125,9 +125,14 @@ func getUserFromToken(request *restful.Request, response *restful.Response) {
 
 	user, err := authorization.GetUserFromToken(token)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not get user with token %s error %s", token, err)
-		log.Debug(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get user with token failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["token"] = token
+		jsonMap["component"] = component
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
@@ -139,19 +144,25 @@ func getUserFromToken(request *restful.Request, response *restful.Response) {
 func postToken(request *restful.Request, response *restful.Response) {
 	userData := UserData{}
 	err := request.ReadEntity(&userData)
-
 	if err != nil {
-		errorText := fmt.Sprintf("POST parse token input failure with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Read body failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	token, err := authorization.CreateToken(userData.Username, userData.Password)
 	if err != nil {
-		errorText := fmt.Sprintf("Get token with input %v error %s", userData, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Create token failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["userData"] = userData
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 
@@ -167,9 +178,12 @@ func getAllTokenExpiredTime(request *restful.Request, response *restful.Response
 func getAllUser(request *restful.Request, response *restful.Response) {
 	userSlice, err := authorization.GetStorage().LoadAllUser()
 	if err != nil {
-		errorText := fmt.Sprintf("Could not get all users with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get all user failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
@@ -179,19 +193,25 @@ func getAllUser(request *restful.Request, response *restful.Response) {
 func postUser(request *restful.Request, response *restful.Response) {
 	user := rbac.User{}
 	err := request.ReadEntity(&user)
-
 	if err != nil {
-		errorText := fmt.Sprintf("POST parse user input failure with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Read body failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	oldUser, _ := authorization.GetStorage().LoadUser(user.Name)
 	if oldUser != nil {
-		errorText := fmt.Sprintf("The user with name %s exists", user.Name)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "The user to create already exists"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["name"] = user.Name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(409, string(errorMessageByteSlice))
 		return
 	}
 
@@ -199,9 +219,13 @@ func postUser(request *restful.Request, response *restful.Response) {
 
 	err = authorization.GetStorage().SaveUser(createdUser)
 	if err != nil {
-		errorText := fmt.Sprintf("Save user %v with error %s", user, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Save user failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["user"] = user
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }
@@ -211,26 +235,37 @@ func putUser(request *restful.Request, response *restful.Response) {
 
 	user := rbac.User{}
 	err := request.ReadEntity(&user)
-
 	if err != nil {
-		errorText := fmt.Sprintf("PUT parse user input failure with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Read body failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["name"] = name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	if name != user.Name {
-		errorText := fmt.Sprintf("PUT name %s is different from name %s in the body", name, user.Name)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Path parameter name is different from name in the body"
+		jsonMap["path"] = name
+		jsonMap["body"] = user.Name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
-	oldUser, _ := authorization.GetStorage().LoadUser(user.Name)
+	oldUser, _ := authorization.GetStorage().LoadUser(name)
 	if oldUser == nil {
-		errorText := fmt.Sprintf("The user with name %s doesn't exist", user.Name)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "The user to update deosn't exist"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["name"] = name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
@@ -238,9 +273,13 @@ func putUser(request *restful.Request, response *restful.Response) {
 
 	err = authorization.GetStorage().SaveUser(createdUser)
 	if err != nil {
-		errorText := fmt.Sprintf("Save user %v with error %s", user, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Save user failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["user"] = user
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }
@@ -250,9 +289,13 @@ func deleteUser(request *restful.Request, response *restful.Response) {
 
 	err := authorization.GetStorage().DeleteUser(name)
 	if err != nil {
-		errorText := fmt.Sprintf("Delete user with name %s error %s", name, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Delete user failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["name"] = name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 }
@@ -262,9 +305,13 @@ func getUser(request *restful.Request, response *restful.Response) {
 
 	user, err := authorization.GetStorage().LoadUser(name)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not get user with name %s error %s", name, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get user failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["name"] = name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
@@ -276,29 +323,40 @@ func putUserMetaData(request *restful.Request, response *restful.Response) {
 
 	metaDataMap := make(map[string]string)
 	err := request.ReadEntity(&metaDataMap)
-
 	if err != nil {
-		errorText := fmt.Sprintf("PUT parse metadata input failure with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Read body failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["name"] = name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
-	oldUser, _ := authorization.GetStorage().LoadUser(name)
-	if oldUser == nil {
-		errorText := fmt.Sprintf("The user with name %s doesn't exist", name)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+	user, _ := authorization.GetStorage().LoadUser(name)
+	if user == nil {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "The user to update deosn't exist"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["name"] = name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
-	oldUser.MetaDataMap = metaDataMap
+	user.MetaDataMap = metaDataMap
 
-	err = authorization.GetStorage().SaveUser(oldUser)
+	err = authorization.GetStorage().SaveUser(user)
 	if err != nil {
-		errorText := fmt.Sprintf("Save user %v with error %s", oldUser, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Save user metadata failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["user"] = user
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }
@@ -306,9 +364,12 @@ func putUserMetaData(request *restful.Request, response *restful.Response) {
 func getAllRole(request *restful.Request, response *restful.Response) {
 	roleSlice, err := authorization.GetStorage().LoadAllRole()
 	if err != nil {
-		errorText := fmt.Sprintf("Could not get all roles with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get all role failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
@@ -318,27 +379,37 @@ func getAllRole(request *restful.Request, response *restful.Response) {
 func postRole(request *restful.Request, response *restful.Response) {
 	role := rbac.Role{}
 	err := request.ReadEntity(&role)
-
 	if err != nil {
-		errorText := fmt.Sprintf("POST parse role input failure with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Read body failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	oldRole, _ := authorization.GetStorage().LoadRole(role.Name)
 	if oldRole != nil {
-		errorText := fmt.Sprintf("The role with name %s exists", role.Name)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "The role to create already exists"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["name"] = role.Name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(409, string(errorMessageByteSlice))
 		return
 	}
 
 	err = authorization.GetStorage().SaveRole(&role)
 	if err != nil {
-		errorText := fmt.Sprintf("Save role %v with error %s", role, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Save role failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["role"] = role
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }
@@ -348,34 +419,49 @@ func putRole(request *restful.Request, response *restful.Response) {
 
 	role := rbac.Role{}
 	err := request.ReadEntity(&role)
-
 	if err != nil {
-		errorText := fmt.Sprintf("PUT parse role input failure with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Read body failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["name"] = name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	if name != role.Name {
-		errorText := fmt.Sprintf("PUT name %s is different from name %s in the body", name, role.Name)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Path parameter name is different from name in the body"
+		jsonMap["path"] = name
+		jsonMap["body"] = role.Name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	oldRole, _ := authorization.GetStorage().LoadRole(role.Name)
 	if oldRole == nil {
-		errorText := fmt.Sprintf("The role with name %s doesn't exist", role.Name)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "The role to update deosn't exist"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["name"] = role.Name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
 	err = authorization.GetStorage().SaveRole(&role)
 	if err != nil {
-		errorText := fmt.Sprintf("Save role %v with error %s", role, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Save role failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["role"] = role
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }
@@ -385,9 +471,13 @@ func deleteRole(request *restful.Request, response *restful.Response) {
 
 	err := authorization.GetStorage().DeleteRole(name)
 	if err != nil {
-		errorText := fmt.Sprintf("Delete role with name %s error %s", name, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Delete role failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["name"] = name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 }
@@ -397,9 +487,13 @@ func getRole(request *restful.Request, response *restful.Response) {
 
 	role, err := authorization.GetStorage().LoadRole(name)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not get role with name %s error %s", name, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get role failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["name"] = name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 

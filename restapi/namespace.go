@@ -15,7 +15,7 @@
 package restapi
 
 import (
-	"fmt"
+	"encoding/json"
 	"github.com/cloudawan/cloudone/control"
 	"github.com/emicklei/go-restful"
 	"net/http"
@@ -37,13 +37,13 @@ func registerWebServiceNamespace() {
 		Doc("Get all of the kubernetes namespace name").
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
-		Do(returns200AllKubernetesNamesapceName, returns400, returns404, returns500))
+		Do(returns200AllKubernetesNamesapceName, returns400, returns422, returns500))
 
 	ws.Route(ws.POST("/").Filter(authorize).Filter(auditLog).To(postKubernetesNamespace).
 		Doc("Add a kubernetes namespace").
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
-		Do(returns200, returns400, returns404, returns500).
+		Do(returns200, returns400, returns422, returns500).
 		Reads(Namesapce{}))
 
 	ws.Route(ws.DELETE("/{namespace}").Filter(authorize).Filter(auditLog).To(deleteKubernetesNamespace).
@@ -51,31 +51,44 @@ func registerWebServiceNamespace() {
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
-		Do(returns200, returns400, returns404, returns500))
+		Do(returns200, returns400, returns422, returns500))
 }
 
 func getAllKubernetesNamespaceName(request *restful.Request, response *restful.Response) {
 	kubeapiHost := request.QueryParameter("kubeapihost")
 	kubeapiPortText := request.QueryParameter("kubeapiport")
 	if kubeapiHost == "" || kubeapiPortText == "" {
-		errorText := fmt.Sprintf("Input text is incorrect kubeapiHost %s kubeapiPort %s", kubeapiHost, kubeapiPortText)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost and kubeapiport are required."
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not parse kubeapiPortText %s with error %s", kubeapiPortText, err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	nameSlice, err := control.GetAllNamespaceName(kubeapiHost, kubeapiPort)
 	if err != nil {
-		errorText := fmt.Sprintf("Get all namespace name failure kubeapiHost %s kubeapiPort %s", kubeapiHost, kubeapiPortText)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get all namespace failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPort"] = kubeapiPort
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 
@@ -86,35 +99,53 @@ func postKubernetesNamespace(request *restful.Request, response *restful.Respons
 	kubeapiHost := request.QueryParameter("kubeapihost")
 	kubeapiPortText := request.QueryParameter("kubeapiport")
 	if kubeapiHost == "" || kubeapiPortText == "" {
-		errorText := fmt.Sprintf("Input text is incorrect kubeapiHost %s kubeapiPort %s", kubeapiHost, kubeapiPortText)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost and kubeapiport are required."
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not parse kubeapiPortText %s with error %s", kubeapiPortText, err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	namespace := new(Namesapce)
 	err = request.ReadEntity(&namespace)
-
 	if err != nil {
-		errorText := fmt.Sprintf("POST namespace %s kubeapiHost %s kubeapiPort %s failure with error %s", namespace, kubeapiHost, kubeapiPort, err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Read body failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPort"] = kubeapiPort
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	err = control.CreateNamespace(kubeapiHost, kubeapiPort, namespace.Name)
 
 	if err != nil {
-		errorText := fmt.Sprintf("Create namespace failure kubeapiHost %s kubeapiPort %s namespace %s error %s", kubeapiHost, kubeapiPort, namespace, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Create namespace failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["namespace"] = namespace
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }
@@ -123,26 +154,40 @@ func deleteKubernetesNamespace(request *restful.Request, response *restful.Respo
 	kubeapiHost := request.QueryParameter("kubeapihost")
 	kubeapiPortText := request.QueryParameter("kubeapiport")
 	namespace := request.PathParameter("namespace")
-	if kubeapiHost == "" || kubeapiPortText == "" || namespace == "" {
-		errorText := fmt.Sprintf("Input text is incorrect kubeapiHost %s kubeapiHost %s namespace %s", kubeapiHost, kubeapiPortText, namespace)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+	if kubeapiHost == "" || kubeapiPortText == "" {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost and kubeapiport are required."
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not parse kubeapiPortText %s with error %s", kubeapiPortText, err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	err = control.DeleteNamespace(kubeapiHost, kubeapiPort, namespace)
 
 	if err != nil {
-		errorText := fmt.Sprintf("Delete namespace failure kubeapiHost %s kubeapiPort %s namespace %s error %s", kubeapiHost, kubeapiPort, namespace, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Delete namespace failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["namespace"] = namespace
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }

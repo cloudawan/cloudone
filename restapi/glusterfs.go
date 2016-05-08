@@ -15,7 +15,7 @@
 package restapi
 
 import (
-	"fmt"
+	"encoding/json"
 	"github.com/cloudawan/cloudone/filesystem/glusterfs"
 	"github.com/emicklei/go-restful"
 	"net/http"
@@ -53,18 +53,18 @@ func registerWebServiceGlusterfs() {
 
 	ws.Route(ws.POST("/clusters/").Filter(authorize).Filter(auditLogWithoutBody).To(postGlusterfsCluster).
 		Doc("Create gluster cluster configuration").
-		Do(returns200, returns400, returns404, returns500).
+		Do(returns200, returns400, returns409, returns422, returns500).
 		Reads(GlusterfsClusterInput{}))
 
 	ws.Route(ws.DELETE("/clusters/{cluster}").Filter(authorize).Filter(auditLog).To(deleteGlusterfsCluster).
 		Doc("Delete the gluster cluster configuration").
 		Param(ws.PathParameter("cluster", "Cluster name").DataType("string")).
-		Do(returns200, returns404, returns500))
+		Do(returns200, returns422, returns500))
 
 	ws.Route(ws.PUT("/clusters/{cluster}").Filter(authorize).Filter(auditLogWithoutBody).To(putGlusterfsCluster).
 		Doc("Modify gluster cluster configuration").
 		Param(ws.PathParameter("cluster", "Cluster name").DataType("string")).
-		Do(returns200, returns400, returns404, returns500).
+		Do(returns200, returns400, returns404, returns422, returns500).
 		Reads(GlusterfsClusterInput{}))
 
 	ws.Route(ws.GET("/clusters/{cluster}").Filter(authorize).Filter(auditLog).To(getGlusterfsCluster).
@@ -75,27 +75,30 @@ func registerWebServiceGlusterfs() {
 	ws.Route(ws.GET("/clusters/{cluster}/volumes/").Filter(authorize).Filter(auditLog).To(getAllGlusterfsVolume).
 		Doc("Get all of the glusterfs volume").
 		Param(ws.PathParameter("cluster", "Cluster name").DataType("string")).
-		Do(returns200AllGlusterfsVolume, returns404, returns500))
+		Do(returns200AllGlusterfsVolume, returns404, returns422, returns500))
 
 	ws.Route(ws.POST("/clusters/{cluster}/volumes/").Filter(authorize).Filter(auditLog).To(postGlusterfsVolume).
 		Doc("Create and start the glusterfs volume").
 		Param(ws.PathParameter("cluster", "Cluster name").DataType("string")).
-		Do(returns200, returns400, returns404, returns500).
+		Do(returns200, returns400, returns404, returns422, returns500).
 		Reads(GlusterfsVolumeInput{}))
 
 	ws.Route(ws.DELETE("/clusters/{cluster}/volumes/{volume}").Filter(authorize).Filter(auditLog).To(deleteGlusterfsVolume).
 		Doc("Stop and delete the gluster volume deployment").
 		Param(ws.PathParameter("cluster", "Cluster name").DataType("string")).
 		Param(ws.PathParameter("volume", "Volume name").DataType("string")).
-		Do(returns200, returns404, returns500))
+		Do(returns200, returns404, returns422, returns500))
 }
 
 func getAllGlusterfsCluster(request *restful.Request, response *restful.Response) {
 	glusterfsClusterSlice, err := glusterfs.GetStorage().LoadAllGlusterfsCluster()
 	if err != nil {
-		errorText := fmt.Sprintf("Could not get all glusterfs cluster with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get all glusterfs cluster failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
@@ -105,19 +108,24 @@ func getAllGlusterfsCluster(request *restful.Request, response *restful.Response
 func postGlusterfsCluster(request *restful.Request, response *restful.Response) {
 	glusterfsClusterInput := GlusterfsClusterInput{}
 	err := request.ReadEntity(&glusterfsClusterInput)
-
 	if err != nil {
-		errorText := fmt.Sprintf("POST parse glusterfs cluster input failure with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Read body failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	glusterfsCluster, _ := glusterfs.GetStorage().LoadGlusterfsCluster(glusterfsClusterInput.Name)
 	if glusterfsCluster != nil {
-		errorText := fmt.Sprintf("The glusterfs cluster with name %s exists", glusterfsClusterInput.Name)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "The glusterfs cluster to create already exists"
+		jsonMap["name"] = glusterfsClusterInput.Name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(409, string(errorMessageByteSlice))
 		return
 	}
 
@@ -133,56 +141,13 @@ func postGlusterfsCluster(request *restful.Request, response *restful.Response) 
 
 	err = glusterfs.GetStorage().SaveGlusterfsCluster(glusterfsCluster)
 	if err != nil {
-		errorText := fmt.Sprintf("Save glusterfs cluster %v with error %s", glusterfsCluster, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
-		return
-	}
-}
-
-func putGlusterfsCluster(request *restful.Request, response *restful.Response) {
-	cluster := request.PathParameter("cluster")
-
-	glusterfsClusterInput := GlusterfsClusterInput{}
-	err := request.ReadEntity(&glusterfsClusterInput)
-
-	if err != nil {
-		errorText := fmt.Sprintf("PUT parse glusterfs cluster input failure with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
-		return
-	}
-
-	if cluster != glusterfsClusterInput.Name {
-		errorText := fmt.Sprintf("PUT name %s is different from name %s in the body", cluster, glusterfsClusterInput.Name)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
-		return
-	}
-
-	glusterfsCluster, _ := glusterfs.GetStorage().LoadGlusterfsCluster(glusterfsClusterInput.Name)
-	if glusterfsCluster == nil {
-		errorText := fmt.Sprintf("The glusterfs cluster with name %s doesn't exist", glusterfsClusterInput.Name)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
-		return
-	}
-
-	glusterfsCluster = glusterfs.CreateGlusterfsCluster(
-		glusterfsClusterInput.Name,
-		glusterfsClusterInput.HostSlice,
-		glusterfsClusterInput.Path,
-		glusterfsClusterInput.SSHDialTimeoutInMilliSecond,
-		glusterfsClusterInput.SSHSessionTimeoutInMilliSecond,
-		glusterfsClusterInput.SSHPort,
-		glusterfsClusterInput.SSHUser,
-		glusterfsClusterInput.SSHPassword)
-
-	err = glusterfs.GetStorage().SaveGlusterfsCluster(glusterfsCluster)
-	if err != nil {
-		errorText := fmt.Sprintf("Save glusterfs cluster %v with error %s", glusterfsCluster, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Save glusterfs cluster failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["glusterfsCluster"] = glusterfsCluster
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }
@@ -192,9 +157,74 @@ func deleteGlusterfsCluster(request *restful.Request, response *restful.Response
 
 	err := glusterfs.GetStorage().DeleteGlusterfsCluster(cluster)
 	if err != nil {
-		errorText := fmt.Sprintf("Delete glusterfs cluster %s with error %s", cluster, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Delete glusterfs cluster failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["cluster"] = cluster
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
+		return
+	}
+}
+
+func putGlusterfsCluster(request *restful.Request, response *restful.Response) {
+	cluster := request.PathParameter("cluster")
+
+	glusterfsClusterInput := GlusterfsClusterInput{}
+	err := request.ReadEntity(&glusterfsClusterInput)
+	if err != nil {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Read body failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["cluster"] = cluster
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
+		return
+	}
+
+	if cluster != glusterfsClusterInput.Name {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Path parameter name is different from name in the body"
+		jsonMap["path"] = cluster
+		jsonMap["body"] = glusterfsClusterInput.Name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
+		return
+	}
+
+	glusterfsCluster, _ := glusterfs.GetStorage().LoadGlusterfsCluster(cluster)
+	if glusterfsCluster == nil {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "The glusterfs cluster to update doesn't exist"
+		jsonMap["name"] = cluster
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
+		return
+	}
+
+	glusterfsCluster = glusterfs.CreateGlusterfsCluster(
+		glusterfsClusterInput.Name,
+		glusterfsClusterInput.HostSlice,
+		glusterfsClusterInput.Path,
+		glusterfsClusterInput.SSHDialTimeoutInMilliSecond,
+		glusterfsClusterInput.SSHSessionTimeoutInMilliSecond,
+		glusterfsClusterInput.SSHPort,
+		glusterfsClusterInput.SSHUser,
+		glusterfsClusterInput.SSHPassword)
+
+	err = glusterfs.GetStorage().SaveGlusterfsCluster(glusterfsCluster)
+	if err != nil {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Save glusterfs cluster failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["glusterfsCluster"] = glusterfsCluster
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }
@@ -204,9 +234,13 @@ func getGlusterfsCluster(request *restful.Request, response *restful.Response) {
 
 	glusterfsCluster, err := glusterfs.GetStorage().LoadGlusterfsCluster(cluster)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not get glusterfs cluster %s with error %s", cluster, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get glusterfs cluster failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["cluster"] = cluster
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
@@ -218,18 +252,25 @@ func getAllGlusterfsVolume(request *restful.Request, response *restful.Response)
 
 	glusterfsCluster, err := glusterfs.GetStorage().LoadGlusterfsCluster(cluster)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not get glusterfs cluster %s with error %s", cluster, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get glusterfs cluster failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["cluster"] = cluster
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
 	glusterfsVolumeSlice, err := glusterfsCluster.GetAllVolume()
-
 	if err != nil {
-		errorText := fmt.Sprintf("Get all gluster volume failure with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get all glusterfs volume failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["cluster"] = cluster
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 
@@ -237,57 +278,75 @@ func getAllGlusterfsVolume(request *restful.Request, response *restful.Response)
 }
 
 func postGlusterfsVolume(request *restful.Request, response *restful.Response) {
+	cluster := request.PathParameter("cluster")
+
 	glusterfsVolumeInput := GlusterfsVolumeInput{}
 	err := request.ReadEntity(&glusterfsVolumeInput)
-
 	if err != nil {
-		errorText := fmt.Sprintf("POST parse glusterfs volume input failure with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Read body failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["cluster"] = cluster
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
-	cluster := request.PathParameter("cluster")
-
 	glusterfsCluster, err := glusterfs.GetStorage().LoadGlusterfsCluster(cluster)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not get glusterfs cluster %s with error %s", cluster, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get glusterfs cluster failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["cluster"] = cluster
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
 	err = glusterfsCluster.CreateVolume(glusterfsVolumeInput.Name,
 		glusterfsVolumeInput.Stripe, glusterfsVolumeInput.Replica,
 		glusterfsVolumeInput.Transport, glusterfsVolumeInput.HostSlice)
-
 	if err != nil {
-		errorText := fmt.Sprintf("Create glusterfs volume %s error %s", glusterfsVolumeInput, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Create glusterfs volume failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["cluster"] = cluster
+		jsonMap["glusterfsVolumeInput"] = glusterfsVolumeInput
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 
 	err = glusterfsCluster.StartVolume(glusterfsVolumeInput.Name)
-
 	if err != nil {
-		errorText := fmt.Sprintf("Start glusterfs volume %s error %s", glusterfsVolumeInput.Name, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Start glusterfs volume failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["cluster"] = cluster
+		jsonMap["glusterfsVolumeInput"] = glusterfsVolumeInput
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }
 
 func deleteGlusterfsVolume(request *restful.Request, response *restful.Response) {
-	volume := request.PathParameter("volume")
-
 	cluster := request.PathParameter("cluster")
+	volume := request.PathParameter("volume")
 
 	glusterfsCluster, err := glusterfs.GetStorage().LoadGlusterfsCluster(cluster)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not get glusterfs cluster %s with error %s", cluster, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get glusterfs cluster failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["cluster"] = cluster
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
@@ -295,19 +354,28 @@ func deleteGlusterfsVolume(request *restful.Request, response *restful.Response)
 
 	/*
 		if err != nil {
-			errorText := fmt.Sprintf("Stop glusterfs volume %s error %s", volume, err)
-			log.Error(errorText)
-			response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+			jsonMap := make(map[string]interface{})
+			jsonMap["Error"] = "Stop glusterfs volume failure"
+			jsonMap["ErrorMessage"] = err.Error()
+			jsonMap["cluster"] = cluster
+			jsonMap["volume"] = volume
+			errorMessageByteSlice, _ := json.Marshal(jsonMap)
+			log.Error(jsonMap)
+			response.WriteErrorString(422, string(errorMessageByteSlice))
 			return
 		}
 	*/
 
 	err = glusterfsCluster.DeleteVolume(volume)
-
 	if err != nil {
-		errorText := fmt.Sprintf("Delete glusterfs volume %s error %s", volume, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Delete glusterfs volume failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["cluster"] = cluster
+		jsonMap["volume"] = volume
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }

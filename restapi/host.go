@@ -15,7 +15,7 @@
 package restapi
 
 import (
-	"fmt"
+	"encoding/json"
 	"github.com/cloudawan/cloudone/host"
 	"github.com/emicklei/go-restful"
 	"net/http"
@@ -30,36 +30,39 @@ func registerWebServiceHost() {
 
 	ws.Route(ws.GET("/credentials/").Filter(authorize).Filter(auditLog).To(getAllCredential).
 		Doc("Get all of the credential").
-		Do(returns200AllCredential, returns404, returns500))
+		Do(returns200AllCredential, returns422, returns500))
 
 	ws.Route(ws.POST("/credentials/").Filter(authorize).Filter(auditLogWithoutBody).To(postCredential).
 		Doc("Create the credential").
-		Do(returns200, returns400, returns404, returns500).
+		Do(returns200, returns400, returns409, returns422, returns500).
 		Reads(host.Credential{}))
 
 	ws.Route(ws.DELETE("/credentials/{ip}").Filter(authorize).Filter(auditLog).To(deleteCredential).
 		Doc("Delete the credential").
 		Param(ws.PathParameter("ip", "IP").DataType("string")).
-		Do(returns200, returns404, returns500))
+		Do(returns200, returns422, returns500))
 
 	ws.Route(ws.PUT("/credentials/{ip}").Filter(authorize).Filter(auditLogWithoutBody).To(putCredential).
 		Doc("Modify the credential").
 		Param(ws.PathParameter("ip", "IP").DataType("string")).
-		Do(returns200, returns400, returns404, returns500).
+		Do(returns200, returns400, returns404, returns422, returns500).
 		Reads(host.Credential{}))
 
 	ws.Route(ws.GET("/credentials/{ip}").Filter(authorize).Filter(auditLog).To(getCredential).
 		Doc("Get all of the credentials").
 		Param(ws.PathParameter("ip", "IP").DataType("string")).
-		Do(returns200Credential, returns404, returns500))
+		Do(returns200Credential, returns422, returns500))
 }
 
 func getAllCredential(request *restful.Request, response *restful.Response) {
 	credentialClusterSlice, err := host.GetStorage().LoadAllCredential()
 	if err != nil {
-		errorText := fmt.Sprintf("Could not get all credentials with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get all credential failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 
@@ -69,27 +72,36 @@ func getAllCredential(request *restful.Request, response *restful.Response) {
 func postCredential(request *restful.Request, response *restful.Response) {
 	credential := host.Credential{}
 	err := request.ReadEntity(&credential)
-
 	if err != nil {
-		errorText := fmt.Sprintf("POST parse credential input failure with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Read body failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	oldCredential, _ := host.GetStorage().LoadCredential(credential.IP)
 	if oldCredential != nil {
-		errorText := fmt.Sprintf("The credential with ip %s exists", credential.IP)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "The credential to create already exists"
+		jsonMap["ip"] = credential.IP
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(409, string(errorMessageByteSlice))
 		return
 	}
 
 	err = host.GetStorage().SaveCredential(&credential)
 	if err != nil {
-		errorText := fmt.Sprintf("Save credential %v with error %s", credential, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Save credential failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["credential"] = credential
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }
@@ -99,34 +111,48 @@ func putCredential(request *restful.Request, response *restful.Response) {
 
 	credential := host.Credential{}
 	err := request.ReadEntity(&credential)
-
 	if err != nil {
-		errorText := fmt.Sprintf("PUT parse credential input failure with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Read body failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["ip"] = ip
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	if ip != credential.IP {
-		errorText := fmt.Sprintf("PUT ip %s is different from ip %s in the body", ip, credential.IP)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Path parameter ip is different from ip in the body"
+		jsonMap["path"] = ip
+		jsonMap["body"] = credential.IP
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	oldCredential, _ := host.GetStorage().LoadCredential(credential.IP)
 	if oldCredential == nil {
-		errorText := fmt.Sprintf("The credential with ip %s doesn't exist", credential.IP)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "The credential to update doesn't exist"
+		jsonMap["ip"] = credential.IP
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
 	err = host.GetStorage().SaveCredential(&credential)
 	if err != nil {
-		errorText := fmt.Sprintf("Save credential %v with error %s", credential, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Save credential failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["credential"] = credential
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }
@@ -136,9 +162,13 @@ func deleteCredential(request *restful.Request, response *restful.Response) {
 
 	err := host.GetStorage().DeleteCredential(ip)
 	if err != nil {
-		errorText := fmt.Sprintf("Delete credential with ip %s error %s", ip, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Delete credential failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["ip"] = ip
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }
@@ -148,9 +178,13 @@ func getCredential(request *restful.Request, response *restful.Response) {
 
 	credential, err := host.GetStorage().LoadCredential(ip)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not get credential %s with error %s", credential, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get credential failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["ip"] = ip
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 

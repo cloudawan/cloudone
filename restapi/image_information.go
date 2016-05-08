@@ -16,7 +16,6 @@ package restapi
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/cloudawan/cloudone/deploy"
 	"github.com/cloudawan/cloudone/image"
 	"github.com/emicklei/go-restful"
@@ -45,30 +44,33 @@ func registerWebServiceImageInformation() {
 
 	ws.Route(ws.GET("/").Filter(authorize).Filter(auditLog).To(getAllImageInformation).
 		Doc("Get all of the image information").
-		Do(returns200AllImageInformation, returns404, returns500))
+		Do(returns200AllImageInformation, returns422, returns500))
 
 	ws.Route(ws.DELETE("/{imageinformationname}").Filter(authorize).Filter(auditLog).To(deleteImageInformationAndRelatedRecords).
 		Doc("Delete image information and related records").
 		Param(ws.PathParameter("imageinformationname", "Image information name").DataType("string")).
-		Do(returns200, returns400, returns404, returns500))
+		Do(returns200, returns400, returns422, returns500))
 
 	ws.Route(ws.POST("/create").Filter(authorize).Filter(auditLog).To(postImageInformationCreate).
 		Doc("Create image build from source code").
-		Do(returns200, returns400, returns404, returns500).
+		Do(returns200, returns400, returns422, returns500).
 		Reads(ImageInformationCreateInput{}))
 
 	ws.Route(ws.PUT("/upgrade").Filter(authorize).Filter(auditLog).To(putImageInformationUpgrade).
 		Doc("Upgrade image build from source code").
-		Do(returns200, returns400, returns404, returns500).
+		Do(returns200, returns400, returns422, returns500).
 		Reads(ImageInformationUpgradeInput{}))
 }
 
 func getAllImageInformation(request *restful.Request, response *restful.Response) {
 	imageInformationSlice, err := image.GetStorage().LoadAllImageInformation()
 	if err != nil {
-		errorText := fmt.Sprintf("Get all image information failure %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get all image information failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 
@@ -80,23 +82,35 @@ func deleteImageInformationAndRelatedRecords(request *restful.Request, response 
 
 	used, err := deploy.IsImageInformationUsed(imageInformationName)
 	if err != nil {
-		errorText := fmt.Sprintf("Check whether image information is used error the image information %s failure %s", imageInformationName, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Check whether image information is used failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["imageInformationName"] = imageInformationName
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 	if used {
-		errorText := fmt.Sprintf("Image information is used image information %s", imageInformationName)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Can't delete the used image information"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["imageInformationName"] = imageInformationName
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	err = image.DeleteImageInformationAndRelatedRecord(imageInformationName)
 	if err != nil {
-		errorText := fmt.Sprintf("Delete image information %s and related records failure %s", imageInformationName, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Delete image information and related records failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["imageInformationName"] = imageInformationName
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }
@@ -104,31 +118,37 @@ func deleteImageInformationAndRelatedRecords(request *restful.Request, response 
 func postImageInformationCreate(request *restful.Request, response *restful.Response) {
 	imageInformation := new(image.ImageInformation)
 	err := request.ReadEntity(&imageInformation)
-
 	if err != nil {
-		errorText := fmt.Sprintf("POST failure with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Read body failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	outputMessage, err := image.BuildCreate(imageInformation)
 
-	jsonMap := make(map[string]interface{})
-	jsonMap["OutputMessage"] = outputMessage
+	resultJsonMap := make(map[string]interface{})
+	resultJsonMap["OutputMessage"] = outputMessage
 	statusCode := 200
 	if err != nil {
-		statusCode = 404
-		errorText := fmt.Sprintf("Build create failure imageInformation %s error %s", imageInformation, err)
-		log.Error(errorText)
-		jsonMap["Error"] = errorText
+		statusCode = 422
+		resultJsonMap["Error"] = "Create build failure"
+		resultJsonMap["ErrorMessage"] = err.Error()
+		resultJsonMap["imageInformation"] = imageInformation
+		log.Error(resultJsonMap)
 	}
-	result, err := json.Marshal(jsonMap)
-
+	result, err := json.Marshal(resultJsonMap)
 	if err != nil {
-		errorText := fmt.Sprintf("Marshal output message with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Marshal output message failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["resultJsonMap"] = resultJsonMap
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 
@@ -140,11 +160,13 @@ func postImageInformationCreate(request *restful.Request, response *restful.Resp
 func putImageInformationUpgrade(request *restful.Request, response *restful.Response) {
 	imageInformationUpgradeInput := new(ImageInformationUpgradeInput)
 	err := request.ReadEntity(&imageInformationUpgradeInput)
-
 	if err != nil {
-		errorText := fmt.Sprintf("PUT failure with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Read body failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
@@ -152,22 +174,25 @@ func putImageInformationUpgrade(request *restful.Request, response *restful.Resp
 		imageInformationUpgradeInput.ImageInformationName,
 		imageInformationUpgradeInput.Description)
 
-	jsonMap := make(map[string]interface{})
-	jsonMap["OutputMessage"] = outputMessage
+	resultJsonMap := make(map[string]interface{})
+	resultJsonMap["OutputMessage"] = outputMessage
 	statusCode := 200
 	if err != nil {
-		statusCode = 404
-		errorText := fmt.Sprintf("Build upgrade failure imageInformationName %s error %s",
-			imageInformationUpgradeInput.ImageInformationName, err)
-		log.Error(errorText)
-		jsonMap["Error"] = errorText
+		statusCode = 422
+		resultJsonMap["Error"] = "Upgrade build failure"
+		resultJsonMap["ErrorMessage"] = err.Error()
+		resultJsonMap["imageInformationUpgradeInput"] = imageInformationUpgradeInput
+		log.Error(resultJsonMap)
 	}
-	result, err := json.Marshal(jsonMap)
-
+	result, err := json.Marshal(resultJsonMap)
 	if err != nil {
-		errorText := fmt.Sprintf("Marshal output message with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Marshal output message failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["resultJsonMap"] = resultJsonMap
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 

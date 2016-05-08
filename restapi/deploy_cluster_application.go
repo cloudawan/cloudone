@@ -15,7 +15,7 @@
 package restapi
 
 import (
-	"fmt"
+	"encoding/json"
 	"github.com/cloudawan/cloudone/deploy"
 	"github.com/emicklei/go-restful"
 	"net/http"
@@ -51,7 +51,7 @@ func registerWebServiceDeployClusterApplication() {
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
 		Param(ws.QueryParameter("size", "Instance amount to change").DataType("int")).
-		Do(returns200, returns400, returns404, returns500).
+		Do(returns200, returns400, returns422, returns500).
 		Reads(SizeInput{}))
 
 	ws.Route(ws.DELETE("/{namespace}/{clusterapplication}").Filter(authorize).Filter(auditLog).To(deleteDeployClusterApplication).
@@ -60,15 +60,18 @@ func registerWebServiceDeployClusterApplication() {
 		Param(ws.PathParameter("clusterapplication", "Cluster Application name for this deployment").DataType("string")).
 		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
 		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
-		Do(returns200, returns404, returns500))
+		Do(returns200, returns422, returns500))
 }
 
 func getAllDeployClusterApplication(request *restful.Request, response *restful.Response) {
 	deployClusterApplicationSlice, err := deploy.GetAllDeployClusterApplication()
 	if err != nil {
-		errorText := fmt.Sprintf("Get all cluster application deployment error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get all cluster application deployment"
+		jsonMap["ErrorMessage"] = err.Error()
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
@@ -80,9 +83,13 @@ func getAllDeployClusterApplicationInNamespace(request *restful.Request, respons
 
 	deployClusterApplicationSlice, err := deploy.GetAllDeployClusterApplicationInNamespace(namespace)
 	if err != nil {
-		errorText := fmt.Sprintf("Get all cluster application deployment in namespace %s error %s", namespace, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get all cluster application deployment in the namespace failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["namespace"] = namespace
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
@@ -91,13 +98,18 @@ func getAllDeployClusterApplicationInNamespace(request *restful.Request, respons
 
 func getDeployClusterApplication(request *restful.Request, response *restful.Response) {
 	namespace := request.PathParameter("namespace")
-	clusterapplication := request.PathParameter("clusterapplication")
+	clusterApplication := request.PathParameter("clusterapplication")
 
-	deployClusterApplication, err := deploy.GetDeployClusterApplication(namespace, clusterapplication)
+	deployClusterApplication, err := deploy.GetDeployClusterApplication(namespace, clusterApplication)
 	if err != nil {
-		errorText := fmt.Sprintf("Get cluster application deployment with name %s in namespace %s error %s", clusterapplication, namespace, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get cluster application deployment failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["namespace"] = namespace
+		jsonMap["clusterApplication"] = clusterApplication
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
@@ -108,46 +120,70 @@ func putDeployClusterApplicationSize(request *restful.Request, response *restful
 	kubeapiHost := request.QueryParameter("kubeapihost")
 	kubeapiPortText := request.QueryParameter("kubeapiport")
 	namespace := request.PathParameter("namespace")
-	clusterapplication := request.PathParameter("clusterapplication")
+	clusterApplication := request.PathParameter("clusterapplication")
 	sizeText := request.QueryParameter("size")
-
-	if kubeapiHost == "" || kubeapiPortText == "" || namespace == "" || sizeText == "" {
-		errorText := fmt.Sprintf("Input text is incorrect kubeapiHost %s kubeapiPort %s namespace %s size %s", kubeapiHost, kubeapiPortText, namespace, sizeText)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+	if kubeapiHost == "" || kubeapiPortText == "" || sizeText == "" {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost, kubeapiport, and sizeText are required."
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		jsonMap["sizeText"] = sizeText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not parse kubeapiPortText %s with error %s", kubeapiPortText, err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 	size, err := strconv.Atoi(sizeText)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not parse sizeText %s with error %s", sizeText, err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Could not parse sizeText"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["sizeText"] = sizeText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	environmentSlice := make([]interface{}, 0)
 	err = request.ReadEntity(&environmentSlice)
-
 	if err != nil {
-		errorText := fmt.Sprintf("PUT namespace %s cluster application %s kubeapiHost %s kubeapiPort %s failure with error %s", namespace, clusterapplication, kubeapiHost, kubeapiPort, err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Read body failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["namespace"] = namespace
+		jsonMap["clusterApplication"] = namespace
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
-	err = deploy.ResizeDeployClusterApplication(kubeapiHost, kubeapiPort, namespace, clusterapplication, environmentSlice, size)
-
+	err = deploy.ResizeDeployClusterApplication(kubeapiHost, kubeapiPort, namespace, clusterApplication, environmentSlice, size)
 	if err != nil {
-		errorText := fmt.Sprintf("Resize cluster application deployment %s in namespace %s error %s", clusterapplication, namespace, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Resize cluster application deployment failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["namespace"] = namespace
+		jsonMap["clusterApplication"] = clusterApplication
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }
@@ -156,28 +192,41 @@ func deleteDeployClusterApplication(request *restful.Request, response *restful.
 	kubeapiHost := request.QueryParameter("kubeapihost")
 	kubeapiPortText := request.QueryParameter("kubeapiport")
 	namespace := request.PathParameter("namespace")
-	if kubeapiHost == "" || kubeapiPortText == "" || namespace == "" {
-		errorText := fmt.Sprintf("Input text is incorrect kubeapiHost %s kubeapiPort %s namespace %s", kubeapiHost, kubeapiPortText, namespace)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+	clusterApplication := request.PathParameter("clusterapplication")
+	if kubeapiHost == "" || kubeapiPortText == "" {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost and kubeapiport are required."
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not parse kubeapiPortText %s with error %s", kubeapiPortText, err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
-	clusterapplication := request.PathParameter("clusterapplication")
-
-	err = deploy.DeleteDeployClusterApplication(kubeapiHost, kubeapiPort, namespace, clusterapplication)
-
+	err = deploy.DeleteDeployClusterApplication(kubeapiHost, kubeapiPort, namespace, clusterApplication)
 	if err != nil {
-		errorText := fmt.Sprintf("Delete cluster application deployment %s in namespace %s error %s", clusterapplication, namespace, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Delete cluster application deployment failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["namespace"] = namespace
+		jsonMap["clusterApplication"] = clusterApplication
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }

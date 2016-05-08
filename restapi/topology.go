@@ -15,7 +15,7 @@
 package restapi
 
 import (
-	"fmt"
+	"encoding/json"
 	"github.com/cloudawan/cloudone/topology"
 	"github.com/emicklei/go-restful"
 	"net/http"
@@ -30,36 +30,39 @@ func registerWebServiceTopology() {
 
 	ws.Route(ws.GET("/").Filter(authorize).Filter(auditLog).To(getAllTopology).
 		Doc("Get all of the topology").
-		Do(returns200AllTopology, returns404, returns500))
+		Do(returns200AllTopology, returns422, returns500))
 
 	ws.Route(ws.POST("/").Filter(authorize).Filter(auditLog).To(postTopology).
 		Doc("Create topology").
-		Do(returns200, returns400, returns404, returns500).
+		Do(returns200, returns400, returns409, returns422, returns500).
+		Reads(topology.Topology{}))
+
+	ws.Route(ws.PUT("/{topology}").Filter(authorize).Filter(auditLog).To(putTopology).
+		Doc("Modify topology").
+		Param(ws.PathParameter("topology", "Topology name").DataType("string")).
+		Do(returns200, returns400, returns404, returns422, returns500).
 		Reads(topology.Topology{}))
 
 	ws.Route(ws.DELETE("/{topology}").Filter(authorize).Filter(auditLog).To(deleteTopology).
 		Doc("Delete the topology").
 		Param(ws.PathParameter("topology", "Topology name").DataType("string")).
-		Do(returns200, returns404, returns500))
-
-	ws.Route(ws.PUT("/{topology}").Filter(authorize).Filter(auditLog).To(putTopology).
-		Doc("Modify topology").
-		Param(ws.PathParameter("topology", "Topology name").DataType("string")).
-		Do(returns200, returns400, returns404, returns500).
-		Reads(topology.Topology{}))
+		Do(returns200, returns422, returns500))
 
 	ws.Route(ws.GET("/{topology}").Filter(authorize).Filter(auditLog).To(getTopology).
 		Doc("Get the topology").
 		Param(ws.PathParameter("topology", "Topology name").DataType("string")).
-		Do(returns200Topology, returns404, returns500))
+		Do(returns200Topology, returns422, returns500))
 }
 
 func getAllTopology(request *restful.Request, response *restful.Response) {
 	topologySlice, err := topology.GetStorage().LoadAllTopology()
 	if err != nil {
-		errorText := fmt.Sprintf("Could not get all topology with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get all topology failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 
@@ -69,27 +72,36 @@ func getAllTopology(request *restful.Request, response *restful.Response) {
 func postTopology(request *restful.Request, response *restful.Response) {
 	topologyInput := &topology.Topology{}
 	err := request.ReadEntity(&topologyInput)
-
 	if err != nil {
-		errorText := fmt.Sprintf("POST parse topology failure with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Read body failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	oldTopology, _ := topology.GetStorage().LoadTopology(topologyInput.Name)
 	if oldTopology != nil {
-		errorText := fmt.Sprintf("The topology with name %s exists", topologyInput.Name)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "The topology to create already exists"
+		jsonMap["name"] = topologyInput.Name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(409, string(errorMessageByteSlice))
 		return
 	}
 
 	err = topology.GetStorage().SaveTopology(topologyInput)
 	if err != nil {
-		errorText := fmt.Sprintf("Save topology %v with error %s", topologyInput, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Save topology failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["topologyInput"] = topologyInput
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }
@@ -99,34 +111,47 @@ func putTopology(request *restful.Request, response *restful.Response) {
 
 	topologyInput := &topology.Topology{}
 	err := request.ReadEntity(&topologyInput)
-
 	if err != nil {
-		errorText := fmt.Sprintf("PUT parse topology failure with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Read body failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	if topologyName != topologyInput.Name {
-		errorText := fmt.Sprintf("PUT name %s is different from name %s in the body", topologyName, topologyInput.Name)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Path parameter name is different from name in the body"
+		jsonMap["path"] = topologyName
+		jsonMap["body"] = topologyInput.Name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	oldTopology, _ := topology.GetStorage().LoadTopology(topologyInput.Name)
 	if oldTopology == nil {
-		errorText := fmt.Sprintf("The topology with name %s doesn't exist", topologyInput.Name)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "The topology to update doesn't exist"
+		jsonMap["name"] = topologyInput.Name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
 	err = topology.GetStorage().SaveTopology(topologyInput)
 	if err != nil {
-		errorText := fmt.Sprintf("Save topology %v with error %s", topologyInput, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Save topology failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["topologyInput"] = topologyInput
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }
@@ -136,9 +161,13 @@ func deleteTopology(request *restful.Request, response *restful.Response) {
 
 	err := topology.GetStorage().DeleteTopology(topologyName)
 	if err != nil {
-		errorText := fmt.Sprintf("Delete topology %s with error %s", topologyName, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Delete topology failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["topologyName"] = topologyName
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 }
@@ -148,9 +177,13 @@ func getTopology(request *restful.Request, response *restful.Response) {
 
 	topology, err := topology.GetStorage().LoadTopology(topologyName)
 	if err != nil {
-		errorText := fmt.Sprintf("Could not get topology %s with error %s", topologyName, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get topology failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["topologyName"] = topologyName
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 

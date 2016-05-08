@@ -15,7 +15,7 @@
 package restapi
 
 import (
-	"fmt"
+	"encoding/json"
 	"github.com/cloudawan/cloudone/autoscaler"
 	"github.com/cloudawan/cloudone/execute"
 	"github.com/cloudawan/cloudone/monitor"
@@ -43,7 +43,7 @@ func registerWebServiceReplicationControllerAutoScaler() {
 
 	ws.Route(ws.PUT("/").Filter(authorize).Filter(auditLog).To(putReplicationControllerAutoScaler).
 		Doc("Add (if not existing) or update an auto scaler for the replication controller in the namespace").
-		Do(returns200, returns400, returns404, returns500).
+		Do(returns200, returns400, returns404, returns422, returns500).
 		Reads(autoscaler.ReplicationControllerAutoScaler{}))
 
 	ws.Route(ws.DELETE("/{namespace}/{kind}/{name}").Filter(authorize).Filter(auditLog).To(deleteReplicationControllerAutoScaler).
@@ -51,7 +51,7 @@ func registerWebServiceReplicationControllerAutoScaler() {
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("kind", "selector or replicationController").DataType("string")).
 		Param(ws.PathParameter("name", "name").DataType("string")).
-		Do(returns200, returns500))
+		Do(returns200, returns422, returns500))
 }
 
 func getAllReplicationControllerAutoScaler(request *restful.Request, response *restful.Response) {
@@ -60,6 +60,7 @@ func getAllReplicationControllerAutoScaler(request *restful.Request, response *r
 	for _, replicationControllerAutoScaler := range replicationControllerAutoScalerMap {
 		replicationControllerAutoScalerSlice = append(replicationControllerAutoScalerSlice, replicationControllerAutoScaler)
 	}
+
 	response.WriteJson(replicationControllerAutoScalerSlice, "[]ReplicationControllerAutoScaler")
 }
 
@@ -67,25 +68,33 @@ func getReplicationControllerAutoScaler(request *restful.Request, response *rest
 	namespace := request.PathParameter("namespace")
 	kind := request.PathParameter("kind")
 	name := request.PathParameter("name")
+
 	exist, replicationControllerAutoScaler := execute.GetReplicationControllerAutoScaler(namespace, kind, name)
-	if exist {
-		response.WriteJson(replicationControllerAutoScaler, "ReplicationControllerAutoScaler")
-	} else {
-		response.WriteErrorString(404, `{"Error": "No such ReplicationControllerAutoScaler exists"}`)
+	if exist == false {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "The replication controller autoscaler doesn't exist"
+		jsonMap["namespace"] = namespace
+		jsonMap["kind"] = kind
+		jsonMap["name"] = name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
+		return
 	}
+
+	response.WriteJson(replicationControllerAutoScaler, "ReplicationControllerAutoScaler")
 }
 
 func putReplicationControllerAutoScaler(request *restful.Request, response *restful.Response) {
-	namespace := request.PathParameter("namespaces")
-	replicationcontroller := request.PathParameter("replicationcontrollers")
-
 	replicationControllerAutoScaler := new(autoscaler.ReplicationControllerAutoScaler)
 	err := request.ReadEntity(&replicationControllerAutoScaler)
-
 	if err != nil {
-		errorText := fmt.Sprintf("PUT namespace %s replicationcontroller %s failure with error %s", namespace, replicationcontroller, err)
-		log.Error(errorText)
-		response.WriteErrorString(400, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Read body failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
@@ -95,34 +104,71 @@ func putReplicationControllerAutoScaler(request *restful.Request, response *rest
 		if err != nil {
 			for _, name := range nameSlice {
 				exist, err := monitor.ExistReplicationController(replicationControllerAutoScaler.KubeapiHost, replicationControllerAutoScaler.KubeapiPort, replicationControllerAutoScaler.Namespace, name)
+				if err != nil {
+					jsonMap := make(map[string]interface{})
+					jsonMap["Error"] = "Check whether the replication controller exists or not failure"
+					jsonMap["ErrorMessage"] = err.Error()
+					jsonMap["replicationControllerAutoScaler"] = replicationControllerAutoScaler
+					errorMessageByteSlice, _ := json.Marshal(jsonMap)
+					log.Error(jsonMap)
+					response.WriteErrorString(422, string(errorMessageByteSlice))
+					return
+				}
 				if exist == false {
-					errorText := fmt.Sprintf("PUT autoscaler %s fail to test the existence of replication controller with error %s", replicationControllerAutoScaler, err)
-					log.Error(errorText)
-					response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+					jsonMap := make(map[string]interface{})
+					jsonMap["Error"] = "The replication controller to auto scale doesn't exist"
+					jsonMap["ErrorMessage"] = err.Error()
+					jsonMap["replicationControllerAutoScaler"] = replicationControllerAutoScaler
+					errorMessageByteSlice, _ := json.Marshal(jsonMap)
+					log.Error(jsonMap)
+					response.WriteErrorString(404, string(errorMessageByteSlice))
 					return
 				}
 			}
 		}
 	case "replicationController":
 		exist, err := monitor.ExistReplicationController(replicationControllerAutoScaler.KubeapiHost, replicationControllerAutoScaler.KubeapiPort, replicationControllerAutoScaler.Namespace, replicationControllerAutoScaler.Name)
+		if err != nil {
+			jsonMap := make(map[string]interface{})
+			jsonMap["Error"] = "Check whether the replication controller exists or not failure"
+			jsonMap["ErrorMessage"] = err.Error()
+			jsonMap["replicationControllerAutoScaler"] = replicationControllerAutoScaler
+			errorMessageByteSlice, _ := json.Marshal(jsonMap)
+			log.Error(jsonMap)
+			response.WriteErrorString(422, string(errorMessageByteSlice))
+			return
+		}
 		if exist == false {
-			errorText := fmt.Sprintf("PUT autoscaler %s fail to test the existence of replication controller with error %s", replicationControllerAutoScaler, err)
-			log.Error(errorText)
-			response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+			jsonMap := make(map[string]interface{})
+			jsonMap["Error"] = "The replication controller to auto scale doesn't exist"
+			jsonMap["ErrorMessage"] = err.Error()
+			jsonMap["replicationControllerAutoScaler"] = replicationControllerAutoScaler
+			errorMessageByteSlice, _ := json.Marshal(jsonMap)
+			log.Error(jsonMap)
+			response.WriteErrorString(404, string(errorMessageByteSlice))
 			return
 		}
 	default:
-		errorText := fmt.Sprintf("PUT autoscaler %s has no such kind %s", replicationControllerAutoScaler, replicationControllerAutoScaler.Kind)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "No such kind"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["replicationControllerAutoScaler"] = replicationControllerAutoScaler
+		jsonMap["kind"] = replicationControllerAutoScaler.Kind
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
 	err = autoscaler.GetStorage().SaveReplicationControllerAutoScaler(replicationControllerAutoScaler)
 	if err != nil {
-		errorText := fmt.Sprintf("PUT autoscaler %s fail to save to database with error %s", replicationControllerAutoScaler, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Save replication controller autoscaler failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["replicationControllerAutoScaler"] = replicationControllerAutoScaler
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 
@@ -130,18 +176,30 @@ func putReplicationControllerAutoScaler(request *restful.Request, response *rest
 }
 
 func deleteReplicationControllerAutoScaler(request *restful.Request, response *restful.Response) {
-	replicationControllerAutoScaler := new(autoscaler.ReplicationControllerAutoScaler)
-	replicationControllerAutoScaler.Namespace = request.PathParameter("namespace")
-	replicationControllerAutoScaler.Kind = request.PathParameter("kind")
-	replicationControllerAutoScaler.Name = request.PathParameter("name")
+	namespace := request.PathParameter("namespace")
+	kind := request.PathParameter("kind")
+	name := request.PathParameter("name")
+
+	replicationControllerAutoScaler := &autoscaler.ReplicationControllerAutoScaler{}
+	replicationControllerAutoScaler.Namespace = namespace
+	replicationControllerAutoScaler.Kind = kind
+	replicationControllerAutoScaler.Name = name
 	replicationControllerAutoScaler.Check = false
+
 	err := autoscaler.GetStorage().DeleteReplicationControllerAutoScaler(replicationControllerAutoScaler.Namespace, replicationControllerAutoScaler.Kind, replicationControllerAutoScaler.Name)
 	if err != nil {
-		errorText := fmt.Sprintf("Delete namespace %s replicationcontroller %s fail to delete with error %s", replicationControllerAutoScaler, err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Delete replication controller autoscaler failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["namespace"] = namespace
+		jsonMap["kind"] = kind
+		jsonMap["name"] = name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
+
 	execute.AddReplicationControllerAutoScaler(replicationControllerAutoScaler)
 }
 

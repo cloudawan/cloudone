@@ -15,7 +15,7 @@
 package restapi
 
 import (
-	"fmt"
+	"encoding/json"
 	"github.com/cloudawan/cloudone/healthcheck"
 	"github.com/emicklei/go-restful"
 	"net/http"
@@ -30,15 +30,18 @@ func registerWebServiceHealthCheck() {
 
 	ws.Route(ws.GET("/").Filter(authorize).Filter(auditLog).To(getAllStatus).
 		Doc("Get all status").
-		Do(returns200Map, returns400, returns404, returns500))
+		Do(returns200Map, returns422, returns500))
 }
 
 func getAllStatus(request *restful.Request, response *restful.Response) {
 	jsonMap, err := healthcheck.GetAllStatus()
 	if err != nil {
-		errorText := fmt.Sprintf("Fail to get the all status with error %s", err)
-		log.Error(errorText)
-		response.WriteErrorString(404, `{"Error": "`+errorText+`"}`)
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get all status failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 
