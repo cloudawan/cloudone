@@ -18,6 +18,7 @@ import (
 	"errors"
 	"github.com/cloudawan/cloudone_utility/rbac"
 	jwt "github.com/dgrijalva/jwt-go"
+	"strings"
 	"time"
 )
 
@@ -145,13 +146,17 @@ func GetUserFromToken(token string) (*rbac.User, error) {
 func CreateToken(name string, password string) (string, error) {
 	user, err := GetStorage().LoadUser(name)
 	if err != nil {
-		log.Error(err)
-		return "", err
+		if strings.Contains(err.Error(), "Key not found") {
+			return "", errors.New("User doesn't exist")
+		} else {
+			log.Error(err)
+			return "", err
+		}
 	}
 
 	if user.CheckPassword(password) == false {
 		log.Error("Incorrect User %s or Password %s", name, password)
-		return "", errors.New("Incorrect User or Password")
+		return "", errors.New("Incorrect Password")
 	}
 
 	if user.ExpiredTime != nil && time.Now().After(*user.ExpiredTime) {
