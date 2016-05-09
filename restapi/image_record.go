@@ -78,7 +78,6 @@ func deleteImageRecordBelongToImageInformation(request *restful.Request, respons
 	if used {
 		jsonMap := make(map[string]interface{})
 		jsonMap["Error"] = "Can't delete used image record"
-		jsonMap["ErrorMessage"] = err.Error()
 		jsonMap["imageInformationName"] = imageInformationName
 		jsonMap["imageRecordVersion"] = imageRecordVersion
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
