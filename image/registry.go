@@ -157,6 +157,8 @@ func RemoveImageFromPrivateRegistry(imageIdentifierSlice []ImageIdentifier) erro
 				log.Error(errorMessage)
 				buffer.WriteString(errorMessage)
 			} else {
+				// For registry version 2.3 and later
+				request.Header.Add("Accept", "application/vnd.docker.distribution.manifest.v2+json")
 				response, err := restclient.GetInsecureHTTPSClient().Do(request)
 				if err != nil {
 					hasError = true
