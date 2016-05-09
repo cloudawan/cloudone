@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"github.com/cloudawan/cloudone/application"
 	"github.com/cloudawan/cloudone/deploy"
-	"github.com/cloudawan/cloudone/monitor"
 	"github.com/emicklei/go-restful"
 	"net/http"
 	"strconv"
@@ -195,10 +194,10 @@ func postLaunchClusterApplication(request *restful.Request, response *restful.Re
 		return
 	}
 
-	exist, err := monitor.ExistReplicationController(kubeapiHost, kubeapiPort, namespace, name)
-	if exist {
+	oldDeployClusterApplication, _ := deploy.GetDeployClusterApplication(namespace, name)
+	if oldDeployClusterApplication != nil {
 		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "The replication controller to use already exists"
+		jsonMap["Error"] = "The cluster application already exists"
 		jsonMap["kubeapiHost"] = kubeapiHost
 		jsonMap["kubeapiPort"] = kubeapiPort
 		jsonMap["namespace"] = namespace
