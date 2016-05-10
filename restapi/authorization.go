@@ -166,7 +166,7 @@ func postToken(request *restful.Request, response *restful.Response) {
 		return
 	}
 
-	response.WriteJson(TokenData{token}, "[]TokenOutput")
+	response.WriteJson(TokenData{token}, "[]TokenData")
 }
 
 func getAllTokenExpiredTime(request *restful.Request, response *restful.Response) {
