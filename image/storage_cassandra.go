@@ -21,9 +21,12 @@ import (
 )
 
 type StorageCassandra struct {
+	dummyError DummyError
 }
 
 func (storageCassandra *StorageCassandra) initialize() error {
+	storageCassandra.dummyError = DummyError{"Dummy support nothing"}
+
 	tableSchemaImageInformation := `
 	CREATE TABLE IF NOT EXISTS image_information (
 	name varchar,
@@ -236,4 +239,20 @@ func (storageCassandra *StorageCassandra) LoadImageRecordWithImageInformationNam
 	} else {
 		return imageRecordSlice, nil
 	}
+}
+
+func (storageCassandra *StorageCassandra) DeleteImageInformationBuildLock(name string) error {
+	return &storageCassandra.dummyError
+}
+
+func (storageCassandra *StorageCassandra) saveImageInformationBuildLock(imageInformationBuildLock *ImageInformationBuildLock) error {
+	return &storageCassandra.dummyError
+}
+
+func (storageCassandra *StorageCassandra) LoadImageInformationBuildLock(imageInformation string) (*ImageInformationBuildLock, error) {
+	return nil, &storageCassandra.dummyError
+}
+
+func (storageCassandra *StorageCassandra) LoadAllImageInformationBuildLock() ([]ImageInformationBuildLock, error) {
+	return nil, &storageCassandra.dummyError
 }

@@ -35,6 +35,11 @@ func (storageEtcd *StorageEtcd) initialize() error {
 		return err
 	}
 
+	if err := etcd.EtcdClient.CreateDirectoryIfNotExist(etcd.EtcdClient.EtcdBasePath + "/image_information_build_lock"); err != nil {
+		log.Error("Create if not existing image information build lock directory error: %s", err)
+		return err
+	}
+
 	return nil
 }
 
@@ -240,3 +245,95 @@ func (storageEtcd *StorageEtcd) LoadImageRecordWithImageInformationName(imageInf
 }
 
 // If Load all image record is used, the second level directory may have empty issue and need to be solved
+
+func (storageEtcd *StorageEtcd) DeleteImageInformationBuildLock(name string) error {
+	keysAPI, err := etcd.EtcdClient.GetKeysAPI()
+	if err != nil {
+		log.Error("Get keysAPI error %s", err)
+		return err
+	}
+
+	response, err := keysAPI.Delete(context.Background(), etcd.EtcdClient.EtcdBasePath+"/image_information_build_lock/"+name, nil)
+	if err != nil {
+		log.Error("Delete image information build lock with name %s error: %s", name, err)
+		log.Error(response)
+		return err
+	}
+
+	return nil
+}
+
+func (storageEtcd *StorageEtcd) saveImageInformationBuildLock(imageInformationBuildLock *ImageInformationBuildLock) error {
+	keysAPI, err := etcd.EtcdClient.GetKeysAPI()
+	if err != nil {
+		log.Error("Get keysAPI error %s", err)
+		return err
+	}
+
+	byteSlice, err := json.Marshal(imageInformationBuildLock)
+	if err != nil {
+		log.Error("Marshal image information build lock %v error %s", imageInformationBuildLock, err)
+		return err
+	}
+
+	response, err := keysAPI.Set(context.Background(), etcd.EtcdClient.EtcdBasePath+"/image_information_build_lock/"+imageInformationBuildLock.ImageInformation, string(byteSlice), nil)
+	if err != nil {
+		log.Error("Save image information build lock %v error: %s", imageInformationBuildLock, err)
+		log.Error(response)
+		return err
+	}
+
+	return nil
+}
+
+func (storageEtcd *StorageEtcd) LoadImageInformationBuildLock(imageInformation string) (*ImageInformationBuildLock, error) {
+	keysAPI, err := etcd.EtcdClient.GetKeysAPI()
+	if err != nil {
+		log.Error("Get keysAPI error %s", err)
+		return nil, err
+	}
+
+	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/image_information_build_lock/"+imageInformation, nil)
+	if err != nil {
+		log.Error("Load image information build lock with imageInformation %s error: %s", imageInformation, err)
+		log.Error(response)
+		return nil, err
+	}
+
+	imageInformationBuildLock := new(ImageInformationBuildLock)
+	err = json.Unmarshal([]byte(response.Node.Value), &imageInformationBuildLock)
+	if err != nil {
+		log.Error("Unmarshal image information build lock %v error %s", response.Node.Value, err)
+		return nil, err
+	}
+
+	return imageInformationBuildLock, nil
+}
+
+func (storageEtcd *StorageEtcd) LoadAllImageInformationBuildLock() ([]ImageInformationBuildLock, error) {
+	keysAPI, err := etcd.EtcdClient.GetKeysAPI()
+	if err != nil {
+		log.Error("Get keysAPI error %s", err)
+		return nil, err
+	}
+
+	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/image_information_build_lock", nil)
+	if err != nil {
+		log.Error("Load all image information build lock error: %s", err)
+		log.Error(response)
+		return nil, err
+	}
+
+	imageInformationBuildLockSlice := make([]ImageInformationBuildLock, 0)
+	for _, node := range response.Node.Nodes {
+		imageInformationBuildLock := ImageInformationBuildLock{}
+		err := json.Unmarshal([]byte(node.Value), &imageInformationBuildLock)
+		if err != nil {
+			log.Error("Unmarshal image information build lock %v error %s", node.Value, err)
+			return nil, err
+		}
+		imageInformationBuildLockSlice = append(imageInformationBuildLockSlice, imageInformationBuildLock)
+	}
+
+	return imageInformationBuildLockSlice, nil
+}

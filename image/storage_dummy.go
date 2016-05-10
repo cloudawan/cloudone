@@ -85,3 +85,19 @@ func (storageDummy *StorageDummy) LoadImageRecord(imageInformationName string, v
 func (storageDummy *StorageDummy) LoadImageRecordWithImageInformationName(imageInformationName string) ([]ImageRecord, error) {
 	return nil, &storageDummy.dummyError
 }
+
+func (storageDummy *StorageDummy) DeleteImageInformationBuildLock(name string) error {
+	return &storageDummy.dummyError
+}
+
+func (storageDummy *StorageDummy) saveImageInformationBuildLock(imageInformationBuildLock *ImageInformationBuildLock) error {
+	return &storageDummy.dummyError
+}
+
+func (storageDummy *StorageDummy) LoadImageInformationBuildLock(imageInformation string) (*ImageInformationBuildLock, error) {
+	return nil, &storageDummy.dummyError
+}
+
+func (storageDummy *StorageDummy) LoadAllImageInformationBuildLock() ([]ImageInformationBuildLock, error) {
+	return nil, &storageDummy.dummyError
+}

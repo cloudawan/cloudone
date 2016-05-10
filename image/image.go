@@ -121,6 +121,12 @@ func BuildUpgrade(imageInformationName string, description string) (string, erro
 }
 
 func Build(imageInformation *ImageInformation, description string) (*ImageRecord, string, error) {
+	if acquireBuildLock(imageInformation.Name) == false {
+		return nil, "", errors.New("Image is under building")
+	}
+
+	defer releaseBuildLock(imageInformation.Name)
+
 	switch imageInformation.Kind {
 	case "git":
 		return BuildFromGit(imageInformation, description)
@@ -131,6 +137,7 @@ func Build(imageInformation *ImageInformation, description string) (*ImageRecord
 	default:
 		return nil, "", errors.New("No such kind: " + imageInformation.Kind)
 	}
+
 }
 
 func BuildFromGit(imageInformation *ImageInformation, description string) (*ImageRecord, string, error) {
@@ -702,4 +709,48 @@ func SendBuildLog(imageRecord *ImageRecord, outputMessage string) error {
 	}
 
 	return err
+}
+
+type ImageInformationBuildLock struct {
+	ImageInformation string
+	CreatedTime      time.Time
+	ExpiredTime      time.Time
+}
+
+const (
+	ImageInformationBuildLockTimeout = time.Hour
+)
+
+func acquireBuildLock(imageInformation string) bool {
+	currentTime := time.Now()
+	oldImageInformationBuildLock, _ := GetStorage().LoadImageInformationBuildLock(imageInformation)
+	if oldImageInformationBuildLock != nil {
+		if currentTime.Before(oldImageInformationBuildLock.ExpiredTime) {
+			return false
+		}
+	}
+
+	// Acquire
+	imageInformationBuildLock := &ImageInformationBuildLock{
+		imageInformation,
+		currentTime,
+		currentTime.Add(ImageInformationBuildLockTimeout),
+	}
+	err := GetStorage().saveImageInformationBuildLock(imageInformationBuildLock)
+	if err != nil {
+		log.Error(err)
+		return false
+	} else {
+		return true
+	}
+}
+
+func releaseBuildLock(imageInformation string) error {
+	err := GetStorage().DeleteImageInformationBuildLock(imageInformation)
+	if err != nil {
+		log.Error("Fail to release build lock %s", imageInformation)
+		return err
+	} else {
+		return nil
+	}
 }

@@ -92,4 +92,8 @@ type Storage interface {
 	saveImageRecord(imageRecord *ImageRecord) error
 	LoadImageRecord(imageInformationName string, version string) (*ImageRecord, error)
 	LoadImageRecordWithImageInformationName(imageInformationName string) ([]ImageRecord, error)
+	DeleteImageInformationBuildLock(name string) error
+	saveImageInformationBuildLock(imageInformationBuildLock *ImageInformationBuildLock) error
+	LoadImageInformationBuildLock(imageInformation string) (*ImageInformationBuildLock, error)
+	LoadAllImageInformationBuildLock() ([]ImageInformationBuildLock, error)
 }
