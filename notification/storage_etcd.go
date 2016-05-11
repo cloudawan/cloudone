@@ -17,6 +17,7 @@ package notification
 import (
 	"encoding/json"
 	"github.com/cloudawan/cloudone/utility/database/etcd"
+	"github.com/coreos/etcd/client"
 	"golang.org/x/net/context"
 )
 
@@ -97,6 +98,10 @@ func (storageEtcd *StorageEtcd) LoadReplicationControllerNotifierSerializable(na
 
 	key := storageEtcd.getKeyAutoScaler(namespace, kind, name)
 	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/notifier/"+key, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		return nil, etcdError
+	}
 	if err != nil {
 		log.Error("Load notifier with name %s error: %s", name, err)
 		log.Error(response)
@@ -189,6 +194,10 @@ func (storageEtcd *StorageEtcd) LoadEmailServerSMTP(name string) (*EmailServerSM
 	}
 
 	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/email_server_smtp/"+name, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		return nil, etcdError
+	}
 	if err != nil {
 		log.Error("Load email server smtp with name %s error: %s", name, err)
 		log.Error(response)
@@ -281,6 +290,10 @@ func (storageEtcd *StorageEtcd) LoadSMSNexmo(name string) (*SMSNexmo, error) {
 	}
 
 	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/sms_nexmo/"+name, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		return nil, etcdError
+	}
 	if err != nil {
 		log.Error("Load sms nexmo with name %s error: %s", name, err)
 		log.Error(response)

@@ -91,6 +91,10 @@ func (storageEtcd *StorageEtcd) LoadImageInformation(name string) (*ImageInforma
 	}
 
 	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/image_information/"+name, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		return nil, etcdError
+	}
 	if err != nil {
 		log.Error("Load image information with name %s error: %s", name, err)
 		log.Error(response)
@@ -200,6 +204,10 @@ func (storageEtcd *StorageEtcd) LoadImageRecord(imageInformationName string, ver
 	}
 
 	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/image_record/"+imageInformationName+"/"+version, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		return nil, etcdError
+	}
 	if err != nil {
 		log.Error("Load image record with image information %s version %s error: %s", imageInformationName, version, err)
 		log.Error(response)
@@ -224,6 +232,10 @@ func (storageEtcd *StorageEtcd) LoadImageRecordWithImageInformationName(imageInf
 	}
 
 	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/image_record/"+imageInformationName, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		return nil, etcdError
+	}
 	if err != nil {
 		log.Error("Load all image record belonging to image information %s error: %s", imageInformationName, err)
 		log.Error(response)
@@ -294,6 +306,10 @@ func (storageEtcd *StorageEtcd) LoadImageInformationBuildLock(imageInformation s
 	}
 
 	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/image_information_build_lock/"+imageInformation, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		return nil, etcdError
+	}
 	if err != nil {
 		log.Error("Load image information build lock with imageInformation %s error: %s", imageInformation, err)
 		log.Error(response)

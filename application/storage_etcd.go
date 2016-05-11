@@ -17,6 +17,7 @@ package application
 import (
 	"encoding/json"
 	"github.com/cloudawan/cloudone/utility/database/etcd"
+	"github.com/coreos/etcd/client"
 	"golang.org/x/net/context"
 )
 
@@ -85,6 +86,10 @@ func (storageEtcd *StorageEtcd) LoadStatelessApplication(name string) (*Stateles
 	}
 
 	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/stateless_application/"+name, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		return nil, etcdError
+	}
 	if err != nil {
 		log.Error("Load stateless application with name %s error: %s", name, err)
 		log.Error(response)
@@ -177,6 +182,10 @@ func (storageEtcd *StorageEtcd) LoadClusterApplication(name string) (*Cluster, e
 	}
 
 	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/cluster_application/"+name, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		return nil, etcdError
+	}
 	if err != nil {
 		log.Error("Load cluster application with name %s error: %s", name, err)
 		log.Error(response)

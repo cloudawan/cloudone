@@ -17,6 +17,7 @@ package topology
 import (
 	"encoding/json"
 	"github.com/cloudawan/cloudone/utility/database/etcd"
+	"github.com/coreos/etcd/client"
 	"golang.org/x/net/context"
 )
 
@@ -80,6 +81,10 @@ func (storageEtcd *StorageEtcd) LoadTopology(name string) (*Topology, error) {
 	}
 
 	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/topology/"+name, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		return nil, etcdError
+	}
 	if err != nil {
 		log.Error("Load topology with name %s error: %s", name, err)
 		log.Error(response)

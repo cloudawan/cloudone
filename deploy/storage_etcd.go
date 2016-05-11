@@ -17,6 +17,7 @@ package deploy
 import (
 	"encoding/json"
 	"github.com/cloudawan/cloudone/utility/database/etcd"
+	"github.com/coreos/etcd/client"
 	"golang.org/x/net/context"
 )
 
@@ -97,6 +98,10 @@ func (storageEtcd *StorageEtcd) LoadDeployInformation(namespace string, imageInf
 
 	key := storageEtcd.getKeyDeployInformation(namespace, imageInformation)
 	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/deploy_information/"+key, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		return nil, etcdError
+	}
 	if err != nil {
 		log.Error("Load deploy information with namespace %s imageInformation %s error: %s", namespace, imageInformation, err)
 		log.Error(response)
@@ -189,6 +194,10 @@ func (storageEtcd *StorageEtcd) LoadDeployBlueGreen(imageInformation string) (*D
 	}
 
 	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/deploy_blue_green/"+imageInformation, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		return nil, etcdError
+	}
 	if err != nil {
 		log.Error("Load deploy blue green with imageInformation %s error: %s", imageInformation, err)
 		log.Error(response)
@@ -288,6 +297,10 @@ func (storageEtcd *StorageEtcd) LoadDeployClusterApplication(namespace string, n
 
 	key := storageEtcd.getKeyDeployClusterApplication(namespace, name)
 	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/deploy_cluster_application/"+key, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		return nil, etcdError
+	}
 	if err != nil {
 		log.Error("Load deploy cluster application with namespace %s name %s error: %s", namespace, name, err)
 		log.Error(response)

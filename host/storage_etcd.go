@@ -17,6 +17,7 @@ package host
 import (
 	"encoding/json"
 	"github.com/cloudawan/cloudone/utility/database/etcd"
+	"github.com/coreos/etcd/client"
 	"golang.org/x/net/context"
 )
 
@@ -80,6 +81,10 @@ func (storageEtcd *StorageEtcd) LoadCredential(ip string) (*Credential, error) {
 	}
 
 	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/host_credential/"+ip, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		return nil, etcdError
+	}
 	if err != nil {
 		log.Error("Load host credential with ip %s error: %s", ip, err)
 		log.Error(response)

@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"github.com/cloudawan/cloudone/utility/database/etcd"
 	"github.com/cloudawan/cloudone_utility/rbac"
+	"github.com/coreos/etcd/client"
 	"golang.org/x/net/context"
 )
 
@@ -104,6 +105,10 @@ func (storageEtcd *StorageEtcd) LoadUser(name string) (*rbac.User, error) {
 	}
 
 	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/user/"+name, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		return nil, etcdError
+	}
 	if err != nil {
 		log.Error("Load name with name %s error: %s", name, err)
 		log.Error(response)
@@ -221,6 +226,10 @@ func (storageEtcd *StorageEtcd) LoadRole(name string) (*rbac.Role, error) {
 	}
 
 	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/role/"+name, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		return nil, etcdError
+	}
 	if err != nil {
 		log.Error("Load name with name %s error: %s", name, err)
 		log.Error(response)

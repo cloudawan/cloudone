@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/cloudawan/cloudone/utility/database/etcd"
+	"github.com/coreos/etcd/client"
 	"golang.org/x/net/context"
 	"strings"
 )
@@ -35,10 +36,19 @@ type KubernetesNodeControl struct {
 
 func (kubernetesNodeControl *KubernetesNodeControl) GetStatus() (map[string]interface{}, error) {
 	keysAPI, err := etcd.EtcdClient.GetKeysAPI()
+	if err != nil {
+		log.Error("Get keysAPI error %s", err)
+		return nil, err
+	}
 
 	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/health", nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		return nil, etcdError
+	}
 	if err != nil {
-		log.Error(err)
+		log.Error("Load status with error: %s", err)
+		log.Error(response)
 		return nil, err
 	}
 
@@ -75,10 +85,19 @@ func (kubernetesNodeControl *KubernetesNodeControl) GetStatus() (map[string]inte
 
 func (kubernetesNodeControl *KubernetesNodeControl) GetHostWithinFlannelNetwork() ([]string, error) {
 	keysAPI, err := etcd.EtcdClient.GetKeysAPI()
+	if err != nil {
+		log.Error("Get keysAPI error %s", err)
+		return nil, err
+	}
 
 	response, err := keysAPI.Get(context.Background(), "/coreos.com/network/subnets", nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		return nil, etcdError
+	}
 	if err != nil {
-		log.Error(err)
+		log.Error("Load host within flannel network error: %s", err)
+		log.Error(response)
 		return nil, err
 	}
 

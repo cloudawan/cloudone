@@ -17,6 +17,7 @@ package glusterfs
 import (
 	"encoding/json"
 	"github.com/cloudawan/cloudone/utility/database/etcd"
+	"github.com/coreos/etcd/client"
 	"golang.org/x/net/context"
 )
 
@@ -80,6 +81,10 @@ func (storageEtcd *StorageEtcd) LoadGlusterfsCluster(name string) (*GlusterfsClu
 	}
 
 	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/glusterfs_cluster/"+name, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		return nil, etcdError
+	}
 	if err != nil {
 		log.Error("Load glusterfs cluster with name %s error: %s", name, err)
 		log.Error(response)
