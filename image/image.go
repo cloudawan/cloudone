@@ -19,6 +19,7 @@ import (
 	"errors"
 	"github.com/cloudawan/cloudone/authorization"
 	"github.com/cloudawan/cloudone/utility/configuration"
+	"github.com/cloudawan/cloudone/utility/lock"
 	"github.com/cloudawan/cloudone_utility/build"
 	"github.com/cloudawan/cloudone_utility/filetransfer/sftp"
 	"github.com/cloudawan/cloudone_utility/logger"
@@ -30,6 +31,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+)
+
+const (
+	LockKind = "image_information"
 )
 
 type ImageInformation struct {
@@ -152,11 +157,11 @@ func BuildUpgrade(imageInformationName string, description string) (returnedOutp
 }
 
 func Build(imageInformation *ImageInformation, description string) (*ImageRecord, string, error) {
-	if acquireBuildLock(imageInformation.Name) == false {
+	if lock.AcquireLock(LockKind, imageInformation.Name, 0) == false {
 		return nil, "", errors.New("Image is under building")
 	}
 
-	defer releaseBuildLock(imageInformation.Name)
+	defer lock.ReleaseLock(LockKind, imageInformation.Name)
 
 	switch imageInformation.Kind {
 	case "git":
@@ -763,48 +768,4 @@ func SendBuildLog(imageRecord *ImageRecord, outputMessage string) error {
 	}
 
 	return err
-}
-
-type ImageInformationBuildLock struct {
-	ImageInformation string
-	CreatedTime      time.Time
-	ExpiredTime      time.Time
-}
-
-const (
-	ImageInformationBuildLockTimeout = time.Hour
-)
-
-func acquireBuildLock(imageInformation string) bool {
-	currentTime := time.Now()
-	oldImageInformationBuildLock, _ := GetStorage().LoadImageInformationBuildLock(imageInformation)
-	if oldImageInformationBuildLock != nil {
-		if currentTime.Before(oldImageInformationBuildLock.ExpiredTime) {
-			return false
-		}
-	}
-
-	// Acquire
-	imageInformationBuildLock := &ImageInformationBuildLock{
-		imageInformation,
-		currentTime,
-		currentTime.Add(ImageInformationBuildLockTimeout),
-	}
-	err := GetStorage().saveImageInformationBuildLock(imageInformationBuildLock)
-	if err != nil {
-		log.Error(err)
-		return false
-	} else {
-		return true
-	}
-}
-
-func releaseBuildLock(imageInformation string) error {
-	err := GetStorage().DeleteImageInformationBuildLock(imageInformation)
-	if err != nil {
-		log.Error("Fail to release build lock %s", imageInformation)
-		return err
-	} else {
-		return nil
-	}
 }

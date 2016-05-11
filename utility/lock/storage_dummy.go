@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package image
+package lock
 
 import (
 	"time"
@@ -50,38 +50,18 @@ func (storageDummy *StorageDummy) initialize() error {
 	return nil
 }
 
-func (storageDummy *StorageDummy) DeleteImageInformationAndRelatedRecord(name string) error {
+func (storageDummy *StorageDummy) deleteLock(name string) error {
 	return &storageDummy.dummyError
 }
 
-func (storageDummy *StorageDummy) saveImageInformation(imageInformation *ImageInformation) error {
+func (storageDummy *StorageDummy) saveLock(lock *Lock) error {
 	return &storageDummy.dummyError
 }
 
-func (storageDummy *StorageDummy) LoadImageInformation(name string) (*ImageInformation, error) {
+func (storageDummy *StorageDummy) loadLock(name string) (*Lock, error) {
 	return nil, &storageDummy.dummyError
 }
 
-func (storageDummy *StorageDummy) LoadAllImageInformation() ([]ImageInformation, error) {
-	return nil, &storageDummy.dummyError
-}
-
-func (storageDummy *StorageDummy) saveImageRecord(imageRecord *ImageRecord) error {
-	return &storageDummy.dummyError
-}
-
-func (storageDummy *StorageDummy) DeleteImageRecord(imageInformationName string, version string) error {
-	return &storageDummy.dummyError
-}
-
-func (storageDummy *StorageDummy) deleteImageRecordWithImageInformationName(imageInformationName string) error {
-	return &storageDummy.dummyError
-}
-
-func (storageDummy *StorageDummy) LoadImageRecord(imageInformationName string, version string) (*ImageRecord, error) {
-	return nil, &storageDummy.dummyError
-}
-
-func (storageDummy *StorageDummy) LoadImageRecordWithImageInformationName(imageInformationName string) ([]ImageRecord, error) {
+func (storageDummy *StorageDummy) LoadAllLock() ([]Lock, error) {
 	return nil, &storageDummy.dummyError
 }

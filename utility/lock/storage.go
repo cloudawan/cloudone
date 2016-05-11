@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package image
+package lock
 
 import (
 	"errors"
@@ -65,12 +65,7 @@ func ReloadStorage(storageType int) error {
 		}
 		return err
 	case configuration.StorageTypeCassandra:
-		newStorage := &StorageCassandra{}
-		err := newStorage.initialize()
-		if err == nil {
-			storage = newStorage
-		}
-		return err
+		return errors.New("Not supported type")
 	case configuration.StorageTypeEtcd:
 		newStorage := &StorageEtcd{}
 		err := newStorage.initialize()
@@ -83,13 +78,8 @@ func ReloadStorage(storageType int) error {
 
 type Storage interface {
 	initialize() error
-	DeleteImageInformationAndRelatedRecord(name string) error
-	saveImageInformation(imageInformation *ImageInformation) error
-	LoadImageInformation(name string) (*ImageInformation, error)
-	LoadAllImageInformation() ([]ImageInformation, error)
-	DeleteImageRecord(imageInformationName string, version string) error
-	deleteImageRecordWithImageInformationName(imageInformationName string) error
-	saveImageRecord(imageRecord *ImageRecord) error
-	LoadImageRecord(imageInformationName string, version string) (*ImageRecord, error)
-	LoadImageRecordWithImageInformationName(imageInformationName string) ([]ImageRecord, error)
+	deleteLock(name string) error
+	saveLock(lock *Lock) error
+	loadLock(name string) (*Lock, error)
+	LoadAllLock() ([]Lock, error)
 }

@@ -240,19 +240,3 @@ func (storageCassandra *StorageCassandra) LoadImageRecordWithImageInformationNam
 		return imageRecordSlice, nil
 	}
 }
-
-func (storageCassandra *StorageCassandra) DeleteImageInformationBuildLock(name string) error {
-	return &storageCassandra.dummyError
-}
-
-func (storageCassandra *StorageCassandra) saveImageInformationBuildLock(imageInformationBuildLock *ImageInformationBuildLock) error {
-	return &storageCassandra.dummyError
-}
-
-func (storageCassandra *StorageCassandra) LoadImageInformationBuildLock(imageInformation string) (*ImageInformationBuildLock, error) {
-	return nil, &storageCassandra.dummyError
-}
-
-func (storageCassandra *StorageCassandra) LoadAllImageInformationBuildLock() ([]ImageInformationBuildLock, error) {
-	return nil, &storageCassandra.dummyError
-}

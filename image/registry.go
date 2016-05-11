@@ -43,26 +43,30 @@ func DeleteImageInformationAndRelatedRecord(imageInformationName string) error {
 
 	imageIdentifierSlice := make([]ImageIdentifier, 0)
 	for _, imageRecord := range imageRecordSlice {
-		repository := imageRecord.Path[:len(imageRecord.Path)-(len(imageRecord.Version)+1)] // Remove :version. +1 due to :
-		imageIdentifierSlice = append(imageIdentifierSlice, ImageIdentifier{
-			repository,
-			imageRecord.Version,
-		})
+		if imageRecord.Failure == false {
+			repository := imageRecord.Path[:len(imageRecord.Path)-(len(imageRecord.Version)+1)] // Remove :version. +1 due to :
+			imageIdentifierSlice = append(imageIdentifierSlice, ImageIdentifier{
+				repository,
+				imageRecord.Version,
+			})
+		}
 	}
 
 	hasError := false
 	buffer := bytes.Buffer{}
 
-	err = RemoveImageFromPrivateRegistry(imageIdentifierSlice)
-	if err != nil {
-		hasError = true
-		buffer.WriteString(err.Error())
-	}
+	if len(imageIdentifierSlice) > 0 {
+		err = RemoveImageFromPrivateRegistry(imageIdentifierSlice)
+		if err != nil {
+			hasError = true
+			buffer.WriteString(err.Error())
+		}
 
-	err = RemoveImageFromAllHost(imageIdentifierSlice)
-	if err != nil {
-		hasError = true
-		buffer.WriteString(err.Error())
+		err = RemoveImageFromAllHost(imageIdentifierSlice)
+		if err != nil {
+			hasError = true
+			buffer.WriteString(err.Error())
+		}
 	}
 
 	err = GetStorage().DeleteImageInformationAndRelatedRecord(imageInformationName)
@@ -103,16 +107,18 @@ func DeleteImageRecord(imageInformationName string, imageRecordVersion string) e
 	hasError := false
 	buffer := bytes.Buffer{}
 
-	err = RemoveImageFromPrivateRegistry(imageIdentifierSlice)
-	if err != nil {
-		hasError = true
-		buffer.WriteString(err.Error())
-	}
+	if imageRecord.Failure == false {
+		err = RemoveImageFromPrivateRegistry(imageIdentifierSlice)
+		if err != nil {
+			hasError = true
+			buffer.WriteString(err.Error())
+		}
 
-	err = RemoveImageFromAllHost(imageIdentifierSlice)
-	if err != nil {
-		hasError = true
-		buffer.WriteString(err.Error())
+		err = RemoveImageFromAllHost(imageIdentifierSlice)
+		if err != nil {
+			hasError = true
+			buffer.WriteString(err.Error())
+		}
 	}
 
 	err = GetStorage().DeleteImageRecord(imageInformationName, imageRecordVersion)
