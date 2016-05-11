@@ -17,11 +17,11 @@ package image
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/cloudawan/cloudone/authorization"
 	"github.com/cloudawan/cloudone/utility/configuration"
 	"github.com/cloudawan/cloudone_utility/build"
 	"github.com/cloudawan/cloudone_utility/filetransfer/sftp"
+	"github.com/cloudawan/cloudone_utility/logger"
 	"github.com/cloudawan/cloudone_utility/restclient"
 	"github.com/sfreiberg/simplessh"
 	"io"
@@ -48,13 +48,29 @@ type ImageRecord struct {
 	Environment      map[string]string
 	Description      string
 	CreatedTime      time.Time
+	Failure          bool
 }
 
-func BuildCreate(imageInformation *ImageInformation) (string, error) {
+func BuildCreate(imageInformation *ImageInformation) (returnedOutputMessage string, returnedError error) {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Error("BuildCreate Error: %s", err)
+			log.Error(logger.GetStackTrace(4096, false))
+			returnedOutputMessage = ""
+			returnedError = err.(error)
+		}
+	}()
+
+	var buildError error = nil
 	imageRecord, outputMessage, err := Build(imageInformation, imageInformation.Description)
 	if err != nil {
 		log.Error("Build error: %s Output message: %s", err, outputMessage)
-		return outputMessage, err
+		if imageRecord == nil {
+			return outputMessage, err
+		} else {
+			buildError = err
+			outputMessage = outputMessage + "\n" + err.Error()
+		}
 	}
 
 	// Save image record
@@ -79,33 +95,41 @@ func BuildCreate(imageInformation *ImageInformation) (string, error) {
 		return outputMessage, err
 	}
 
-	return outputMessage, nil
+	return outputMessage, buildError
 }
 
-func BuildUpgrade(imageInformationName string, description string) (string, error) {
+func BuildUpgrade(imageInformationName string, description string) (returnedOutputMessage string, returnedError error) {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Error("BuildUpgrade Error: %s", err)
+			log.Error(logger.GetStackTrace(4096, false))
+			returnedOutputMessage = ""
+			returnedError = err.(error)
+		}
+	}()
+
 	imageInformation, err := GetStorage().LoadImageInformation(imageInformationName)
 	if err != nil {
 		log.Error("Load image information error: %s", err)
 		return "", err
 	}
 
+	var buildError error = nil
 	imageRecord, outputMessage, err := Build(imageInformation, description)
 	if err != nil {
 		log.Error("Build error: %s Output message: %s", err, outputMessage)
-		return outputMessage, err
+		if imageRecord == nil {
+			return outputMessage, err
+		} else {
+			buildError = err
+			outputMessage = outputMessage + "\n" + err.Error()
+		}
 	}
 
 	// Save image record
 	err = GetStorage().saveImageRecord(imageRecord)
 	if err != nil {
 		log.Error("Save image record error: %s", err)
-		return outputMessage, err
-	}
-
-	// Save build log
-	err = SendBuildLog(imageRecord, outputMessage)
-	if err != nil {
-		log.Error("Save build log error: %s", err)
 		return outputMessage, err
 	}
 
@@ -117,7 +141,14 @@ func BuildUpgrade(imageInformationName string, description string) (string, erro
 		return outputMessage, err
 	}
 
-	return outputMessage, nil
+	// Save build log
+	err = SendBuildLog(imageRecord, outputMessage)
+	if err != nil {
+		log.Error("Save build log error: %s", err)
+		return outputMessage, err
+	}
+
+	return outputMessage, buildError
 }
 
 func Build(imageInformation *ImageInformation, description string) (*ImageRecord, string, error) {
@@ -137,11 +168,18 @@ func Build(imageInformation *ImageInformation, description string) (*ImageRecord
 	default:
 		return nil, "", errors.New("No such kind: " + imageInformation.Kind)
 	}
-
 }
 
 func BuildFromGit(imageInformation *ImageInformation, description string) (*ImageRecord, string, error) {
 	outputByteSlice := make([]byte, 0)
+
+	imageRecord := &ImageRecord{}
+	imageRecord.ImageInformation = imageInformation.Name
+	imageRecord.VersionInfo = make(map[string]string)
+	imageRecord.CreatedTime = time.Now()
+	imageRecord.Version = imageRecord.CreatedTime.Format("2006-01-02-15-04-05")
+	imageRecord.Description = description
+	imageRecord.Failure = true
 
 	// Build parameter
 	workingDirectory := imageInformation.BuildParameter["workingDirectory"]         // "/var/lib/cloudone"
@@ -153,12 +191,15 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 	versionFile := imageInformation.BuildParameter["versionFile"]                   // "version"
 	environmentFile := imageInformation.BuildParameter["environmentFile"]           // "environment"
 
+	// Path
+	imageRecord.Path = repositoryPath + ":" + imageRecord.Version
+
 	// Check working space
 	if _, err := os.Stat(workingDirectory); os.IsNotExist(err) {
 		err := os.MkdirAll(workingDirectory, os.ModePerm)
 		if err != nil {
 			log.Error("Create non-existing directory %s error: %s", workingDirectory, err)
-			return nil, string(outputByteSlice), err
+			return imageRecord, string(outputByteSlice), err
 		}
 	}
 
@@ -173,7 +214,7 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 			// Already cloned
 		} else {
 			log.Error("Git clone %s error: %s", imageInformation, err)
-			return nil, string(outputByteSlice), err
+			return imageRecord, string(outputByteSlice), err
 		}
 	}
 
@@ -183,18 +224,23 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 	outputByteSlice = append(outputByteSlice, out...)
 	if err != nil {
 		log.Error("Git pull %s error: %s", imageInformation, err)
-		return nil, string(outputByteSlice), err
+		return imageRecord, string(outputByteSlice), err
 	}
 
+	// Get git version
 	command = exec.Command("git", "log", "-1")
 	command.Dir = workingDirectory + string(os.PathSeparator) + sourceCodeProject
 	out, err = command.CombinedOutput()
 	outputByteSlice = append(outputByteSlice, out...)
 	if err != nil {
-		log.Error("Git log %s error: %s", imageInformation, err)
-		return nil, string(outputByteSlice), err
+		log.Error("Git log %s -l error: %s", imageInformation, err)
+		return imageRecord, string(outputByteSlice), err
 	}
 	gitVersionSlice, err := parseGitVersion(string(out))
+	currentGitVersion := gitVersionSlice[0]
+	imageRecord.VersionInfo["Commit"] = currentGitVersion.Commit
+	imageRecord.VersionInfo["Autor"] = currentGitVersion.Autor
+	imageRecord.VersionInfo["Date"] = currentGitVersion.Date
 
 	if sourceCodeMakeScript != "" {
 		commandSlice := strings.Split(sourceCodeMakeScript, " ")
@@ -208,10 +254,11 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 		outputByteSlice = append(outputByteSlice, out...)
 		if err != nil {
 			log.Error("Run make script %s error: %s", imageInformation, err)
-			return nil, string(outputByteSlice), err
+			return imageRecord, string(outputByteSlice), err
 		}
 	}
 
+	// User defined version
 	version := ""
 	if versionFile != "" {
 		// open input file
@@ -219,7 +266,7 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 			sourceCodeProject + string(os.PathSeparator) + versionFile)
 		if err != nil {
 			log.Error("Open version file error: %s", err)
-			return nil, string(outputByteSlice), err
+			return imageRecord, string(outputByteSlice), err
 		}
 		defer inputFile.Close()
 
@@ -230,7 +277,7 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 			n, err := inputFile.Read(buffer)
 			if err != nil && err != io.EOF {
 				log.Error("Read version file error: %s", err)
-				return nil, string(outputByteSlice), err
+				return imageRecord, string(outputByteSlice), err
 			}
 			if n == 0 {
 				break
@@ -241,7 +288,9 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 
 		version = string(byteSlice)
 	}
+	imageRecord.VersionInfo["Version"] = version
 
+	// Environment map
 	environmentMap := make(map[string]string)
 	if environmentFile != "" {
 		// open input file
@@ -249,7 +298,7 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 			sourceCodeProject + string(os.PathSeparator) + environmentFile)
 		if err != nil {
 			log.Error("Open environment file error: %s", err)
-			return nil, string(outputByteSlice), err
+			return imageRecord, string(outputByteSlice), err
 		}
 		defer inputFile.Close()
 
@@ -260,7 +309,7 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 			n, err := inputFile.Read(buffer)
 			if err != nil && err != io.EOF {
 				log.Error("Read version file error: %s", err)
-				return nil, string(outputByteSlice), err
+				return imageRecord, string(outputByteSlice), err
 			}
 			if n == 0 {
 				break
@@ -273,29 +322,16 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 		err = json.Unmarshal(byteSlice, &jsonMap)
 		if err != nil {
 			log.Error("Unmarshal environment file error: %s", err)
-			return nil, string(outputByteSlice), err
+			return imageRecord, string(outputByteSlice), err
 		}
 
 		for key, value := range jsonMap {
-			description, ok := value.(string)
+			environmentDescription, ok := value.(string)
 			if ok {
-				environmentMap[key] = description
+				environmentMap[key] = environmentDescription
 			}
 		}
 	}
-
-	imageRecord := ImageRecord{}
-	currentGitVersion := gitVersionSlice[0]
-	imageRecord.ImageInformation = imageInformation.Name
-	imageRecord.VersionInfo = make(map[string]string)
-	imageRecord.VersionInfo["Commit"] = currentGitVersion.Commit
-	imageRecord.VersionInfo["Autor"] = currentGitVersion.Autor
-	imageRecord.VersionInfo["Date"] = currentGitVersion.Date
-	imageRecord.VersionInfo["Version"] = version
-	imageRecord.CreatedTime = time.Now()
-	imageRecord.Version = imageRecord.CreatedTime.Format("2006-01-02-15-04-05")
-	imageRecord.Path = repositoryPath + ":" + imageRecord.Version
-	imageRecord.Description = description
 	imageRecord.Environment = environmentMap
 
 	command = exec.Command("docker", "build", "-t", imageRecord.Path, sourceCodeDirectory)
@@ -304,7 +340,7 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 	outputByteSlice = append(outputByteSlice, out...)
 	if err != nil {
 		log.Error("Docker build %s error: %s", imageInformation, err)
-		return nil, string(outputByteSlice), err
+		return imageRecord, string(outputByteSlice), err
 	}
 
 	command = exec.Command("docker", "push", imageRecord.Path)
@@ -313,13 +349,16 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 	outputByteSlice = append(outputByteSlice, out...)
 	if err != nil {
 		log.Error("Docker push %s error: %s", imageInformation, err)
-		return nil, string(outputByteSlice), err
+		return imageRecord, string(outputByteSlice), err
 	}
 
 	// Remove working space
 	os.RemoveAll(workingDirectory)
 
-	return &imageRecord, string(outputByteSlice), nil
+	// Success
+	imageRecord.Failure = false
+
+	return imageRecord, string(outputByteSlice), nil
 }
 
 type GitVersion struct {
@@ -345,8 +384,7 @@ func parseGitVersion(text string) ([]GitVersion, error) {
 	}
 
 	if len(commitSlice) != len(authorSlice) || len(commitSlice) != len(dateSlice) {
-		errorMessage := fmt.Sprintf("Length of commitSlice %d, authorSlice %d, dateSlice %d are different", len(commitSlice), len(authorSlice), len(dateSlice))
-		return nil, errors.New(errorMessage)
+		return nil, errors.New("Length of commitSlice " + strconv.Itoa(len(commitSlice)) + ", authorSlice " + strconv.Itoa(len(authorSlice)) + ", dateSlice " + strconv.Itoa(len(dateSlice)) + " are different")
 	}
 
 	gitVersionSlice := make([]GitVersion, 0)
@@ -361,6 +399,14 @@ var scpTimeout time.Duration = time.Second * 10
 
 func BuildFromSCP(imageInformation *ImageInformation, description string) (*ImageRecord, string, error) {
 	outputByteSlice := make([]byte, 0)
+
+	imageRecord := &ImageRecord{}
+	imageRecord.ImageInformation = imageInformation.Name
+	imageRecord.VersionInfo = make(map[string]string)
+	imageRecord.CreatedTime = time.Now()
+	imageRecord.Version = imageRecord.CreatedTime.Format("2006-01-02-15-04-05")
+	imageRecord.Description = description
+	imageRecord.Failure = true
 
 	// Build parameter
 	workingDirectory := imageInformation.BuildParameter["workingDirectory"]         // "/var/lib/cloudone"
@@ -377,19 +423,22 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 	versionFile := imageInformation.BuildParameter["versionFile"]                   // "version"
 	environmentFile := imageInformation.BuildParameter["environmentFile"]           // "environment"
 
+	// Path
+	imageRecord.Path = repositoryPath + ":" + imageRecord.Version
+
 	// Check working space
 	if _, err := os.Stat(workingDirectory); os.IsNotExist(err) {
 		err := os.MkdirAll(workingDirectory, os.ModePerm)
 		if err != nil {
 			log.Error("Create non-existing directory %s error: %s", workingDirectory, err)
-			return nil, string(outputByteSlice), err
+			return imageRecord, string(outputByteSlice), err
 		}
 	}
 
 	client, err := simplessh.ConnectWithPasswordTimeout(hostAndPort, username, password, scpTimeout)
 	if err != nil {
 		log.Error("Login scp hostAndPort %s, username %s, password %s error: %s", hostAndPort, username, password, err)
-		return nil, "", err
+		return imageRecord, string(outputByteSlice), err
 	}
 	defer client.Close()
 
@@ -397,7 +446,7 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 	localFilePath := workingDirectory + string(os.PathSeparator) + compressFileName
 	if err := client.Download(remoteFilePath, localFilePath); err != nil {
 		log.Error("Download remoteFilePath %s localFilePath %s with scp error: %s", remoteFilePath, localFilePath, err)
-		return nil, "", err
+		return imageRecord, string(outputByteSlice), err
 	}
 
 	unpackageCommandSlice := strings.Split(unpackageCommand, " ")
@@ -409,7 +458,7 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 	outputByteSlice = append(outputByteSlice, out...)
 	if err != nil {
 		log.Error("Unpackage compress file %s error: %s", unpackageCommand, err)
-		return nil, string(outputByteSlice), err
+		return imageRecord, string(outputByteSlice), err
 	}
 
 	if sourceCodeMakeScript != "" {
@@ -419,10 +468,11 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 		outputByteSlice = append(outputByteSlice, out...)
 		if err != nil {
 			log.Error("Run make script %s error: %s", imageInformation, err)
-			return nil, string(outputByteSlice), err
+			return imageRecord, string(outputByteSlice), err
 		}
 	}
 
+	// User defined version
 	version := ""
 	if versionFile != "" {
 		// open input file
@@ -430,7 +480,7 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 			sourceCodeProject + string(os.PathSeparator) + versionFile)
 		if err != nil {
 			log.Error("Open version file error: %s", err)
-			return nil, string(outputByteSlice), err
+			return imageRecord, string(outputByteSlice), err
 		}
 		defer inputFile.Close()
 
@@ -441,7 +491,7 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 			n, err := inputFile.Read(buffer)
 			if err != nil && err != io.EOF {
 				log.Error("Read version file error: %s", err)
-				return nil, string(outputByteSlice), err
+				return imageRecord, string(outputByteSlice), err
 			}
 			if n == 0 {
 				break
@@ -452,7 +502,9 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 
 		version = string(byteSlice)
 	}
+	imageRecord.VersionInfo["Version"] = version
 
+	// Environment map
 	environmentMap := make(map[string]string)
 	if environmentFile != "" {
 		// open input file
@@ -460,7 +512,7 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 			sourceCodeProject + string(os.PathSeparator) + environmentFile)
 		if err != nil {
 			log.Error("Open environment file error: %s", err)
-			return nil, string(outputByteSlice), err
+			return imageRecord, string(outputByteSlice), err
 		}
 		defer inputFile.Close()
 
@@ -471,7 +523,7 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 			n, err := inputFile.Read(buffer)
 			if err != nil && err != io.EOF {
 				log.Error("Read environment file error: %s", err)
-				return nil, string(outputByteSlice), err
+				return imageRecord, string(outputByteSlice), err
 			}
 			if n == 0 {
 				break
@@ -484,7 +536,7 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 		err = json.Unmarshal(byteSlice, &jsonMap)
 		if err != nil {
 			log.Error("Unmarshal environment file error: %s", err)
-			return nil, string(outputByteSlice), err
+			return imageRecord, string(outputByteSlice), err
 		}
 
 		for key, value := range jsonMap {
@@ -494,15 +546,6 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 			}
 		}
 	}
-
-	imageRecord := ImageRecord{}
-	imageRecord.ImageInformation = imageInformation.Name
-	imageRecord.VersionInfo = make(map[string]string)
-	imageRecord.VersionInfo["Version"] = version
-	imageRecord.CreatedTime = time.Now()
-	imageRecord.Version = imageRecord.CreatedTime.Format("2006-01-02-15-04-05")
-	imageRecord.Path = repositoryPath + ":" + imageRecord.Version
-	imageRecord.Description = description
 	imageRecord.Environment = environmentMap
 
 	command = exec.Command("docker", "build", "-t", imageRecord.Path, sourceCodeDirectory)
@@ -511,7 +554,7 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 	outputByteSlice = append(outputByteSlice, out...)
 	if err != nil {
 		log.Error("Docker build %s error: %s", imageInformation, err)
-		return nil, string(outputByteSlice), err
+		return imageRecord, string(outputByteSlice), err
 	}
 
 	command = exec.Command("docker", "push", imageRecord.Path)
@@ -520,17 +563,28 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 	outputByteSlice = append(outputByteSlice, out...)
 	if err != nil {
 		log.Error("Docker push %s error: %s", imageInformation, err)
-		return nil, string(outputByteSlice), err
+		return imageRecord, string(outputByteSlice), err
 	}
 
 	// Remove working space
 	os.RemoveAll(workingDirectory)
 
-	return &imageRecord, string(outputByteSlice), nil
+	// Success
+	imageRecord.Failure = false
+
+	return imageRecord, string(outputByteSlice), nil
 }
 
 func BuildFromSFTP(imageInformation *ImageInformation, description string) (*ImageRecord, string, error) {
 	outputByteSlice := make([]byte, 0)
+
+	imageRecord := &ImageRecord{}
+	imageRecord.ImageInformation = imageInformation.Name
+	imageRecord.VersionInfo = make(map[string]string)
+	imageRecord.CreatedTime = time.Now()
+	imageRecord.Version = imageRecord.CreatedTime.Format("2006-01-02-15-04-05")
+	imageRecord.Description = description
+	imageRecord.Failure = true
 
 	// Build parameter
 	workingDirectory := imageInformation.BuildParameter["workingDirectory"]         // "/var/lib/cloudone"
@@ -545,12 +599,15 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 	versionFile := imageInformation.BuildParameter["versionFile"]                   // "version"
 	environmentFile := imageInformation.BuildParameter["environmentFile"]           // "environment"
 
+	// Path
+	imageRecord.Path = repositoryPath + ":" + imageRecord.Version
+
 	// Check working space
 	if _, err := os.Stat(workingDirectory); os.IsNotExist(err) {
 		err := os.MkdirAll(workingDirectory, os.ModePerm)
 		if err != nil {
 			log.Error("Create non-existing directory %s error: %s", workingDirectory, err)
-			return nil, string(outputByteSlice), err
+			return imageRecord, string(outputByteSlice), err
 		}
 	}
 
@@ -558,7 +615,7 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 		password, sourcePath, workingDirectory); err != nil {
 		log.Error("Download from sftp hostAndPort %s, username %s, password %s, sourcePath %s, workingDirectory %s error: %s",
 			hostAndPort, username, password, sourcePath, workingDirectory, err)
-		return nil, "", err
+		return imageRecord, "", err
 	}
 
 	if sourceCodeMakeScript != "" {
@@ -568,10 +625,11 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 		outputByteSlice = append(outputByteSlice, out...)
 		if err != nil {
 			log.Error("Run make script %s error: %s", imageInformation, err)
-			return nil, string(outputByteSlice), err
+			return imageRecord, string(outputByteSlice), err
 		}
 	}
 
+	// User defined version
 	version := ""
 	if versionFile != "" {
 		// open input file
@@ -579,7 +637,7 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 			sourceCodeProject + string(os.PathSeparator) + versionFile)
 		if err != nil {
 			log.Error("Open version file error: %s", err)
-			return nil, string(outputByteSlice), err
+			return imageRecord, string(outputByteSlice), err
 		}
 		defer inputFile.Close()
 
@@ -590,7 +648,7 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 			n, err := inputFile.Read(buffer)
 			if err != nil && err != io.EOF {
 				log.Error("Read version file error: %s", err)
-				return nil, string(outputByteSlice), err
+				return imageRecord, string(outputByteSlice), err
 			}
 			if n == 0 {
 				break
@@ -601,7 +659,9 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 
 		version = string(byteSlice)
 	}
+	imageRecord.VersionInfo["Version"] = version
 
+	// Environment map
 	environmentMap := make(map[string]string)
 	if environmentFile != "" {
 		// open input file
@@ -609,7 +669,7 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 			sourceCodeProject + string(os.PathSeparator) + environmentFile)
 		if err != nil {
 			log.Error("Open environment file error: %s", err)
-			return nil, string(outputByteSlice), err
+			return imageRecord, string(outputByteSlice), err
 		}
 		defer inputFile.Close()
 
@@ -620,7 +680,7 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 			n, err := inputFile.Read(buffer)
 			if err != nil && err != io.EOF {
 				log.Error("Read environment file error: %s", err)
-				return nil, string(outputByteSlice), err
+				return imageRecord, string(outputByteSlice), err
 			}
 			if n == 0 {
 				break
@@ -633,7 +693,7 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 		err = json.Unmarshal(byteSlice, &jsonMap)
 		if err != nil {
 			log.Error("Unmarshal environment file error: %s", err)
-			return nil, string(outputByteSlice), err
+			return imageRecord, string(outputByteSlice), err
 		}
 
 		for key, value := range jsonMap {
@@ -643,15 +703,6 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 			}
 		}
 	}
-
-	imageRecord := ImageRecord{}
-	imageRecord.ImageInformation = imageInformation.Name
-	imageRecord.VersionInfo = make(map[string]string)
-	imageRecord.VersionInfo["Version"] = version
-	imageRecord.CreatedTime = time.Now()
-	imageRecord.Version = imageRecord.CreatedTime.Format("2006-01-02-15-04-05")
-	imageRecord.Path = repositoryPath + ":" + imageRecord.Version
-	imageRecord.Description = description
 	imageRecord.Environment = environmentMap
 
 	command := exec.Command("docker", "build", "-t", imageRecord.Path, sourceCodeDirectory)
@@ -660,7 +711,7 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 	outputByteSlice = append(outputByteSlice, out...)
 	if err != nil {
 		log.Error("Docker build %s error: %s", imageInformation, err)
-		return nil, string(outputByteSlice), err
+		return imageRecord, string(outputByteSlice), err
 	}
 
 	command = exec.Command("docker", "push", imageRecord.Path)
@@ -669,13 +720,16 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 	outputByteSlice = append(outputByteSlice, out...)
 	if err != nil {
 		log.Error("Docker push %s error: %s", imageInformation, err)
-		return nil, string(outputByteSlice), err
+		return imageRecord, string(outputByteSlice), err
 	}
 
 	// Remove working space
 	os.RemoveAll(workingDirectory)
 
-	return &imageRecord, string(outputByteSlice), nil
+	// Success
+	imageRecord.Failure = false
+
+	return imageRecord, string(outputByteSlice), nil
 }
 
 func SendBuildLog(imageRecord *ImageRecord, outputMessage string) error {
