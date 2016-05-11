@@ -15,13 +15,18 @@
 package deploy
 
 import (
+	"errors"
 	"github.com/cloudawan/cloudone/control"
 	"github.com/cloudawan/cloudone/image"
+	"github.com/cloudawan/cloudone/utility/lock"
 	"strconv"
 	"time"
 )
 
-var waitingDuration = 5 * time.Second
+const (
+	LockKind        = "deploy"
+	waitingDuration = 5 * time.Second
+)
 
 type DeployContainerPort struct {
 	Name          string
@@ -59,6 +64,10 @@ func GetDeployInformationInNamespace(namespace string) ([]DeployInformation, err
 	return filteredDeployInformationSlice, nil
 }
 
+func getLockName(namespace string, imageInformationName string) string {
+	return namespace + "." + imageInformationName
+}
+
 func DeployCreate(
 	kubeapiHost string, kubeapiPort int, namespace string, imageInformationName string,
 	version string, description string, replicaAmount int,
@@ -66,6 +75,11 @@ func DeployCreate(
 	replicationControllerContainerEnvironmentSlice []control.ReplicationControllerContainerEnvironment,
 	resourceMap map[string]interface{},
 	extraJsonMap map[string]interface{}) error {
+	if lock.AcquireLock(LockKind, getLockName(namespace, imageInformationName), 0) == false {
+		return errors.New("Application is under deployment")
+	}
+
+	defer lock.ReleaseLock(LockKind, getLockName(namespace, imageInformationName))
 
 	imageRecord, err := image.GetStorage().LoadImageRecord(imageInformationName, version)
 	if err != nil {
@@ -174,6 +188,11 @@ func DeployCreate(
 func DeployUpdate(kubeapiHost string, kubeapiPort int, namespace string,
 	imageInformationName string, version string, description string,
 	environmentSlice []control.ReplicationControllerContainerEnvironment) error {
+	if lock.AcquireLock(LockKind, getLockName(namespace, imageInformationName), 0) == false {
+		return errors.New("Application is under deployment")
+	}
+
+	defer lock.ReleaseLock(LockKind, getLockName(namespace, imageInformationName))
 
 	imageRecord, err := image.GetStorage().LoadImageRecord(imageInformationName, version)
 	if err != nil {

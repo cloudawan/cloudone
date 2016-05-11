@@ -18,12 +18,17 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/cloudawan/cloudone/control"
+	"github.com/cloudawan/cloudone/utility/lock"
 	"github.com/cloudawan/cloudone_utility/deepcopy"
 	"github.com/cloudawan/cloudone_utility/random"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"strconv"
+)
+
+const (
+	LockKind = "cluster_application"
 )
 
 type Cluster struct {
@@ -36,7 +41,17 @@ type Cluster struct {
 	ScriptContent             string
 }
 
+func getLockName(namespace string, name string) string {
+	return namespace + "." + name
+}
+
 func LaunchClusterApplication(kubeapiHost string, kubeapiPort int, namespace string, name string, environmentSlice []interface{}, size int, replicationControllerExtraJsonMap map[string]interface{}) error {
+	if lock.AcquireLock(LockKind, getLockName(namespace, name), 0) == false {
+		return errors.New("Template is under deployment")
+	}
+
+	defer lock.ReleaseLock(LockKind, getLockName(namespace, name))
+
 	cluster, err := GetStorage().LoadClusterApplication(name)
 	if err != nil {
 		log.Error("Load cluster application error %s", err)
