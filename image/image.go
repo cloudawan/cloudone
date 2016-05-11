@@ -85,11 +85,11 @@ func BuildCreate(imageInformation *ImageInformation) (returnedOutputMessage stri
 		return outputMessage, err
 	}
 
+	// Update image information with version
 	imageInformation.CurrentVersion = imageRecord.Version
-	// Save image information
-	err = GetStorage().saveImageInformation(imageInformation)
+	err = GetStorage().SaveImageInformation(imageInformation)
 	if err != nil {
-		log.Error("Save image information error: %s", err)
+		log.Error("Update image information error: %s", err)
 		return outputMessage, err
 	}
 
@@ -140,7 +140,7 @@ func BuildUpgrade(imageInformationName string, description string) (returnedOutp
 
 	imageInformation.CurrentVersion = imageRecord.Version
 	// Save image information
-	err = GetStorage().saveImageInformation(imageInformation)
+	err = GetStorage().SaveImageInformation(imageInformation)
 	if err != nil {
 		log.Error("Save image information error: %s", err)
 		return outputMessage, err

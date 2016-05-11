@@ -84,7 +84,7 @@ func ReloadStorage(storageType int) error {
 type Storage interface {
 	initialize() error
 	DeleteImageInformationAndRelatedRecord(name string) error
-	saveImageInformation(imageInformation *ImageInformation) error
+	SaveImageInformation(imageInformation *ImageInformation) error
 	LoadImageInformation(name string) (*ImageInformation, error)
 	LoadAllImageInformation() ([]ImageInformation, error)
 	DeleteImageRecord(imageInformationName string, version string) error

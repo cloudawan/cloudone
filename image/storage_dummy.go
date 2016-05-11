@@ -54,7 +54,7 @@ func (storageDummy *StorageDummy) DeleteImageInformationAndRelatedRecord(name st
 	return &storageDummy.dummyError
 }
 
-func (storageDummy *StorageDummy) saveImageInformation(imageInformation *ImageInformation) error {
+func (storageDummy *StorageDummy) SaveImageInformation(imageInformation *ImageInformation) error {
 	return &storageDummy.dummyError
 }
 

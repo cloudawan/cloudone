@@ -76,7 +76,7 @@ func (storageCassandra *StorageCassandra) DeleteImageInformationAndRelatedRecord
 	return storageCassandra.deleteImageRecordWithImageInformationName(name)
 }
 
-func (storageCassandra *StorageCassandra) saveImageInformation(imageInformation *ImageInformation) error {
+func (storageCassandra *StorageCassandra) SaveImageInformation(imageInformation *ImageInformation) error {
 	session, err := cassandra.CassandraClient.GetSession()
 	if err != nil {
 		log.Error("Get session error %s", err)

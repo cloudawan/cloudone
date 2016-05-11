@@ -60,7 +60,7 @@ func (storageEtcd *StorageEtcd) DeleteImageInformationAndRelatedRecord(name stri
 	return storageEtcd.deleteImageRecordWithImageInformationName(name)
 }
 
-func (storageEtcd *StorageEtcd) saveImageInformation(imageInformation *ImageInformation) error {
+func (storageEtcd *StorageEtcd) SaveImageInformation(imageInformation *ImageInformation) error {
 	keysAPI, err := etcd.EtcdClient.GetKeysAPI()
 	if err != nil {
 		log.Error("Get keysAPI error %s", err)

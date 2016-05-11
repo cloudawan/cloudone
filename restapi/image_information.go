@@ -127,33 +127,50 @@ func postImageInformationCreate(request *restful.Request, response *restful.Resp
 		return
 	}
 
-	outputMessage, err := image.BuildCreate(imageInformation)
-
-	resultJsonMap := make(map[string]interface{})
-	resultJsonMap["OutputMessage"] = outputMessage
-	statusCode := 200
-	if err != nil {
-		statusCode = 422
-		resultJsonMap["Error"] = "Create build failure"
-		resultJsonMap["ErrorMessage"] = err.Error()
-		resultJsonMap["imageInformation"] = imageInformation
-		log.Error(resultJsonMap)
-	}
-	result, err := json.Marshal(resultJsonMap)
+	// Save image information before finish the building
+	err = image.GetStorage().SaveImageInformation(imageInformation)
 	if err != nil {
 		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Marshal output message failure"
+		jsonMap["Error"] = "Save image information failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["resultJsonMap"] = resultJsonMap
+		jsonMap["imageInformation"] = imageInformation
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
 		log.Error(jsonMap)
 		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
 
-	response.WriteErrorString(statusCode, string(result))
+	go func() {
+		image.BuildCreate(imageInformation)
+	}()
+	/*
+		outputMessage, err := image.BuildCreate(imageInformation)
 
-	return
+		resultJsonMap := make(map[string]interface{})
+		resultJsonMap["OutputMessage"] = outputMessage
+		statusCode := 200
+		if err != nil {
+			statusCode = 422
+			resultJsonMap["Error"] = "Create build failure"
+			resultJsonMap["ErrorMessage"] = err.Error()
+			resultJsonMap["imageInformation"] = imageInformation
+			log.Error(resultJsonMap)
+		}
+		result, err := json.Marshal(resultJsonMap)
+		if err != nil {
+			jsonMap := make(map[string]interface{})
+			jsonMap["Error"] = "Marshal output message failure"
+			jsonMap["ErrorMessage"] = err.Error()
+			jsonMap["resultJsonMap"] = resultJsonMap
+			errorMessageByteSlice, _ := json.Marshal(jsonMap)
+			log.Error(jsonMap)
+			response.WriteErrorString(422, string(errorMessageByteSlice))
+			return
+		}
+
+		response.WriteErrorString(statusCode, string(result))
+		return
+	*/
 }
 
 func putImageInformationUpgrade(request *restful.Request, response *restful.Response) {
@@ -169,34 +186,41 @@ func putImageInformationUpgrade(request *restful.Request, response *restful.Resp
 		return
 	}
 
-	outputMessage, err := image.BuildUpgrade(
-		imageInformationUpgradeInput.ImageInformationName,
-		imageInformationUpgradeInput.Description)
+	go func() {
+		image.BuildUpgrade(
+			imageInformationUpgradeInput.ImageInformationName,
+			imageInformationUpgradeInput.Description)
+	}()
+	/*
+		outputMessage, err := image.BuildUpgrade(
+			imageInformationUpgradeInput.ImageInformationName,
+			imageInformationUpgradeInput.Description)
 
-	resultJsonMap := make(map[string]interface{})
-	resultJsonMap["OutputMessage"] = outputMessage
-	statusCode := 200
-	if err != nil {
-		statusCode = 422
-		resultJsonMap["Error"] = "Upgrade build failure"
-		resultJsonMap["ErrorMessage"] = err.Error()
-		resultJsonMap["imageInformationUpgradeInput"] = imageInformationUpgradeInput
-		log.Error(resultJsonMap)
-	}
-	result, err := json.Marshal(resultJsonMap)
-	if err != nil {
-		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Marshal output message failure"
-		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["resultJsonMap"] = resultJsonMap
-		errorMessageByteSlice, _ := json.Marshal(jsonMap)
-		log.Error(jsonMap)
-		response.WriteErrorString(422, string(errorMessageByteSlice))
+		resultJsonMap := make(map[string]interface{})
+		resultJsonMap["OutputMessage"] = outputMessage
+		statusCode := 200
+		if err != nil {
+			statusCode = 422
+			resultJsonMap["Error"] = "Upgrade build failure"
+			resultJsonMap["ErrorMessage"] = err.Error()
+			resultJsonMap["imageInformationUpgradeInput"] = imageInformationUpgradeInput
+			log.Error(resultJsonMap)
+		}
+		result, err := json.Marshal(resultJsonMap)
+		if err != nil {
+			jsonMap := make(map[string]interface{})
+			jsonMap["Error"] = "Marshal output message failure"
+			jsonMap["ErrorMessage"] = err.Error()
+			jsonMap["resultJsonMap"] = resultJsonMap
+			errorMessageByteSlice, _ := json.Marshal(jsonMap)
+			log.Error(jsonMap)
+			response.WriteErrorString(422, string(errorMessageByteSlice))
+			return
+		}
+
+		response.WriteErrorString(statusCode, string(result))
 		return
-	}
-
-	response.WriteErrorString(statusCode, string(result))
-	return
+	*/
 }
 
 func returns200AllImageInformation(b *restful.RouteBuilder) {
