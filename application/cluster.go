@@ -101,11 +101,29 @@ func LaunchClusterApplicationNoScript(kubeapiHost string, kubeapiPort int, names
 					containerSlice, ok := specJsonMap["containers"].([]interface{})
 					if ok {
 						for i := 0; i < len(containerSlice); i++ {
-							_, ok := containerSlice[i].(map[string]interface{})["env"].([]interface{})
+							oldEnvironmentSlice, ok := containerSlice[i].(map[string]interface{})["env"].([]interface{})
 							if ok {
-								for _, environment := range environmentSlice {
-									containerSlice[i].(map[string]interface{})["env"] = append(containerSlice[i].(map[string]interface{})["env"].([]interface{}), environment)
+								// Track old environment
+								environmentMap := make(map[string]interface{})
+								for _, oldEnvironment := range oldEnvironmentSlice {
+									oldEnvironmentJsonMap, _ := oldEnvironment.(map[string]interface{})
+									name, _ := oldEnvironmentJsonMap["name"].(string)
+									environmentMap[name] = oldEnvironment
 								}
+
+								// Add or overwrite with new value
+								for _, environment := range environmentSlice {
+									environmentJsonMap, _ := environment.(map[string]interface{})
+									name, _ := environmentJsonMap["name"].(string)
+									environmentMap[name] = environmentJsonMap
+								}
+
+								// Use new slice which the user input overwrite the old data
+								newEnvironmentSlice := make([]interface{}, 0)
+								for _, value := range environmentMap {
+									newEnvironmentSlice = append(newEnvironmentSlice, value)
+								}
+								containerSlice[i].(map[string]interface{})["env"] = newEnvironmentSlice
 							} else {
 								containerSlice[i].(map[string]interface{})["env"] = environmentSlice
 							}
@@ -161,11 +179,29 @@ func LaunchClusterApplicationPython(kubeapiHost string, kubeapiPort int, namespa
 					containerSlice, ok := specJsonMap["containers"].([]interface{})
 					if ok {
 						for i := 0; i < len(containerSlice); i++ {
-							_, ok := containerSlice[i].(map[string]interface{})["env"].([]interface{})
+							oldEnvironmentSlice, ok := containerSlice[i].(map[string]interface{})["env"].([]interface{})
 							if ok {
-								for _, environment := range environmentSlice {
-									containerSlice[i].(map[string]interface{})["env"] = append(containerSlice[i].(map[string]interface{})["env"].([]interface{}), environment)
+								// Track old environment
+								environmentMap := make(map[string]interface{})
+								for _, oldEnvironment := range oldEnvironmentSlice {
+									oldEnvironmentJsonMap, _ := oldEnvironment.(map[string]interface{})
+									name, _ := oldEnvironmentJsonMap["name"].(string)
+									environmentMap[name] = oldEnvironment
 								}
+
+								// Add or overwrite with new value
+								for _, environment := range environmentSlice {
+									environmentJsonMap, _ := environment.(map[string]interface{})
+									name, _ := environmentJsonMap["name"].(string)
+									environmentMap[name] = environment
+								}
+
+								// Use new slice which the user input overwrite the old data
+								newEnvironmentSlice := make([]interface{}, 0)
+								for _, value := range environmentMap {
+									newEnvironmentSlice = append(newEnvironmentSlice, value)
+								}
+								containerSlice[i].(map[string]interface{})["env"] = newEnvironmentSlice
 							} else {
 								containerSlice[i].(map[string]interface{})["env"] = environmentSlice
 							}
