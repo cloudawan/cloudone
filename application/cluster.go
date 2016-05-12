@@ -272,7 +272,7 @@ func LaunchClusterApplicationPython(kubeapiHost string, kubeapiPort int, namespa
 		"--service_file_name="+serviceFileName,
 		"--replication_controller_file_name="+replicationControllerFileName,
 		"--environment_file_name="+environmentFileName,
-		"--timeout_in_second=120",
+		"--timeout_in_second=300",
 		"--action=create")
 	command.Dir = workingDirectory
 	out, err := command.CombinedOutput()
