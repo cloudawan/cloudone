@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"errors"
 	"github.com/cloudawan/cloudone_utility/logger"
+	"github.com/cloudawan/cloudone_utility/random"
 	"github.com/cloudawan/cloudone_utility/sshclient"
 	"strconv"
 	"strings"
@@ -178,7 +179,7 @@ func (glusterfsCluster *GlusterfsCluster) GetAllVolume() ([]GlusterfsVolume, err
 	commandSlice = append(commandSlice, "sudo gluster volume info\n")
 
 	interactiveMap := make(map[string]string)
-	interactiveMap["[sudo]"] = "cloud4win\n"
+	interactiveMap["[sudo]"] = glusterfsCluster.SSHPassword + "\n"
 
 	resultSlice, err := sshclient.InteractiveSSH(
 		glusterfsCluster.SSHDialTimeout,
@@ -196,6 +197,43 @@ func (glusterfsCluster *GlusterfsCluster) GetAllVolume() ([]GlusterfsVolume, err
 		return nil, err
 	} else {
 		return glusterfsVolumeSlice, nil
+	}
+}
+
+func (glusterfsCluster *GlusterfsCluster) GetVolume(name string) (*GlusterfsVolume, error) {
+	host, err := glusterfsCluster.getAvailableHost()
+	if err != nil {
+		return nil, err
+	}
+
+	commandSlice := make([]string, 0)
+	commandSlice = append(commandSlice, "sudo gluster volume info "+name+"\n")
+
+	interactiveMap := make(map[string]string)
+	interactiveMap["[sudo]"] = glusterfsCluster.SSHPassword + "\n"
+
+	resultSlice, err := sshclient.InteractiveSSH(
+		glusterfsCluster.SSHDialTimeout,
+		glusterfsCluster.SSHSessionTimeout,
+		*host,
+		glusterfsCluster.SSHPort,
+		glusterfsCluster.SSHUser,
+		glusterfsCluster.SSHPassword,
+		commandSlice,
+		interactiveMap)
+
+	glusterfsVolumeSlice, err := glusterfsCluster.parseVolumeInfo(resultSlice[0])
+	if err != nil {
+		log.Error("Parse volume info error %s", err)
+		return nil, err
+	} else {
+		if len(glusterfsVolumeSlice) == 1 {
+			return &glusterfsVolumeSlice[0], nil
+		} else {
+			log.Error("The result it not the only one. glusterfsVolumeSlice %s", glusterfsVolumeSlice)
+			return nil, errors.New("The result it not the only one.")
+		}
+
 	}
 }
 
@@ -221,8 +259,9 @@ func (glusterfsCluster *GlusterfsCluster) CreateVolume(name string,
 	}
 	commandBuffer.WriteString(" transport ")
 	commandBuffer.WriteString(transport)
+	uuid := random.UUID()
 	for _, ip := range hostSlice {
-		path := " " + ip + ":" + glusterfsCluster.Path + "/" + name
+		path := " " + ip + ":" + glusterfsCluster.Path + "/" + name + "_" + uuid
 		commandBuffer.WriteString(path)
 	}
 	commandBuffer.WriteString(" force\n")
@@ -374,4 +413,45 @@ func (glusterfsCluster *GlusterfsCluster) DeleteVolume(name string) error {
 			return errors.New(resultSlice[0])
 		}
 	}
+}
+
+func (glusterfsCluster *GlusterfsCluster) CleanDataOnDisk(glusterfsVolume *GlusterfsVolume) error {
+	if glusterfsVolume != nil {
+		for _, brick := range glusterfsVolume.Bricks {
+			splitSlice := strings.Split(brick, ":")
+			if len(splitSlice) != 3 {
+				log.Error("brick format error %s", brick)
+				return errors.New("brick format error " + brick)
+			}
+			brickHost := strings.TrimSpace(splitSlice[1])
+			brickPath := strings.TrimSpace(splitSlice[2])
+
+			commandBuffer := bytes.Buffer{}
+			commandBuffer.WriteString("sudo rm -rf ")
+			commandBuffer.WriteString(brickPath)
+			commandBuffer.WriteString(" \n")
+			commandSlice := make([]string, 0)
+			commandSlice = append(commandSlice, commandBuffer.String())
+
+			interactiveMap := make(map[string]string)
+			interactiveMap["[sudo]"] = glusterfsCluster.SSHPassword + "\n"
+
+			resultSlice, err := sshclient.InteractiveSSH(
+				glusterfsCluster.SSHDialTimeout,
+				glusterfsCluster.SSHSessionTimeout,
+				brickHost,
+				glusterfsCluster.SSHPort,
+				glusterfsCluster.SSHUser,
+				glusterfsCluster.SSHPassword,
+				commandSlice,
+				interactiveMap)
+
+			if err != nil {
+				log.Error("Delete data on disk error %s resultSlice %s", err, resultSlice)
+				return err
+			}
+		}
+	}
+
+	return nil
 }

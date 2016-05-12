@@ -350,6 +350,18 @@ func deleteGlusterfsVolume(request *restful.Request, response *restful.Response)
 		return
 	}
 
+	glusterfsVolume, err := glusterfsCluster.GetVolume(volume)
+	if err != nil {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get glusterfs volume failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["cluster"] = cluster
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
+		return
+	}
+
 	err = glusterfsCluster.StopVolume(volume)
 
 	/*
@@ -378,6 +390,11 @@ func deleteGlusterfsVolume(request *restful.Request, response *restful.Response)
 		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
+
+	// Delete data on disk in asynchronized way since it may take hours
+	go func() {
+		glusterfsCluster.CleanDataOnDisk(glusterfsVolume)
+	}()
 }
 
 func returns200AllGlusterfsCluster(b *restful.RouteBuilder) {
