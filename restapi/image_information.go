@@ -140,6 +140,9 @@ func postImageInformationCreate(request *restful.Request, response *restful.Resp
 		return
 	}
 
+	// Initialize the output file for websocket
+	image.TouchOutMessageFile(imageInformation.Name)
+
 	go func() {
 		image.BuildCreate(imageInformation)
 	}()
@@ -185,6 +188,9 @@ func putImageInformationUpgrade(request *restful.Request, response *restful.Resp
 		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
+
+	// Initialize the output file for websocket
+	image.TouchOutMessageFile(imageInformationUpgradeInput.ImageInformationName)
 
 	go func() {
 		image.BuildUpgrade(

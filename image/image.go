@@ -15,6 +15,8 @@
 package image
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"github.com/cloudawan/cloudone/authorization"
@@ -30,6 +32,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -176,7 +179,10 @@ func Build(imageInformation *ImageInformation, description string) (*ImageRecord
 }
 
 func BuildFromGit(imageInformation *ImageInformation, description string) (*ImageRecord, string, error) {
-	outputByteSlice := make([]byte, 0)
+	// OutputBuffer for the whole result
+	// OutputFile for external tail
+	outputBuffer := &bytes.Buffer{}
+	outputFile, err := os.Create(GetProcessingOutMessageFilePathAndName(imageInformation.Name))
 
 	imageRecord := &ImageRecord{}
 	imageRecord.ImageInformation = imageInformation.Name
@@ -204,48 +210,45 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 		err := os.MkdirAll(workingDirectory, os.ModePerm)
 		if err != nil {
 			log.Error("Create non-existing directory %s error: %s", workingDirectory, err)
-			return imageRecord, string(outputByteSlice), err
+			return imageRecord, outputBuffer.String(), err
 		}
 	}
 
 	// First time
 	command := exec.Command("git", "clone", sourceCodeURL)
 	command.Dir = workingDirectory
-	out, err := command.CombinedOutput()
-	outputMessage := string(out)
-	outputByteSlice = append(outputByteSlice, out...)
-	if err != nil {
-		if err.Error() == "exit status 128" && strings.HasPrefix(outputMessage, "fatal: destination path") && strings.Contains(outputMessage, "already exists and is not an empty directory.") {
-			// Already cloned
-		} else {
-			log.Error("Git clone %s error: %s", imageInformation, err)
-			return imageRecord, string(outputByteSlice), err
-		}
+	_, statusCode, err := executeCommandAndTailTheOutput(command, outputBuffer, outputFile)
+	if statusCode == 128 {
+		// Already cloned
+	} else if err != nil {
+		log.Error("Git clone %s error: %s", imageInformation, err)
+		return imageRecord, outputBuffer.String(), err
 	}
 
 	command = exec.Command("git", "pull")
 	command.Dir = workingDirectory + string(os.PathSeparator) + sourceCodeProject
-	out, err = command.CombinedOutput()
-	outputByteSlice = append(outputByteSlice, out...)
+	_, _, err = executeCommandAndTailTheOutput(command, outputBuffer, outputFile)
 	if err != nil {
 		log.Error("Git pull %s error: %s", imageInformation, err)
-		return imageRecord, string(outputByteSlice), err
+		return imageRecord, outputBuffer.String(), err
 	}
 
 	// Get git version
 	command = exec.Command("git", "log", "-1")
 	command.Dir = workingDirectory + string(os.PathSeparator) + sourceCodeProject
-	out, err = command.CombinedOutput()
-	outputByteSlice = append(outputByteSlice, out...)
+	outputText, _, err := executeCommandAndTailTheOutput(command, outputBuffer, outputFile)
 	if err != nil {
 		log.Error("Git log %s -l error: %s", imageInformation, err)
-		return imageRecord, string(outputByteSlice), err
+		return imageRecord, outputBuffer.String(), err
 	}
-	gitVersionSlice, err := parseGitVersion(string(out))
-	currentGitVersion := gitVersionSlice[0]
-	imageRecord.VersionInfo["Commit"] = currentGitVersion.Commit
-	imageRecord.VersionInfo["Autor"] = currentGitVersion.Autor
-	imageRecord.VersionInfo["Date"] = currentGitVersion.Date
+
+	gitVersionSlice, err := parseGitVersion(outputText)
+	if gitVersionSlice != nil && len(gitVersionSlice) > 0 {
+		currentGitVersion := gitVersionSlice[0]
+		imageRecord.VersionInfo["Commit"] = currentGitVersion.Commit
+		imageRecord.VersionInfo["Autor"] = currentGitVersion.Autor
+		imageRecord.VersionInfo["Date"] = currentGitVersion.Date
+	}
 
 	if sourceCodeMakeScript != "" {
 		commandSlice := strings.Split(sourceCodeMakeScript, " ")
@@ -255,11 +258,10 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 			command = exec.Command(commandSlice[0], commandSlice[1:]...)
 		}
 		command.Dir = workingDirectory + string(os.PathSeparator) + sourceCodeProject
-		out, err = command.CombinedOutput()
-		outputByteSlice = append(outputByteSlice, out...)
+		_, _, err = executeCommandAndTailTheOutput(command, outputBuffer, outputFile)
 		if err != nil {
 			log.Error("Run make script %s error: %s", imageInformation, err)
-			return imageRecord, string(outputByteSlice), err
+			return imageRecord, outputBuffer.String(), err
 		}
 	}
 
@@ -271,7 +273,7 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 			sourceCodeProject + string(os.PathSeparator) + versionFile)
 		if err != nil {
 			log.Error("Open version file error: %s", err)
-			return imageRecord, string(outputByteSlice), err
+			return imageRecord, outputBuffer.String(), err
 		}
 		defer inputFile.Close()
 
@@ -282,7 +284,7 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 			n, err := inputFile.Read(buffer)
 			if err != nil && err != io.EOF {
 				log.Error("Read version file error: %s", err)
-				return imageRecord, string(outputByteSlice), err
+				return imageRecord, outputBuffer.String(), err
 			}
 			if n == 0 {
 				break
@@ -303,7 +305,7 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 			sourceCodeProject + string(os.PathSeparator) + environmentFile)
 		if err != nil {
 			log.Error("Open environment file error: %s", err)
-			return imageRecord, string(outputByteSlice), err
+			return imageRecord, outputBuffer.String(), err
 		}
 		defer inputFile.Close()
 
@@ -314,7 +316,7 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 			n, err := inputFile.Read(buffer)
 			if err != nil && err != io.EOF {
 				log.Error("Read version file error: %s", err)
-				return imageRecord, string(outputByteSlice), err
+				return imageRecord, outputBuffer.String(), err
 			}
 			if n == 0 {
 				break
@@ -327,7 +329,7 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 		err = json.Unmarshal(byteSlice, &jsonMap)
 		if err != nil {
 			log.Error("Unmarshal environment file error: %s", err)
-			return imageRecord, string(outputByteSlice), err
+			return imageRecord, outputBuffer.String(), err
 		}
 
 		for key, value := range jsonMap {
@@ -341,29 +343,30 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 
 	command = exec.Command("docker", "build", "-t", imageRecord.Path, sourceCodeDirectory)
 	command.Dir = workingDirectory + string(os.PathSeparator) + sourceCodeProject
-	out, err = command.CombinedOutput()
-	outputByteSlice = append(outputByteSlice, out...)
+	_, _, err = executeCommandAndTailTheOutput(command, outputBuffer, outputFile)
 	if err != nil {
 		log.Error("Docker build %s error: %s", imageInformation, err)
-		return imageRecord, string(outputByteSlice), err
+		return imageRecord, outputBuffer.String(), err
 	}
 
 	command = exec.Command("docker", "push", imageRecord.Path)
 	command.Dir = workingDirectory + string(os.PathSeparator) + sourceCodeProject
-	out, err = command.CombinedOutput()
-	outputByteSlice = append(outputByteSlice, out...)
+	_, _, err = executeCommandAndTailTheOutput(command, outputBuffer, outputFile)
 	if err != nil {
 		log.Error("Docker push %s error: %s", imageInformation, err)
-		return imageRecord, string(outputByteSlice), err
+		return imageRecord, outputBuffer.String(), err
 	}
 
 	// Remove working space
 	os.RemoveAll(workingDirectory)
 
+	// Remove the output file used for tail during the process
+	os.Remove(GetProcessingOutMessageFilePathAndName(imageInformation.Name))
+
 	// Success
 	imageRecord.Failure = false
 
-	return imageRecord, string(outputByteSlice), nil
+	return imageRecord, outputBuffer.String(), nil
 }
 
 type GitVersion struct {
@@ -403,7 +406,10 @@ func parseGitVersion(text string) ([]GitVersion, error) {
 var scpTimeout time.Duration = time.Second * 10
 
 func BuildFromSCP(imageInformation *ImageInformation, description string) (*ImageRecord, string, error) {
-	outputByteSlice := make([]byte, 0)
+	// OutputBuffer for the whole result
+	// OutputFile for external tail
+	outputBuffer := &bytes.Buffer{}
+	outputFile, err := os.Create(GetProcessingOutMessageFilePathAndName(imageInformation.Name))
 
 	imageRecord := &ImageRecord{}
 	imageRecord.ImageInformation = imageInformation.Name
@@ -436,14 +442,14 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 		err := os.MkdirAll(workingDirectory, os.ModePerm)
 		if err != nil {
 			log.Error("Create non-existing directory %s error: %s", workingDirectory, err)
-			return imageRecord, string(outputByteSlice), err
+			return imageRecord, outputBuffer.String(), err
 		}
 	}
 
 	client, err := simplessh.ConnectWithPasswordTimeout(hostAndPort, username, password, scpTimeout)
 	if err != nil {
 		log.Error("Login scp hostAndPort %s, username %s, password %s error: %s", hostAndPort, username, password, err)
-		return imageRecord, string(outputByteSlice), err
+		return imageRecord, outputBuffer.String(), err
 	}
 	defer client.Close()
 
@@ -451,7 +457,7 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 	localFilePath := workingDirectory + string(os.PathSeparator) + compressFileName
 	if err := client.Download(remoteFilePath, localFilePath); err != nil {
 		log.Error("Download remoteFilePath %s localFilePath %s with scp error: %s", remoteFilePath, localFilePath, err)
-		return imageRecord, string(outputByteSlice), err
+		return imageRecord, outputBuffer.String(), err
 	}
 
 	unpackageCommandSlice := strings.Split(unpackageCommand, " ")
@@ -459,21 +465,19 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 
 	command := exec.Command(unpackageCommandSlice[0], unpackageCommandSlice[1:]...)
 	command.Dir = workingDirectory
-	out, err := command.CombinedOutput()
-	outputByteSlice = append(outputByteSlice, out...)
+	_, _, err = executeCommandAndTailTheOutput(command, outputBuffer, outputFile)
 	if err != nil {
 		log.Error("Unpackage compress file %s error: %s", unpackageCommand, err)
-		return imageRecord, string(outputByteSlice), err
+		return imageRecord, outputBuffer.String(), err
 	}
 
 	if sourceCodeMakeScript != "" {
 		command = exec.Command(sourceCodeMakeScript)
 		command.Dir = workingDirectory + string(os.PathSeparator) + sourceCodeProject
-		out, err = command.CombinedOutput()
-		outputByteSlice = append(outputByteSlice, out...)
+		_, _, err = executeCommandAndTailTheOutput(command, outputBuffer, outputFile)
 		if err != nil {
 			log.Error("Run make script %s error: %s", imageInformation, err)
-			return imageRecord, string(outputByteSlice), err
+			return imageRecord, outputBuffer.String(), err
 		}
 	}
 
@@ -485,7 +489,7 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 			sourceCodeProject + string(os.PathSeparator) + versionFile)
 		if err != nil {
 			log.Error("Open version file error: %s", err)
-			return imageRecord, string(outputByteSlice), err
+			return imageRecord, outputBuffer.String(), err
 		}
 		defer inputFile.Close()
 
@@ -496,7 +500,7 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 			n, err := inputFile.Read(buffer)
 			if err != nil && err != io.EOF {
 				log.Error("Read version file error: %s", err)
-				return imageRecord, string(outputByteSlice), err
+				return imageRecord, outputBuffer.String(), err
 			}
 			if n == 0 {
 				break
@@ -517,7 +521,7 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 			sourceCodeProject + string(os.PathSeparator) + environmentFile)
 		if err != nil {
 			log.Error("Open environment file error: %s", err)
-			return imageRecord, string(outputByteSlice), err
+			return imageRecord, outputBuffer.String(), err
 		}
 		defer inputFile.Close()
 
@@ -528,7 +532,7 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 			n, err := inputFile.Read(buffer)
 			if err != nil && err != io.EOF {
 				log.Error("Read environment file error: %s", err)
-				return imageRecord, string(outputByteSlice), err
+				return imageRecord, outputBuffer.String(), err
 			}
 			if n == 0 {
 				break
@@ -541,7 +545,7 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 		err = json.Unmarshal(byteSlice, &jsonMap)
 		if err != nil {
 			log.Error("Unmarshal environment file error: %s", err)
-			return imageRecord, string(outputByteSlice), err
+			return imageRecord, outputBuffer.String(), err
 		}
 
 		for key, value := range jsonMap {
@@ -555,33 +559,37 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 
 	command = exec.Command("docker", "build", "-t", imageRecord.Path, sourceCodeDirectory)
 	command.Dir = workingDirectory + string(os.PathSeparator) + sourceCodeProject
-	out, err = command.CombinedOutput()
-	outputByteSlice = append(outputByteSlice, out...)
+	_, _, err = executeCommandAndTailTheOutput(command, outputBuffer, outputFile)
 	if err != nil {
 		log.Error("Docker build %s error: %s", imageInformation, err)
-		return imageRecord, string(outputByteSlice), err
+		return imageRecord, outputBuffer.String(), err
 	}
 
 	command = exec.Command("docker", "push", imageRecord.Path)
 	command.Dir = workingDirectory + string(os.PathSeparator) + sourceCodeProject
-	out, err = command.CombinedOutput()
-	outputByteSlice = append(outputByteSlice, out...)
+	_, _, err = executeCommandAndTailTheOutput(command, outputBuffer, outputFile)
 	if err != nil {
 		log.Error("Docker push %s error: %s", imageInformation, err)
-		return imageRecord, string(outputByteSlice), err
+		return imageRecord, outputBuffer.String(), err
 	}
 
 	// Remove working space
 	os.RemoveAll(workingDirectory)
 
+	// Remove the output file used for tail during the process
+	os.Remove(GetProcessingOutMessageFilePathAndName(imageInformation.Name))
+
 	// Success
 	imageRecord.Failure = false
 
-	return imageRecord, string(outputByteSlice), nil
+	return imageRecord, outputBuffer.String(), nil
 }
 
 func BuildFromSFTP(imageInformation *ImageInformation, description string) (*ImageRecord, string, error) {
-	outputByteSlice := make([]byte, 0)
+	// OutputBuffer for the whole result
+	// OutputFile for external tail
+	outputBuffer := &bytes.Buffer{}
+	outputFile, err := os.Create(GetProcessingOutMessageFilePathAndName(imageInformation.Name))
 
 	imageRecord := &ImageRecord{}
 	imageRecord.ImageInformation = imageInformation.Name
@@ -612,7 +620,7 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 		err := os.MkdirAll(workingDirectory, os.ModePerm)
 		if err != nil {
 			log.Error("Create non-existing directory %s error: %s", workingDirectory, err)
-			return imageRecord, string(outputByteSlice), err
+			return imageRecord, outputBuffer.String(), err
 		}
 	}
 
@@ -626,11 +634,10 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 	if sourceCodeMakeScript != "" {
 		command := exec.Command(sourceCodeMakeScript)
 		command.Dir = workingDirectory + string(os.PathSeparator) + sourceCodeProject
-		out, err := command.CombinedOutput()
-		outputByteSlice = append(outputByteSlice, out...)
+		_, _, err = executeCommandAndTailTheOutput(command, outputBuffer, outputFile)
 		if err != nil {
 			log.Error("Run make script %s error: %s", imageInformation, err)
-			return imageRecord, string(outputByteSlice), err
+			return imageRecord, outputBuffer.String(), err
 		}
 	}
 
@@ -642,7 +649,7 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 			sourceCodeProject + string(os.PathSeparator) + versionFile)
 		if err != nil {
 			log.Error("Open version file error: %s", err)
-			return imageRecord, string(outputByteSlice), err
+			return imageRecord, outputBuffer.String(), err
 		}
 		defer inputFile.Close()
 
@@ -653,7 +660,7 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 			n, err := inputFile.Read(buffer)
 			if err != nil && err != io.EOF {
 				log.Error("Read version file error: %s", err)
-				return imageRecord, string(outputByteSlice), err
+				return imageRecord, outputBuffer.String(), err
 			}
 			if n == 0 {
 				break
@@ -674,7 +681,7 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 			sourceCodeProject + string(os.PathSeparator) + environmentFile)
 		if err != nil {
 			log.Error("Open environment file error: %s", err)
-			return imageRecord, string(outputByteSlice), err
+			return imageRecord, outputBuffer.String(), err
 		}
 		defer inputFile.Close()
 
@@ -685,7 +692,7 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 			n, err := inputFile.Read(buffer)
 			if err != nil && err != io.EOF {
 				log.Error("Read environment file error: %s", err)
-				return imageRecord, string(outputByteSlice), err
+				return imageRecord, outputBuffer.String(), err
 			}
 			if n == 0 {
 				break
@@ -698,7 +705,7 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 		err = json.Unmarshal(byteSlice, &jsonMap)
 		if err != nil {
 			log.Error("Unmarshal environment file error: %s", err)
-			return imageRecord, string(outputByteSlice), err
+			return imageRecord, outputBuffer.String(), err
 		}
 
 		for key, value := range jsonMap {
@@ -712,29 +719,30 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 
 	command := exec.Command("docker", "build", "-t", imageRecord.Path, sourceCodeDirectory)
 	command.Dir = workingDirectory + string(os.PathSeparator) + sourceCodeProject
-	out, err := command.CombinedOutput()
-	outputByteSlice = append(outputByteSlice, out...)
+	_, _, err = executeCommandAndTailTheOutput(command, outputBuffer, outputFile)
 	if err != nil {
 		log.Error("Docker build %s error: %s", imageInformation, err)
-		return imageRecord, string(outputByteSlice), err
+		return imageRecord, outputBuffer.String(), err
 	}
 
 	command = exec.Command("docker", "push", imageRecord.Path)
 	command.Dir = workingDirectory + string(os.PathSeparator) + sourceCodeProject
-	out, err = command.CombinedOutput()
-	outputByteSlice = append(outputByteSlice, out...)
+	_, _, err = executeCommandAndTailTheOutput(command, outputBuffer, outputFile)
 	if err != nil {
 		log.Error("Docker push %s error: %s", imageInformation, err)
-		return imageRecord, string(outputByteSlice), err
+		return imageRecord, outputBuffer.String(), err
 	}
 
 	// Remove working space
 	os.RemoveAll(workingDirectory)
 
+	// Remove the output file used for tail during the process
+	os.Remove(GetProcessingOutMessageFilePathAndName(imageInformation.Name))
+
 	// Success
 	imageRecord.Failure = false
 
-	return imageRecord, string(outputByteSlice), nil
+	return imageRecord, outputBuffer.String(), nil
 }
 
 func SendBuildLog(imageRecord *ImageRecord, outputMessage string) error {
@@ -768,4 +776,80 @@ func SendBuildLog(imageRecord *ImageRecord, outputMessage string) error {
 	}
 
 	return err
+}
+
+const (
+	processOutMessageFilePathAndNamePrefix = "/tmp/processingBuildLog"
+)
+
+func TouchOutMessageFile(imageInformation string) error {
+	outputFile, err := os.Create(GetProcessingOutMessageFilePathAndName(imageInformation))
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	outputFile.WriteString("\n")
+	outputFile.Close()
+	return nil
+}
+
+func GetProcessingOutMessageFilePathAndName(imageInformationName string) string {
+	return processOutMessageFilePathAndNamePrefix + imageInformationName
+}
+
+func executeCommandAndTailTheOutput(command *exec.Cmd, outputBuffer *bytes.Buffer, outputFile *os.File) (string, int, error) {
+	if command == nil {
+		log.Error("Command can't be nil")
+		return "", 0, errors.New("Command can't be nil")
+	}
+
+	buffer := bytes.Buffer{}
+
+	readCloser, err := command.StdoutPipe()
+	if err != nil {
+		log.Error(err)
+		return "", 0, err
+	}
+	scanner := bufio.NewScanner(readCloser)
+
+	go func() {
+		for scanner.Scan() {
+			byteSlice := scanner.Bytes()
+
+			buffer.Write(byteSlice)
+			buffer.WriteByte('\n')
+
+			if outputBuffer != nil {
+				outputBuffer.Write(byteSlice)
+				outputBuffer.WriteByte('\n')
+			}
+			if outputFile != nil {
+				outputFile.Write(byteSlice)
+				outputFile.WriteString("\n")
+			}
+		}
+	}()
+
+	err = command.Start()
+	if err != nil {
+		log.Error(err)
+		return "", 0, err
+	}
+
+	err = command.Wait()
+	exitError, exitErrorOk := err.(*exec.ExitError)
+	if exitErrorOk {
+		status, statusOk := exitError.Sys().(syscall.WaitStatus)
+		if statusOk {
+			// Non zero exit status code
+			return buffer.String(), status.ExitStatus(), err
+		}
+	}
+
+	if err != nil {
+		log.Error(err)
+		return buffer.String(), 0, err
+	}
+
+	return buffer.String(), 0, nil
 }
