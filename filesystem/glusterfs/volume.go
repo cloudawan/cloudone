@@ -36,6 +36,19 @@ type GlusterfsVolume struct {
 	Size           int
 }
 
+type GlusterfsVolumeCreateParameter struct {
+	ClusterName  string
+	VolumeName   string
+	Stripe       int
+	Replica      int
+	Arbiter      int
+	Disperse     int
+	DisperseData int
+	Redundancy   int
+	Transport    string
+	HostSlice    []string
+}
+
 func (glusterfsCluster *GlusterfsCluster) parseSize(field string) (returnedSize int, returnedError error) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -237,9 +250,7 @@ func (glusterfsCluster *GlusterfsCluster) GetVolume(name string) (*GlusterfsVolu
 	}
 }
 
-func (glusterfsCluster *GlusterfsCluster) CreateVolume(name string,
-	stripe int, replica int, transport string, hostSlice []string) error {
-
+func (glusterfsCluster *GlusterfsCluster) CreateVolume(glusterfsVolumeCreateParameter *GlusterfsVolumeCreateParameter) error {
 	host, err := glusterfsCluster.getAvailableHost()
 	if err != nil {
 		return err
@@ -247,21 +258,39 @@ func (glusterfsCluster *GlusterfsCluster) CreateVolume(name string,
 
 	commandBuffer := bytes.Buffer{}
 	commandBuffer.WriteString("sudo gluster --mode=script volume create ")
-	commandBuffer.WriteString(name)
+	commandBuffer.WriteString(glusterfsVolumeCreateParameter.VolumeName)
 
-	if stripe > 0 {
+	if glusterfsVolumeCreateParameter.Stripe > 0 {
 		commandBuffer.WriteString(" stripe ")
-		commandBuffer.WriteString(strconv.Itoa(stripe))
+		commandBuffer.WriteString(strconv.Itoa(glusterfsVolumeCreateParameter.Stripe))
 	}
-	if replica > 0 {
+	if glusterfsVolumeCreateParameter.Replica > 0 {
 		commandBuffer.WriteString(" replica ")
-		commandBuffer.WriteString(strconv.Itoa(replica))
+		commandBuffer.WriteString(strconv.Itoa(glusterfsVolumeCreateParameter.Replica))
 	}
+	if glusterfsVolumeCreateParameter.Arbiter > 0 {
+		commandBuffer.WriteString(" arbiter ")
+		commandBuffer.WriteString(strconv.Itoa(glusterfsVolumeCreateParameter.Arbiter))
+	}
+	if glusterfsVolumeCreateParameter.Disperse > 0 {
+		commandBuffer.WriteString(" disperse ")
+		commandBuffer.WriteString(strconv.Itoa(glusterfsVolumeCreateParameter.Disperse))
+	}
+	if glusterfsVolumeCreateParameter.DisperseData > 0 {
+		commandBuffer.WriteString(" disperse-data ")
+		commandBuffer.WriteString(strconv.Itoa(glusterfsVolumeCreateParameter.DisperseData))
+	}
+	if glusterfsVolumeCreateParameter.Redundancy > 0 {
+		commandBuffer.WriteString(" redundancy ")
+		commandBuffer.WriteString(strconv.Itoa(glusterfsVolumeCreateParameter.Redundancy))
+	}
+
+	// <tcp|rdma|tcp,rdma>
 	commandBuffer.WriteString(" transport ")
-	commandBuffer.WriteString(transport)
+	commandBuffer.WriteString(glusterfsVolumeCreateParameter.Transport)
 	uuid := random.UUID()
-	for _, ip := range hostSlice {
-		path := " " + ip + ":" + glusterfsCluster.Path + "/" + name + "_" + uuid
+	for _, ip := range glusterfsVolumeCreateParameter.HostSlice {
+		path := " " + ip + ":" + glusterfsCluster.Path + "/" + glusterfsVolumeCreateParameter.VolumeName + "_" + uuid
 		commandBuffer.WriteString(path)
 	}
 	commandBuffer.WriteString(" force\n")
@@ -282,17 +311,23 @@ func (glusterfsCluster *GlusterfsCluster) CreateVolume(name string,
 		interactiveMap)
 
 	if err != nil {
-		log.Error("Create volume error %s resultSlice %s", err, resultSlice)
+		log.Error("Create volume error %s resultSlice %v", err, resultSlice)
 		return err
-	} else {
-		if strings.Contains(resultSlice[0], "success") {
-			return nil
-		} else {
-			log.Debug("Issue command: " + commandBuffer.String())
-			log.Error("Fail to create volume with error: " + resultSlice[0])
-			return errors.New(resultSlice[0])
-		}
 	}
+
+	if strings.Contains(resultSlice[0], "success") == false {
+		log.Debug("Issue command: " + commandBuffer.String())
+		log.Error("Fail to create volume with error: " + resultSlice[0])
+		return errors.New(resultSlice[0])
+	}
+
+	err = GetStorage().SaveGlusterfsVolumeCreateParameter(glusterfsVolumeCreateParameter)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	return nil
 }
 
 func (glusterfsCluster *GlusterfsCluster) StartVolume(name string) error {
@@ -404,15 +439,21 @@ func (glusterfsCluster *GlusterfsCluster) DeleteVolume(name string) error {
 	if err != nil {
 		log.Error("Create volume error %s resultSlice %s", err, resultSlice)
 		return err
-	} else {
-		if strings.Contains(resultSlice[0], "success") {
-			return nil
-		} else {
-			log.Debug("Issue command: " + commandBuffer.String())
-			log.Error("Fail to delete volume with error: " + resultSlice[0])
-			return errors.New(resultSlice[0])
-		}
 	}
+
+	if strings.Contains(resultSlice[0], "success") == false {
+		log.Debug("Issue command: " + commandBuffer.String())
+		log.Error("Fail to delete volume with error: " + resultSlice[0])
+		return errors.New(resultSlice[0])
+	}
+
+	err = GetStorage().DeleteGlusterfsVolumeCreateParameter(glusterfsCluster.Name, name)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	return nil
 }
 
 func (glusterfsCluster *GlusterfsCluster) CleanDataOnDisk(glusterfsVolume *GlusterfsVolume) error {
@@ -451,6 +492,51 @@ func (glusterfsCluster *GlusterfsCluster) CleanDataOnDisk(glusterfsVolume *Glust
 				return err
 			}
 		}
+	}
+
+	return nil
+}
+
+func (glusterfsCluster *GlusterfsCluster) DeleteAndRecreateVolume(name string) error {
+	glusterfsVolume, err := glusterfsCluster.GetVolume(name)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	glusterfsVolumeCreateParameter, err := GetStorage().LoadGlusterfsVolumeCreateParameter(glusterfsCluster.Name, name)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	err = glusterfsCluster.StopVolume(name)
+	if err != nil {
+		log.Error(err)
+		//return err
+	}
+
+	err = glusterfsCluster.DeleteVolume(name)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	// Delete data on disk in asynchronized way since it may take hours
+	go func() {
+		glusterfsCluster.CleanDataOnDisk(glusterfsVolume)
+	}()
+
+	err = glusterfsCluster.CreateVolume(glusterfsVolumeCreateParameter)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	err = glusterfsCluster.StartVolume(name)
+	if err != nil {
+		log.Error(err)
+		return err
 	}
 
 	return nil

@@ -82,4 +82,8 @@ type Storage interface {
 	SaveGlusterfsCluster(glusterfsCluster *GlusterfsCluster) error
 	LoadGlusterfsCluster(name string) (*GlusterfsCluster, error)
 	LoadAllGlusterfsCluster() ([]GlusterfsCluster, error)
+	DeleteGlusterfsVolumeCreateParameter(clusterName string, volumeName string) error
+	SaveGlusterfsVolumeCreateParameter(glusterfsVolumeCreateParameter *GlusterfsVolumeCreateParameter) error
+	LoadGlusterfsVolumeCreateParameter(clusterName string, volumeName string) (*GlusterfsVolumeCreateParameter, error)
+	LoadAllGlusterfsVolumeCreateParameter(clusterName string) ([]GlusterfsVolumeCreateParameter, error)
 }

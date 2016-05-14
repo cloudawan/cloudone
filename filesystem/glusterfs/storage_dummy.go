@@ -65,3 +65,19 @@ func (storageDummy *StorageDummy) LoadGlusterfsCluster(name string) (*GlusterfsC
 func (storageDummy *StorageDummy) LoadAllGlusterfsCluster() ([]GlusterfsCluster, error) {
 	return nil, &storageDummy.dummyError
 }
+
+func (storageDummy *StorageDummy) DeleteGlusterfsVolumeCreateParameter(clusterName string, volumeName string) error {
+	return &storageDummy.dummyError
+}
+
+func (storageDummy *StorageDummy) SaveGlusterfsVolumeCreateParameter(glusterfsVolumeCreateParameter *GlusterfsVolumeCreateParameter) error {
+	return &storageDummy.dummyError
+}
+
+func (storageDummy *StorageDummy) LoadGlusterfsVolumeCreateParameter(clusterName string, volumeName string) (*GlusterfsVolumeCreateParameter, error) {
+	return nil, &storageDummy.dummyError
+}
+
+func (storageDummy *StorageDummy) LoadAllGlusterfsVolumeCreateParameter(clusterName string) ([]GlusterfsVolumeCreateParameter, error) {
+	return nil, &storageDummy.dummyError
+}

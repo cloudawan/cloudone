@@ -30,6 +30,11 @@ func (storageEtcd *StorageEtcd) initialize() error {
 		return err
 	}
 
+	if err := etcd.EtcdClient.CreateDirectoryIfNotExist(etcd.EtcdClient.EtcdBasePath + "/glusterfs_volume_create_parameter"); err != nil {
+		log.Error("Create if not existing glusterfs volume create parameter directory error: %s", err)
+		return err
+	}
+
 	return nil
 }
 
@@ -127,4 +132,104 @@ func (storageEtcd *StorageEtcd) LoadAllGlusterfsCluster() ([]GlusterfsCluster, e
 	}
 
 	return glusterfsClusterSlice, nil
+}
+
+func (storageEtcd *StorageEtcd) DeleteGlusterfsVolumeCreateParameter(clusterName string, volumeName string) error {
+	keysAPI, err := etcd.EtcdClient.GetKeysAPI()
+	if err != nil {
+		log.Error("Get keysAPI error %s", err)
+		return err
+	}
+
+	response, err := keysAPI.Delete(context.Background(), etcd.EtcdClient.EtcdBasePath+"/glusterfs_volume_create_parameter/"+clusterName+"/"+volumeName, nil)
+	if err != nil {
+		log.Error("Delete glusterfs volume create parameter with clusterName %s volumeName %s error: %s", clusterName, volumeName, err)
+		log.Error(response)
+		return err
+	}
+
+	return nil
+}
+
+func (storageEtcd *StorageEtcd) SaveGlusterfsVolumeCreateParameter(glusterfsVolumeCreateParameter *GlusterfsVolumeCreateParameter) error {
+	keysAPI, err := etcd.EtcdClient.GetKeysAPI()
+	if err != nil {
+		log.Error("Get keysAPI error %s", err)
+		return err
+	}
+
+	byteSlice, err := json.Marshal(glusterfsVolumeCreateParameter)
+	if err != nil {
+		log.Error("Marshal glusterfs volume create parameter %v error %s", glusterfsVolumeCreateParameter, err)
+		return err
+	}
+
+	response, err := keysAPI.Set(context.Background(), etcd.EtcdClient.EtcdBasePath+"/glusterfs_volume_create_parameter/"+glusterfsVolumeCreateParameter.ClusterName+"/"+glusterfsVolumeCreateParameter.VolumeName, string(byteSlice), nil)
+	if err != nil {
+		log.Error("Save glusterfs volume create parameter %v error: %s", glusterfsVolumeCreateParameter, err)
+		log.Error(response)
+		return err
+	}
+
+	return nil
+}
+
+func (storageEtcd *StorageEtcd) LoadGlusterfsVolumeCreateParameter(clusterName string, volumeName string) (*GlusterfsVolumeCreateParameter, error) {
+	keysAPI, err := etcd.EtcdClient.GetKeysAPI()
+	if err != nil {
+		log.Error("Get keysAPI error %s", err)
+		return nil, err
+	}
+
+	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/glusterfs_volume_create_parameter/"+clusterName+"/"+volumeName, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		return nil, etcdError
+	}
+	if err != nil {
+		log.Error("Load glusterfs volume create parameter with clusterName %s volumeName %s error: %s", clusterName, volumeName, err)
+		log.Error(response)
+		return nil, err
+	}
+
+	glusterfsVolumeCreateParameter := new(GlusterfsVolumeCreateParameter)
+	err = json.Unmarshal([]byte(response.Node.Value), &glusterfsVolumeCreateParameter)
+	if err != nil {
+		log.Error("Unmarshal glusterfs volume create parameter %v error %s", response.Node.Value, err)
+		return nil, err
+	}
+
+	return glusterfsVolumeCreateParameter, nil
+}
+
+func (storageEtcd *StorageEtcd) LoadAllGlusterfsVolumeCreateParameter(clusterName string) ([]GlusterfsVolumeCreateParameter, error) {
+	keysAPI, err := etcd.EtcdClient.GetKeysAPI()
+	if err != nil {
+		log.Error("Get keysAPI error %s", err)
+		return nil, err
+	}
+
+	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/glusterfs_volume_create_parameter/"+clusterName, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		return nil, etcdError
+	}
+	if err != nil {
+		log.Error("Load all glusterfs volume create parameter with clusterName %s error: %s", clusterName, err)
+		log.Error(response)
+		return nil, err
+	}
+
+	glusterfsVolumeCreateParameterSlice := make([]GlusterfsVolumeCreateParameter, 0)
+	for _, node := range response.Node.Nodes {
+		glusterfsVolumeCreateParameter := GlusterfsVolumeCreateParameter{}
+		err := json.Unmarshal([]byte(node.Value), &glusterfsVolumeCreateParameter)
+		if err != nil {
+			log.Error("Unmarshal glusterfs volume create parameter %v error %s", node.Value, err)
+			return nil, err
+		}
+		glusterfsVolumeCreateParameterSlice = append(glusterfsVolumeCreateParameterSlice, glusterfsVolumeCreateParameter)
+	}
+
+	return glusterfsVolumeCreateParameterSlice, nil
 }
