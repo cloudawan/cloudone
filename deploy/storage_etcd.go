@@ -56,6 +56,12 @@ func (storageEtcd *StorageEtcd) DeleteDeployInformation(namespace string, imageI
 
 	key := storageEtcd.getKeyDeployInformation(namespace, imageInformation)
 	response, err := keysAPI.Delete(context.Background(), etcd.EtcdClient.EtcdBasePath+"/deploy_information/"+key, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		log.Debug(err)
+		log.Debug(response)
+		return nil
+	}
 	if err != nil {
 		log.Error("Delete deploy information with namespace %s imageInformation %s error: %s", namespace, imageInformation, err)
 		log.Error(response)
@@ -154,6 +160,12 @@ func (storageEtcd *StorageEtcd) DeleteDeployBlueGreen(imageInformation string) e
 	}
 
 	response, err := keysAPI.Delete(context.Background(), etcd.EtcdClient.EtcdBasePath+"/deploy_blue_green/"+imageInformation, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		log.Debug(err)
+		log.Debug(response)
+		return nil
+	}
 	if err != nil {
 		log.Error("Delete deploy blue green with image information %s error: %s", imageInformation, err)
 		log.Error(response)
@@ -255,6 +267,12 @@ func (storageEtcd *StorageEtcd) DeleteDeployClusterApplication(namespace string,
 
 	key := storageEtcd.getKeyDeployClusterApplication(namespace, name)
 	response, err := keysAPI.Delete(context.Background(), etcd.EtcdClient.EtcdBasePath+"/deploy_cluster_application/"+key, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		log.Debug(err)
+		log.Debug(response)
+		return nil
+	}
 	if err != nil {
 		log.Error("Delete deploy cluster application with namespace %s name %s error: %s", namespace, name, err)
 		log.Error(response)

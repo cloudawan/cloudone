@@ -41,6 +41,12 @@ func (storageEtcd *StorageEtcd) DeleteTopology(name string) error {
 	}
 
 	response, err := keysAPI.Delete(context.Background(), etcd.EtcdClient.EtcdBasePath+"/topology/"+name, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		log.Debug(err)
+		log.Debug(response)
+		return nil
+	}
 	if err != nil {
 		log.Error("Delete topology with name %s error: %s", name, err)
 		log.Error(response)

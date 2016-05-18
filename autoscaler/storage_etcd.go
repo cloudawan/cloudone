@@ -46,6 +46,12 @@ func (storageEtcd *StorageEtcd) DeleteReplicationControllerAutoScaler(namespace 
 
 	key := storageEtcd.getKeyAutoScaler(namespace, kind, name)
 	response, err := keysAPI.Delete(context.Background(), etcd.EtcdClient.EtcdBasePath+"/auto_scaler/"+key, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		log.Debug(err)
+		log.Debug(response)
+		return nil
+	}
 	if err != nil {
 		log.Error("Delete auto scaler with namespace %s kind %s name %s error: %s", namespace, kind, name, err)
 		log.Error(response)

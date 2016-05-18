@@ -41,6 +41,12 @@ func (storageEtcd *StorageEtcd) deleteLock(name string) error {
 	}
 
 	response, err := keysAPI.Delete(context.Background(), etcd.EtcdClient.EtcdBasePath+"/lock/"+name, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		log.Debug(err)
+		log.Debug(response)
+		return nil
+	}
 	if err != nil {
 		log.Error("Delete lock with name %s error: %s", name, err)
 		log.Error(response)

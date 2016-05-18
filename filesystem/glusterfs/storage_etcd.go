@@ -46,6 +46,12 @@ func (storageEtcd *StorageEtcd) DeleteGlusterfsCluster(name string) error {
 	}
 
 	response, err := keysAPI.Delete(context.Background(), etcd.EtcdClient.EtcdBasePath+"/glusterfs_cluster/"+name, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		log.Debug(err)
+		log.Debug(response)
+		return nil
+	}
 	if err != nil {
 		log.Error("Delete glusterfs cluster with name %s error: %s", name, err)
 		log.Error(response)
@@ -142,6 +148,12 @@ func (storageEtcd *StorageEtcd) DeleteGlusterfsVolumeCreateParameter(clusterName
 	}
 
 	response, err := keysAPI.Delete(context.Background(), etcd.EtcdClient.EtcdBasePath+"/glusterfs_volume_create_parameter/"+clusterName+"/"+volumeName, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		log.Debug(err)
+		log.Debug(response)
+		return nil
+	}
 	if err != nil {
 		log.Error("Delete glusterfs volume create parameter with clusterName %s volumeName %s error: %s", clusterName, volumeName, err)
 		log.Error(response)

@@ -56,6 +56,12 @@ func (storageEtcd *StorageEtcd) DeleteReplicationControllerNotifierSerializable(
 
 	key := storageEtcd.getKeyAutoScaler(namespace, kind, name)
 	response, err := keysAPI.Delete(context.Background(), etcd.EtcdClient.EtcdBasePath+"/notifier/"+key, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		log.Debug(err)
+		log.Debug(response)
+		return nil
+	}
 	if err != nil {
 		log.Error("Delete notifier with namespace %s kind %s name %s error: %s", namespace, kind, name, err)
 		log.Error(response)
@@ -154,6 +160,12 @@ func (storageEtcd *StorageEtcd) DeleteEmailServerSMTP(name string) error {
 	}
 
 	response, err := keysAPI.Delete(context.Background(), etcd.EtcdClient.EtcdBasePath+"/email_server_smtp/"+name, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		log.Debug(err)
+		log.Debug(response)
+		return nil
+	}
 	if err != nil {
 		log.Error("Delete email server smtp with name %s error: %s", name, err)
 		log.Error(response)
@@ -250,6 +262,12 @@ func (storageEtcd *StorageEtcd) DeleteSMSNexmo(name string) error {
 	}
 
 	response, err := keysAPI.Delete(context.Background(), etcd.EtcdClient.EtcdBasePath+"/sms_nexmo/"+name, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		log.Debug(err)
+		log.Debug(response)
+		return nil
+	}
 	if err != nil {
 		log.Error("Delete sms nexmo with name %s error: %s", name, err)
 		log.Error(response)

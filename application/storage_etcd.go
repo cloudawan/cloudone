@@ -46,6 +46,12 @@ func (storageEtcd *StorageEtcd) DeleteStatelessApplication(name string) error {
 	}
 
 	response, err := keysAPI.Delete(context.Background(), etcd.EtcdClient.EtcdBasePath+"/stateless_application/"+name, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		log.Debug(err)
+		log.Debug(response)
+		return nil
+	}
 	if err != nil {
 		log.Error("Delete stateless application with name %s error: %s", name, err)
 		log.Error(response)
@@ -142,6 +148,12 @@ func (storageEtcd *StorageEtcd) DeleteClusterApplication(name string) error {
 	}
 
 	response, err := keysAPI.Delete(context.Background(), etcd.EtcdClient.EtcdBasePath+"/cluster_application/"+name, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		log.Debug(err)
+		log.Debug(response)
+		return nil
+	}
 	if err != nil {
 		log.Error("Delete cluster application with name %s error: %s", name, err)
 		log.Error(response)

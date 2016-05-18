@@ -51,6 +51,12 @@ func (storageEtcd *StorageEtcd) DeleteImageInformationAndRelatedRecord(name stri
 	}
 
 	response, err := keysAPI.Delete(context.Background(), etcd.EtcdClient.EtcdBasePath+"/image_information/"+name, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		log.Debug(err)
+		log.Debug(response)
+		return nil
+	}
 	if err != nil {
 		log.Error("Delete image information with name %s error: %s", name, err)
 		log.Error(response)
@@ -147,6 +153,12 @@ func (storageEtcd *StorageEtcd) DeleteImageRecord(imageInformationName string, v
 	}
 
 	response, err := keysAPI.Delete(context.Background(), etcd.EtcdClient.EtcdBasePath+"/image_record/"+imageInformationName+"/"+version, nil)
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		log.Debug(err)
+		log.Debug(response)
+		return nil
+	}
 	if err != nil {
 		log.Error("Delete image record with image information %s version %s error: %s", imageInformationName, version, err)
 		log.Error(response)
@@ -164,6 +176,12 @@ func (storageEtcd *StorageEtcd) deleteImageRecordWithImageInformationName(imageI
 	}
 
 	response, err := keysAPI.Delete(context.Background(), etcd.EtcdClient.EtcdBasePath+"/image_record/"+imageInformationName, &client.DeleteOptions{Recursive: true})
+	etcdError, _ := err.(client.Error)
+	if etcdError.Code == client.ErrorCodeKeyNotFound {
+		log.Debug(err)
+		log.Debug(response)
+		return nil
+	}
 	if err != nil {
 		log.Error("Delete image record with image information %s error: %s", imageInformationName, err)
 		log.Error(response)
