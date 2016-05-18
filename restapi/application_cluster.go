@@ -63,7 +63,7 @@ func registerWebServiceClusterApplication() {
 	ws.Route(ws.DELETE("/{clusterapplication}").Filter(authorize).Filter(auditLog).To(deleteClusterApplication).
 		Doc("Delete an cluster application").
 		Param(ws.PathParameter("clusterapplication", "Cluster application name").DataType("string")).
-		Do(returns200, returns404, returns500))
+		Do(returns200, returns403, returns404, returns500))
 
 	ws.Route(ws.POST("/launch/{namespace}/{clusterapplication}").Filter(authorize).Filter(auditLog).To(postLaunchClusterApplication).
 		Doc("Launch a cluster application").
@@ -137,7 +137,33 @@ func postClusterApplication(request *restful.Request, response *restful.Response
 
 func deleteClusterApplication(request *restful.Request, response *restful.Response) {
 	name := request.PathParameter("clusterapplication")
-	err := application.GetStorage().DeleteClusterApplication(name)
+
+	deployClusterApplicationSlice, err := deploy.GetAllDeployClusterApplication()
+	if err != nil {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get all cluster application deployment failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["name"] = name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
+		return
+	}
+
+	for _, deployClusterApplication := range deployClusterApplicationSlice {
+		if deployClusterApplication.Name == name {
+			jsonMap := make(map[string]interface{})
+			jsonMap["Error"] = "Used template"
+			jsonMap["ErrorMessage"] = "There is at least one deployment using this template"
+			jsonMap["name"] = name
+			errorMessageByteSlice, _ := json.Marshal(jsonMap)
+			log.Error(jsonMap)
+			response.WriteErrorString(403, string(errorMessageByteSlice))
+			return
+		}
+	}
+
+	err = application.GetStorage().DeleteClusterApplication(name)
 	if err != nil {
 		jsonMap := make(map[string]interface{})
 		jsonMap["Error"] = "Delete cluster application failure"

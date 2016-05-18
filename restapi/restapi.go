@@ -95,6 +95,10 @@ func returns400(b *restful.RouteBuilder) {
 	b.Returns(http.StatusBadRequest, "Bad request", nil)
 }
 
+func returns403(b *restful.RouteBuilder) {
+	b.Returns(http.StatusForbidden, "Forbidden", nil)
+}
+
 func returns404(b *restful.RouteBuilder) {
 	b.Returns(http.StatusNotFound, "Not found", nil)
 }
