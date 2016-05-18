@@ -282,12 +282,6 @@ func ResizeDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespa
 }
 
 func DeleteDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespace string, name string) error {
-	cluster, err := application.GetStorage().LoadClusterApplication(name)
-	if err != nil {
-		log.Error("Load cluster application error %s", err)
-		return err
-	}
-
 	deployClusterApplication, err := GetDeployClusterApplication(namespace, name)
 	if err != nil {
 		log.Error("Get deploy cluster application error %s", err)
@@ -298,6 +292,12 @@ func DeleteDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespa
 	err = GetStorage().DeleteDeployClusterApplication(namespace, name)
 	if err != nil {
 		log.Error("Delete the deploy cluster application error %s", err)
+		return err
+	}
+
+	cluster, err := application.GetStorage().LoadClusterApplication(name)
+	if err != nil {
+		log.Error("Load cluster application error %s", err)
 		return err
 	}
 
