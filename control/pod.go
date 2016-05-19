@@ -19,6 +19,7 @@ import (
 	"github.com/cloudawan/cloudone_utility/logger"
 	"github.com/cloudawan/cloudone_utility/restclient"
 	"strconv"
+	"time"
 )
 
 type Pod struct {
@@ -26,14 +27,18 @@ type Pod struct {
 	Namespace      string
 	HostIP         string
 	PodIP          string
+	Phase          string
+	Age            string
 	ContainerSlice []PodContainer
 }
 
 type PodContainer struct {
-	Name        string
-	Image       string
-	ContainerID string
-	PortSlice   []PodContainerPort
+	Name         string
+	Image        string
+	ContainerID  string
+	RestartCount int
+	Ready        bool
+	PortSlice    []PodContainerPort
 }
 
 type PodContainerPort struct {
@@ -161,10 +166,15 @@ func GetAllPodBelongToReplicationControllerFromData(replicationControllerName st
 						containerImage, _ := containerField.(map[string]interface{})["image"].(string)
 
 						containerId := ""
+						containerReady := false
+						containerRestartCount := 0
 						for _, containerStatus := range containerStatusSlice {
 							name, _ := containerStatus.(map[string]interface{})["name"].(string)
 							if name == containerName {
 								containerId, _ = containerStatus.(map[string]interface{})["containerID"].(string)
+								containerReady, _ = containerStatus.(map[string]interface{})["ready"].(bool)
+								restartCount, _ := jsonparse.ConvertToInt64(containerStatus.(map[string]interface{})["restartCount"])
+								containerRestartCount = int(restartCount)
 							}
 						}
 
@@ -172,6 +182,8 @@ func GetAllPodBelongToReplicationControllerFromData(replicationControllerName st
 							containerName,
 							containerImage,
 							containerId,
+							containerRestartCount,
+							containerReady,
 							portSlice,
 						}
 
@@ -180,6 +192,14 @@ func GetAllPodBelongToReplicationControllerFromData(replicationControllerName st
 				}
 
 				namespace, _ := data.(map[string]interface{})["metadata"].(map[string]interface{})["namespace"].(string)
+				creationTimestamp, _ := data.(map[string]interface{})["metadata"].(map[string]interface{})["creationTimestamp"].(string)
+				createdTime, err := time.Parse(time.RFC3339, creationTimestamp)
+				age := ""
+				if err == nil {
+					age = GetTheFirstTimeUnit(time.Now().Sub(createdTime))
+				}
+
+				phase, _ := data.(map[string]interface{})["status"].(map[string]interface{})["phase"].(string)
 				hostIP, _ := data.(map[string]interface{})["status"].(map[string]interface{})["hostIP"].(string)
 				podIP, _ := data.(map[string]interface{})["status"].(map[string]interface{})["podIP"].(string)
 				pod := Pod{
@@ -187,6 +207,8 @@ func GetAllPodBelongToReplicationControllerFromData(replicationControllerName st
 					namespace,
 					hostIP,
 					podIP,
+					phase,
+					age,
 					containerSlice,
 				}
 				podSlice = append(podSlice, pod)
@@ -195,4 +217,21 @@ func GetAllPodBelongToReplicationControllerFromData(replicationControllerName st
 	}
 
 	return podSlice, nil
+}
+
+func GetTheFirstTimeUnit(duration time.Duration) string {
+	second := int(duration / time.Second)
+	minute := int(duration / time.Minute)
+	hour := int(duration / time.Hour)
+	day := hour / 24
+
+	if day > 0 {
+		return strconv.Itoa(day) + "d"
+	} else if hour > 0 {
+		return strconv.Itoa(hour) + "h"
+	} else if minute > 0 {
+		return strconv.Itoa(minute) + "m"
+	} else {
+		return strconv.Itoa(second) + "s"
+	}
 }
