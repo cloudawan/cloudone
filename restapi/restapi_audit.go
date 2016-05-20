@@ -67,7 +67,7 @@ func auditLogWithoutBody(req *restful.Request, resp *restful.Response, chain *re
 func sendAuditLog(token string, requestURI string, method string, path string, requestBody string, queryParameterMap map[string][]string, pathParameterMap map[string]string, remoteAddress string) {
 	// Get cache. If not exsiting, retrieving from authorization server.
 	user := getCache(token)
-	userName := ""
+	userName := "no_user"
 	if user != nil {
 		userName = user.Name
 	}
