@@ -20,6 +20,7 @@ import (
 	"github.com/cloudawan/cloudone/image"
 	"github.com/emicklei/go-restful"
 	"net/http"
+	"strconv"
 )
 
 type ImageInformationCreateInput struct {
@@ -58,6 +59,8 @@ func registerWebServiceImageInformation() {
 
 	ws.Route(ws.PUT("/upgrade").Filter(authorize).Filter(auditLog).To(putImageInformationUpgrade).
 		Doc("Upgrade image build from source code").
+		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
+		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
 		Do(returns200, returns400, returns422, returns500).
 		Reads(ImageInformationUpgradeInput{}))
 }
@@ -177,8 +180,32 @@ func postImageInformationCreate(request *restful.Request, response *restful.Resp
 }
 
 func putImageInformationUpgrade(request *restful.Request, response *restful.Response) {
+	kubeapiHost := request.QueryParameter("kubeapihost")
+	kubeapiPortText := request.QueryParameter("kubeapiport")
+	if kubeapiHost == "" || kubeapiPortText == "" {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost and kubeapiport are required."
+		jsonMap["kubeapiHost"] = kubeapiHost
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
+		return
+	}
+	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
+	if err != nil {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeapiPortText"] = kubeapiPortText
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(400, string(errorMessageByteSlice))
+		return
+	}
+
 	imageInformationUpgradeInput := new(ImageInformationUpgradeInput)
-	err := request.ReadEntity(&imageInformationUpgradeInput)
+	err = request.ReadEntity(&imageInformationUpgradeInput)
 	if err != nil {
 		jsonMap := make(map[string]interface{})
 		jsonMap["Error"] = "Read body failure"
@@ -193,9 +220,37 @@ func putImageInformationUpgrade(request *restful.Request, response *restful.Resp
 	image.TouchOutMessageFile(imageInformationUpgradeInput.ImageInformationName)
 
 	go func() {
-		image.BuildUpgrade(
+		_, err := image.BuildUpgrade(
 			imageInformationUpgradeInput.ImageInformationName,
 			imageInformationUpgradeInput.Description)
+		if err == nil {
+			// Build sccessfully
+			// Auto rolling update the deployment if configured
+			imageInformation, err := image.GetStorage().LoadImageInformation(imageInformationUpgradeInput.ImageInformationName)
+			if err != nil {
+				log.Error(err)
+			} else {
+				deployInformationSlice, err := deploy.GetDeployInformationWithAutoUpdateForNewBuild(imageInformationUpgradeInput.ImageInformationName)
+				if err != nil {
+					log.Error(err)
+				} else {
+					for _, deployInformation := range deployInformationSlice {
+						description := "Trigged by version " + imageInformation.CurrentVersion
+						err := deploy.DeployUpdate(
+							kubeapiHost,
+							kubeapiPort,
+							deployInformation.Namespace,
+							imageInformation.Name,
+							imageInformation.CurrentVersion,
+							description,
+							deployInformation.EnvironmentSlice)
+						if err != nil {
+							log.Error(err)
+						}
+					}
+				}
+			}
+		}
 	}()
 	/*
 		outputMessage, err := image.BuildUpgrade(

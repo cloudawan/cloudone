@@ -46,6 +46,7 @@ type DeployInformation struct {
 	ResourceMap               map[string]interface{}
 	ExtraJsonMap              map[string]interface{}
 	CreatedTime               time.Time
+	AutoUpdateForNewBuild     bool
 }
 
 func GetDeployInformationInNamespace(namespace string) ([]DeployInformation, error) {
@@ -74,7 +75,8 @@ func DeployCreate(
 	deployContainerPortSlice []DeployContainerPort,
 	replicationControllerContainerEnvironmentSlice []control.ReplicationControllerContainerEnvironment,
 	resourceMap map[string]interface{},
-	extraJsonMap map[string]interface{}) error {
+	extraJsonMap map[string]interface{},
+	autoUpdateForNewBuild bool) error {
 	if lock.AcquireLock(LockKind, getLockName(namespace, imageInformationName), 0) == false {
 		return errors.New("Application is under deployment")
 	}
@@ -174,6 +176,7 @@ func DeployCreate(
 		resourceMap,
 		extraJsonMap,
 		time.Now(),
+		autoUpdateForNewBuild,
 	}
 
 	err = GetStorage().saveDeployInformation(deployInformation)
@@ -318,4 +321,20 @@ func IsImageInformationUsed(imageInformationName string) (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+func GetDeployInformationWithAutoUpdateForNewBuild(imageInformationName string) ([]DeployInformation, error) {
+	deployInformationSlice, err := GetStorage().LoadAllDeployInformation()
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	fileteredDeployInformationSlice := make([]DeployInformation, 0)
+	for _, deployInformation := range deployInformationSlice {
+		if deployInformation.AutoUpdateForNewBuild && deployInformation.ImageInformationName == imageInformationName {
+			fileteredDeployInformationSlice = append(fileteredDeployInformationSlice, deployInformation)
+		}
+	}
+	return fileteredDeployInformationSlice, nil
 }

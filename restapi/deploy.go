@@ -24,14 +24,15 @@ import (
 )
 
 type DeployCreateInput struct {
-	ImageInformationName string
-	Version              string
-	Description          string
-	ReplicaAmount        int
-	PortSlice            []deploy.DeployContainerPort
-	EnvironmentSlice     []control.ReplicationControllerContainerEnvironment
-	ResourceMap          map[string]interface{}
-	ExtraJsonMap         map[string]interface{}
+	ImageInformationName  string
+	Version               string
+	Description           string
+	ReplicaAmount         int
+	PortSlice             []deploy.DeployContainerPort
+	EnvironmentSlice      []control.ReplicationControllerContainerEnvironment
+	ResourceMap           map[string]interface{}
+	ExtraJsonMap          map[string]interface{}
+	AutoUpdateForNewBuild bool
 }
 
 type DeployUpdateInput struct {
@@ -246,6 +247,7 @@ func postDeployCreate(request *restful.Request, response *restful.Response) {
 		deployCreateInput.EnvironmentSlice,
 		deployCreateInput.ResourceMap,
 		deployCreateInput.ExtraJsonMap,
+		deployCreateInput.AutoUpdateForNewBuild,
 	)
 
 	if err != nil {

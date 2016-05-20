@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/cloudawan/cloudone/authorization"
+	"github.com/cloudawan/cloudone/deploy"
 	"github.com/cloudawan/cloudone/image"
 	"github.com/coreos/etcd/client"
 )
@@ -33,7 +34,7 @@ func getGitHashSignature(secret string, message string) string {
 	return "sha1=" + hex.EncodeToString(hash.Sum(nil))
 }
 
-func Notify(username string, imageInformationName string, signature string, payload string) error {
+func Notify(username string, imageInformationName string, signature string, payload string, kubeapiHost string, kubeapiPort int) error {
 	if len(username) == 0 {
 		log.Error("User couldn't be empty. Signature %s", signature)
 		log.Debug(payload)
@@ -112,6 +113,33 @@ func Notify(username string, imageInformationName string, signature string, payl
 		if err != nil {
 			log.Error(err)
 			log.Debug(outputMessage)
+		} else {
+			// Build sccessfully
+			// Auto rolling update the deployment if configured
+			imageInformation, err := image.GetStorage().LoadImageInformation(imageInformationName)
+			if err != nil {
+				log.Error(err)
+			} else {
+				deployInformationSlice, err := deploy.GetDeployInformationWithAutoUpdateForNewBuild(imageInformationName)
+				if err != nil {
+					log.Error(err)
+				} else {
+					for _, deployInformation := range deployInformationSlice {
+						description := "Trigged by version " + imageInformation.CurrentVersion
+						err := deploy.DeployUpdate(
+							kubeapiHost,
+							kubeapiPort,
+							deployInformation.Namespace,
+							imageInformation.Name,
+							imageInformation.CurrentVersion,
+							description,
+							deployInformation.EnvironmentSlice)
+						if err != nil {
+							log.Error(err)
+						}
+					}
+				}
+			}
 		}
 	}()
 
