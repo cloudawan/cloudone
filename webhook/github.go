@@ -40,6 +40,10 @@ func Notify(username string, imageInformationName string, signature string, payl
 		return errors.New("User couldn't be empty")
 	}
 
+	if len(signature) == 0 {
+		return errors.New("The secret is required")
+	}
+
 	user, err := authorization.GetStorage().LoadUser(username)
 	etcdError, _ := err.(client.Error)
 	if etcdError.Code == client.ErrorCodeKeyNotFound {
@@ -51,15 +55,13 @@ func Notify(username string, imageInformationName string, signature string, payl
 		return err
 	}
 
-	if len(signature) > 0 {
-		// If secret is used
-		githubWebhookSecret := user.MetaDataMap["githubWebhookSecret"]
-		generatedSignature := getGitHashSignature(githubWebhookSecret, payload)
-		if generatedSignature != signature {
-			log.Error("The signature is invalid. User name %s, signature %s, generated signature %s", username, signature, generatedSignature)
-			log.Debug(payload)
-			return errors.New("The signature is invalid")
-		}
+	// If secret is used
+	githubWebhookSecret := user.MetaDataMap["githubWebhookSecret"]
+	generatedSignature := getGitHashSignature(githubWebhookSecret, payload)
+	if generatedSignature != signature {
+		log.Error("The signature is invalid. User name %s, signature %s, generated signature %s", username, signature, generatedSignature)
+		log.Debug(payload)
+		return errors.New("The signature is invalid")
 	}
 
 	jsonMap := make(map[string]interface{})
@@ -95,7 +97,7 @@ func Notify(username string, imageInformationName string, signature string, payl
 	sourceCodeURL := imageInformation.BuildParameter["sourceCodeURL"]
 	if sourceCodeURL != cloneUrl {
 		// Not the target, ignore.
-		return errors.New("Source code url " + sourceCodeURL + " is different from the github clone_url " + cloneUrl)
+		return nil
 	}
 
 	if len(imageInformationName) == 0 {
