@@ -35,6 +35,10 @@ func CreateCloudoneControl() (*CloudoneControl, error) {
 	return cloudoneControl, nil
 }
 
+const (
+	restApiTimeout = time.Millisecond * 300
+)
+
 type CloudoneControl struct {
 	RestapiPort int
 }
@@ -42,7 +46,8 @@ type CloudoneControl struct {
 func (cloudoneControl *CloudoneControl) testRestAPI() bool {
 	result, _ := restclient.HealthCheck(
 		"https://127.0.0.1:"+strconv.Itoa(cloudoneControl.RestapiPort)+"/apidocs.json",
-		time.Millisecond*300)
+		nil,
+		restApiTimeout)
 	return result
 }
 

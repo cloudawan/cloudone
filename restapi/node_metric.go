@@ -17,9 +17,9 @@ package restapi
 import (
 	"encoding/json"
 	"github.com/cloudawan/cloudone/monitor"
+	"github.com/cloudawan/cloudone/utility/configuration"
 	"github.com/emicklei/go-restful"
 	"net/http"
-	"strconv"
 )
 
 func registerWebServiceNodeMetric() {
@@ -31,44 +31,28 @@ func registerWebServiceNodeMetric() {
 
 	ws.Route(ws.GET("/").Filter(authorize).Filter(auditLog).To(getAllNodeMetric).
 		Doc("Get the node metric").
-		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
-		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
 		Do(returns200AllNodeMetric, returns400, returns422, returns500))
 
 }
 
 func getAllNodeMetric(request *restful.Request, response *restful.Response) {
-	kubeapiHost := request.QueryParameter("kubeapihost")
-	kubeapiPortText := request.QueryParameter("kubeapiport")
-	if kubeapiHost == "" || kubeapiPortText == "" {
-		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost and kubeapiport are required."
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPortText"] = kubeapiPortText
-		errorMessageByteSlice, _ := json.Marshal(jsonMap)
-		log.Error(jsonMap)
-		response.WriteErrorString(400, string(errorMessageByteSlice))
-		return
-	}
-	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
+	kubeApiServerEndPoint, kubeApiServerToken, err := configuration.GetAvailablekubeApiServerEndPoint()
 	if err != nil {
 		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["Error"] = "Get kube apiserver endpoint and token failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiPortText"] = kubeapiPortText
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
 		log.Error(jsonMap)
-		response.WriteErrorString(400, string(errorMessageByteSlice))
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
-	nodeMetricSlice, err := monitor.MonitorNode(kubeapiHost, kubeapiPort)
+	nodeMetricSlice, err := monitor.MonitorNode(kubeApiServerEndPoint, kubeApiServerToken)
 	if err != nil {
 		jsonMap := make(map[string]interface{})
 		jsonMap["Error"] = "Get node metric failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["kubeApiServerEndPoint"] = kubeApiServerEndPoint
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
 		log.Error(jsonMap)
 		response.WriteErrorString(422, string(errorMessageByteSlice))

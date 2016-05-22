@@ -39,7 +39,7 @@ type ServicePort struct {
 	NodePort   int
 }
 
-func CreateService(kubeapiHost string, kubeapiPort int, namespace string, service Service) (returnedError error) {
+func CreateService(kubeApiServerEndPoint string, kubeApiServerToken string, namespace string, service Service) (returnedError error) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error("CreateService Error: %s", err)
@@ -93,8 +93,11 @@ func CreateService(kubeapiHost string, kubeapiPort int, namespace string, servic
 		bodyJsonMap["spec"].(map[string]interface{})["type"] = "NodePort"
 	}
 
-	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/services/"
-	_, err := restclient.RequestPost(url, bodyJsonMap, nil, true)
+	headerMap := make(map[string]string)
+	headerMap["Authorization"] = kubeApiServerToken
+
+	url := kubeApiServerEndPoint + "/api/v1/namespaces/" + namespace + "/services/"
+	_, err := restclient.RequestPost(url, bodyJsonMap, headerMap, true)
 
 	if err != nil {
 		log.Error(err)
@@ -103,7 +106,7 @@ func CreateService(kubeapiHost string, kubeapiPort int, namespace string, servic
 	return err
 }
 
-func DeleteService(kubeapiHost string, kubeapiPort int, namespace string, serviceName string) (returnedError error) {
+func DeleteService(kubeApiServerEndPoint string, kubeApiServerToken string, namespace string, serviceName string) (returnedError error) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error("DeleteService Error: %s", err)
@@ -112,13 +115,16 @@ func DeleteService(kubeapiHost string, kubeapiPort int, namespace string, servic
 		}
 	}()
 
-	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/services/" + serviceName
-	_, err := restclient.RequestDelete(url, nil, nil, true)
+	headerMap := make(map[string]string)
+	headerMap["Authorization"] = kubeApiServerToken
+
+	url := kubeApiServerEndPoint + "/api/v1/namespaces/" + namespace + "/services/" + serviceName
+	_, err := restclient.RequestDelete(url, nil, headerMap, true)
 
 	return err
 }
 
-func GetService(kubeapiHost string, kubeapiPort int, namespace string, serviceName string) (returnedService *Service, returnedError error) {
+func GetService(kubeApiServerEndPoint string, kubeApiServerToken string, namespace string, serviceName string) (returnedService *Service, returnedError error) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error("GetService Error: %s", err)
@@ -128,9 +134,11 @@ func GetService(kubeapiHost string, kubeapiPort int, namespace string, serviceNa
 		}
 	}()
 
-	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) +
-		"/api/v1/namespaces/" + namespace + "/services/" + serviceName
-	result, err := restclient.RequestGet(url, nil, true)
+	headerMap := make(map[string]string)
+	headerMap["Authorization"] = kubeApiServerToken
+
+	url := kubeApiServerEndPoint + "/api/v1/namespaces/" + namespace + "/services/" + serviceName
+	result, err := restclient.RequestGet(url, headerMap, true)
 	jsonMap, _ := result.(map[string]interface{})
 	if err != nil {
 		return nil, err
@@ -196,7 +204,7 @@ func GetService(kubeapiHost string, kubeapiPort int, namespace string, serviceNa
 	}
 }
 
-func GetAllService(kubeapiHost string, kubeapiPort int, namespace string) (returnedServiceSlice []Service, returnedError error) {
+func GetAllService(kubeApiServerEndPoint string, kubeApiServerToken string, namespace string) (returnedServiceSlice []Service, returnedError error) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error("GetAllService Error: %s", err)
@@ -206,8 +214,11 @@ func GetAllService(kubeapiHost string, kubeapiPort int, namespace string) (retur
 		}
 	}()
 
-	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/services/"
-	result, err := restclient.RequestGet(url, nil, true)
+	headerMap := make(map[string]string)
+	headerMap["Authorization"] = kubeApiServerToken
+
+	url := kubeApiServerEndPoint + "/api/v1/namespaces/" + namespace + "/services/"
+	result, err := restclient.RequestGet(url, headerMap, true)
 	jsonMap, _ := result.(map[string]interface{})
 	if err != nil {
 		return nil, err
@@ -273,7 +284,7 @@ func GetAllService(kubeapiHost string, kubeapiPort int, namespace string) (retur
 	}
 }
 
-func CreateServiceWithJson(kubeapiHost string, kubeapiPort int, namespace string, bodyJsonMap map[string]interface{}) (returnedError error) {
+func CreateServiceWithJson(kubeApiServerEndPoint string, kubeApiServerToken string, namespace string, bodyJsonMap map[string]interface{}) (returnedError error) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error("CreateServiceWithJson Error: %s", err)
@@ -282,8 +293,11 @@ func CreateServiceWithJson(kubeapiHost string, kubeapiPort int, namespace string
 		}
 	}()
 
-	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/services/"
-	_, err := restclient.RequestPost(url, bodyJsonMap, nil, true)
+	headerMap := make(map[string]string)
+	headerMap["Authorization"] = kubeApiServerToken
+
+	url := kubeApiServerEndPoint + "/api/v1/namespaces/" + namespace + "/services/"
+	_, err := restclient.RequestPost(url, bodyJsonMap, headerMap, true)
 
 	if err != nil {
 		log.Error(err)
@@ -293,7 +307,7 @@ func CreateServiceWithJson(kubeapiHost string, kubeapiPort int, namespace string
 	}
 }
 
-func UpdateServiceWithJson(kubeapiHost string, kubeapiPort int, namespace string, serviceName string, bodyJsonMap map[string]interface{}) (returnedError error) {
+func UpdateServiceWithJson(kubeApiServerEndPoint string, kubeApiServerToken string, namespace string, serviceName string, bodyJsonMap map[string]interface{}) (returnedError error) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error("CreateServiceWithJson Error: %s", err)
@@ -302,8 +316,11 @@ func UpdateServiceWithJson(kubeapiHost string, kubeapiPort int, namespace string
 		}
 	}()
 
-	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/services/" + serviceName
-	result, err := restclient.RequestGet(url, nil, true)
+	headerMap := make(map[string]string)
+	headerMap["Authorization"] = kubeApiServerToken
+
+	url := kubeApiServerEndPoint + "/api/v1/namespaces/" + namespace + "/services/" + serviceName
+	result, err := restclient.RequestGet(url, headerMap, true)
 	jsonMap, _ := result.(map[string]interface{})
 
 	metadataJsonMap, _ := jsonMap["metadata"].(map[string]interface{})
@@ -316,8 +333,8 @@ func UpdateServiceWithJson(kubeapiHost string, kubeapiPort int, namespace string
 	bodyJsonMap["metadata"].(map[string]interface{})["resourceVersion"] = resourceVersion
 	bodyJsonMap["spec"].(map[string]interface{})["clusterIP"] = clusterIP
 
-	url = "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/services/" + serviceName
-	_, err = restclient.RequestPut(url, bodyJsonMap, nil, true)
+	url = kubeApiServerEndPoint + "/api/v1/namespaces/" + namespace + "/services/" + serviceName
+	_, err = restclient.RequestPut(url, bodyJsonMap, headerMap, true)
 
 	if err != nil {
 		log.Error(err)

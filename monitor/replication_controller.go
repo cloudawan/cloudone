@@ -19,7 +19,6 @@ import (
 	"github.com/cloudawan/cloudone/control"
 	"github.com/cloudawan/cloudone_utility/logger"
 	"github.com/cloudawan/cloudone_utility/restclient"
-	"strconv"
 )
 
 type ReplicationControllerMetric struct {
@@ -30,7 +29,7 @@ type ReplicationControllerMetric struct {
 	Size                      int
 }
 
-func ExistReplicationController(kubeapiHost string, kubeapiPort int, namespace string, replicationControllerName string) (returnedExist bool, returnedError error) {
+func ExistReplicationController(kubeApiServerEndPoint string, kubeApiServerToken string, namespace string, replicationControllerName string) (returnedExist bool, returnedError error) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error("ExistReplicationController Error: %s", err)
@@ -40,16 +39,19 @@ func ExistReplicationController(kubeapiHost string, kubeapiPort int, namespace s
 		}
 	}()
 
-	_, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/"+namespace+"/replicationcontrollers/"+replicationControllerName, nil, true)
+	headerMap := make(map[string]string)
+	headerMap["Authorization"] = kubeApiServerToken
+
+	_, err := restclient.RequestGet(kubeApiServerEndPoint+"/api/v1/namespaces/"+namespace+"/replicationcontrollers/"+replicationControllerName, headerMap, true)
 	if err != nil {
-		log.Error("Fail to detect replication controller existence with host %s, port: %d, namespace: %s, replication controller name: %s, error %s", kubeapiHost, kubeapiPort, namespace, replicationControllerName, err.Error())
+		log.Error("Fail to detect replication controller existence with endpoint: %s, token: %s, namespace: %s, replication controller name: %s, error %s", kubeApiServerEndPoint, kubeApiServerToken, namespace, replicationControllerName, err.Error())
 		return false, err
 	} else {
 		return true, nil
 	}
 }
 
-func MonitorReplicationController(kubeapiHost string, kubeapiPort int, namespace string, replicationControllerName string) (returnedReplicationControllerMetric *ReplicationControllerMetric, returnedError error) {
+func MonitorReplicationController(kubeApiServerEndPoint string, kubeApiServerToken string, namespace string, replicationControllerName string) (returnedReplicationControllerMetric *ReplicationControllerMetric, returnedError error) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error("MonitorReplicationController Error: %s", err)
@@ -59,19 +61,19 @@ func MonitorReplicationController(kubeapiHost string, kubeapiPort int, namespace
 		}
 	}()
 
-	exist, err := ExistReplicationController(kubeapiHost, kubeapiPort, namespace, replicationControllerName)
+	exist, err := ExistReplicationController(kubeApiServerEndPoint, kubeApiServerToken, namespace, replicationControllerName)
 	if err != nil {
-		log.Error("Fail to get the replication controller with host %s, port: %d, namespace: %s, replication controller name: %s", kubeapiHost, kubeapiPort, namespace, replicationControllerName)
+		log.Error("Fail to get the replication controller with endpoint: %s, token: %s, namespace: %s, replication controller name: %s", kubeApiServerEndPoint, kubeApiServerToken, namespace, replicationControllerName)
 		return nil, err
 	}
 	if exist == false {
-		log.Error("Replication controller doesn't exist with host %s, port: %d, namespace: %s, replication controller name: %s", kubeapiHost, kubeapiPort, namespace, replicationControllerName)
+		log.Error("Replication controller doesn't exist with endpoint: %s, token: %s, namespace: %s, replication controller name: %s", kubeApiServerEndPoint, kubeApiServerToken, namespace, replicationControllerName)
 		return nil, err
 	}
 
-	podNameSlice, err := control.GetAllPodNameBelongToReplicationController(kubeapiHost, kubeapiPort, namespace, replicationControllerName)
+	podNameSlice, err := control.GetAllPodNameBelongToReplicationController(kubeApiServerEndPoint, kubeApiServerToken, namespace, replicationControllerName)
 	if err != nil {
-		log.Error("Fail to get all pod name belong to the replication controller with host %s, port: %d, namespace: %s, replication controller name: %s", kubeapiHost, kubeapiPort, namespace, replicationControllerName)
+		log.Error("Fail to get all pod name belong to the replication controller with endpoint: %s, token: %s, namespace: %s, replication controller name: %s", kubeApiServerEndPoint, kubeApiServerToken, namespace, replicationControllerName)
 		return nil, err
 	}
 
@@ -84,7 +86,7 @@ func MonitorReplicationController(kubeapiHost string, kubeapiPort int, namespace
 	errorMessage := "The following index of pod has error: "
 	errorHappened := false
 	for index, podName := range podNameSlice {
-		podMetric, err := MonitorPod(kubeapiHost, kubeapiPort, namespace, podName)
+		podMetric, err := MonitorPod(kubeApiServerEndPoint, kubeApiServerToken, namespace, podName)
 		if err != nil {
 			errorMessage = errorMessage + err.Error()
 			errorHappened = true
@@ -96,14 +98,14 @@ func MonitorReplicationController(kubeapiHost string, kubeapiPort int, namespace
 	}
 
 	if errorHappened {
-		log.Error("Fail to get all pod inofrmation with host %s, port: %d, namespace: %s, replication controller name: %s, error %s", kubeapiHost, kubeapiPort, namespace, replicationControllerName, errorMessage)
+		log.Error("Fail to get all pod inofrmation with endpoint: %s, token: %s, namespace: %s, replication controller name: %s, error %s", kubeApiServerEndPoint, kubeApiServerToken, namespace, replicationControllerName, errorMessage)
 		return replicationControllerMetric, errors.New(errorMessage)
 	} else {
 		return replicationControllerMetric, nil
 	}
 }
 
-func GetReplicationControllerNameFromSelector(kubeapiHost string, kubeapiPort int, namespace string, targetSelectorName string) (returnedReplicationControllerNameSlice []string, returnedError error) {
+func GetReplicationControllerNameFromSelector(kubeApiServerEndPoint, kubeApiServerToken, namespace string, targetSelectorName string) (returnedReplicationControllerNameSlice []string, returnedError error) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error("GetReplicationControllerNameFromSelector Error: %s", err)
@@ -113,12 +115,14 @@ func GetReplicationControllerNameFromSelector(kubeapiHost string, kubeapiPort in
 		}
 	}()
 
-	result, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+
-		"/api/v1/namespaces/"+namespace+"/replicationcontrollers/", nil, true)
+	headerMap := make(map[string]string)
+	headerMap["Authorization"] = kubeApiServerToken
+
+	result, err := restclient.RequestGet(kubeApiServerEndPoint+"/api/v1/namespaces/"+namespace+"/replicationcontrollers/", headerMap, true)
 	jsonMap, _ := result.(map[string]interface{})
 	if err != nil {
-		log.Error("Fail to get all replication controller with host %s, port: %d, namespace: %s, selector name: %s",
-			kubeapiHost, kubeapiPort, namespace, targetSelectorName)
+		log.Error("Fail to get all replication controller with endpoint: %s, token: %s, namespace: %s, selector name: %s",
+			kubeApiServerEndPoint, kubeApiServerToken, namespace, targetSelectorName)
 		return nil, err
 	}
 

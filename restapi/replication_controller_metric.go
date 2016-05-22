@@ -18,9 +18,9 @@ import (
 	"encoding/json"
 	"github.com/cloudawan/cloudone/control"
 	"github.com/cloudawan/cloudone/monitor"
+	"github.com/cloudawan/cloudone/utility/configuration"
 	"github.com/emicklei/go-restful"
 	"net/http"
-	"strconv"
 )
 
 func registerWebServiceReplicationControllerMetric() {
@@ -33,52 +33,36 @@ func registerWebServiceReplicationControllerMetric() {
 	ws.Route(ws.GET("/{namespace}").Filter(authorize).Filter(auditLog).To(getAllReplicationControllerMetric).
 		Doc("Get all replication controllers in the namespace").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
-		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
-		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
-		Do(returns200AllReplicationControllerMetric, returns400, returns422, returns500))
+		Do(returns200AllReplicationControllerMetric, returns400, returns404, returns422, returns500))
 
 	ws.Route(ws.GET("/{namespace}/{replicationcontroller}").Filter(authorize).Filter(auditLog).To(getReplicationControllerMetric).
 		Doc("Get the replication controller in the namespace").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("replicationcontroller", "Kubernetes replication controller name").DataType("string")).
-		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
-		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
-		Do(returns200ReplicationControllerMetric, returns400, returns422, returns500))
+		Do(returns200ReplicationControllerMetric, returns400, returns404, returns422, returns500))
 }
 
 func getAllReplicationControllerMetric(request *restful.Request, response *restful.Response) {
-	kubeapiHost := request.QueryParameter("kubeapihost")
-	kubeapiPortText := request.QueryParameter("kubeapiport")
 	namespace := request.PathParameter("namespace")
-	if kubeapiHost == "" || kubeapiPortText == "" {
-		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost and kubeapiport are required."
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPortText"] = kubeapiPortText
-		errorMessageByteSlice, _ := json.Marshal(jsonMap)
-		log.Error(jsonMap)
-		response.WriteErrorString(400, string(errorMessageByteSlice))
-		return
-	}
-	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
+
+	kubeApiServerEndPoint, kubeApiServerToken, err := configuration.GetAvailablekubeApiServerEndPoint()
 	if err != nil {
 		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["Error"] = "Get kube apiserver endpoint and token failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiPortText"] = kubeapiPortText
+		jsonMap["namespace"] = namespace
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
 		log.Error(jsonMap)
-		response.WriteErrorString(400, string(errorMessageByteSlice))
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
-	nameSlice, err := control.GetAllReplicationControllerName(kubeapiHost, kubeapiPort, namespace)
+	nameSlice, err := control.GetAllReplicationControllerName(kubeApiServerEndPoint, kubeApiServerToken, namespace)
 	if err != nil {
 		jsonMap := make(map[string]interface{})
 		jsonMap["Error"] = "Get all replication controller name failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["kubeApiServerEndPoint"] = kubeApiServerEndPoint
 		jsonMap["namespace"] = namespace
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
 		log.Error(jsonMap)
@@ -89,7 +73,7 @@ func getAllReplicationControllerMetric(request *restful.Request, response *restf
 	replicationControllerMetricSlice := make([]monitor.ReplicationControllerMetric, 0)
 	errorSlice := make([]error, 0)
 	for _, name := range nameSlice {
-		replicationControllerMetric, err := monitor.MonitorReplicationController(kubeapiHost, kubeapiPort, namespace, name)
+		replicationControllerMetric, err := monitor.MonitorReplicationController(kubeApiServerEndPoint, kubeApiServerToken, namespace, name)
 		if replicationControllerMetric != nil {
 			replicationControllerMetricSlice = append(replicationControllerMetricSlice, *replicationControllerMetric)
 		}
@@ -103,39 +87,28 @@ func getAllReplicationControllerMetric(request *restful.Request, response *restf
 }
 
 func getReplicationControllerMetric(request *restful.Request, response *restful.Response) {
-	kubeapiHost := request.QueryParameter("kubeapihost")
-	kubeapiPortText := request.QueryParameter("kubeapiport")
 	namespace := request.PathParameter("namespace")
 	replicationControllerName := request.PathParameter("replicationcontroller")
-	if kubeapiHost == "" || kubeapiPortText == "" {
-		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost and kubeapiport are required."
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPortText"] = kubeapiPortText
-		errorMessageByteSlice, _ := json.Marshal(jsonMap)
-		log.Error(jsonMap)
-		response.WriteErrorString(400, string(errorMessageByteSlice))
-		return
-	}
-	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
+
+	kubeApiServerEndPoint, kubeApiServerToken, err := configuration.GetAvailablekubeApiServerEndPoint()
 	if err != nil {
 		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["Error"] = "Get kube apiserver endpoint and token failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiPortText"] = kubeapiPortText
+		jsonMap["namespace"] = namespace
+		jsonMap["replicationControllerName"] = replicationControllerName
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
 		log.Error(jsonMap)
-		response.WriteErrorString(400, string(errorMessageByteSlice))
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
-	replicationControllerMetric, err := monitor.MonitorReplicationController(kubeapiHost, kubeapiPort, namespace, replicationControllerName)
+	replicationControllerMetric, err := monitor.MonitorReplicationController(kubeApiServerEndPoint, kubeApiServerToken, namespace, replicationControllerName)
 	if err != nil {
 		jsonMap := make(map[string]interface{})
 		jsonMap["Error"] = "Get replication controller metric failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["kubeApiServerEndPoint"] = kubeApiServerEndPoint
 		jsonMap["namespace"] = namespace
 		jsonMap["replicationControllerName"] = replicationControllerName
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)

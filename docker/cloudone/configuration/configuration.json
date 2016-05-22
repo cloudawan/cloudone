@@ -2,9 +2,13 @@
 	"certificate": "/etc/cloudone/development_cert.pem",
 	"key": "/etc/cloudone/development_key.pem",
 	"restapiPort": 8081,
-	"etcdEndpoint": [{{ETCD_ENDPOINT}}],
+	"etcdEndpoints": [{{ETCD_ENDPOINTS}}],
 	"etcdHeaderTimeoutPerRequestInMilliSecond": 2000,
 	"etcdBasePath": "/cloudawan/cloudone",
-	"storageTypeDefault": 3
+	"storageTypeDefault": 3,
+	"cloudoneAnalysisHost": "{{CLOUDONE_ANALYSIS_HOST}}",
+	"cloudoneAnalysisPort": {{CLOUDONE_ANALYSIS_PORT}},
+	"kubeApiServerEndPoints": [{{KUBE_APISERVER_ENDPOINTS}}],
+	"kubeApiServerHealthCheckTimeoutInMilliSecond": 1000,
+	"kubeApiServerTokenPath": "/var/run/secrets/kubernetes.io/serviceaccount/token"
 }
-

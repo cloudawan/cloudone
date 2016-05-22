@@ -47,7 +47,7 @@ type PodContainerPort struct {
 	Protocol      string
 }
 
-func DeletePod(kubeapiHost string, kubeapiPort int, namespace string, podName string) (returnedError error) {
+func DeletePod(kubeApiServerEndPoint string, kubeApiServerToken string, namespace string, podName string) (returnedError error) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error("DeletePod Error: %s", err)
@@ -56,8 +56,11 @@ func DeletePod(kubeapiHost string, kubeapiPort int, namespace string, podName st
 		}
 	}()
 
-	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/namespaces/" + namespace + "/pods/" + podName
-	_, err := restclient.RequestDelete(url, nil, nil, true)
+	headerMap := make(map[string]string)
+	headerMap["Authorization"] = kubeApiServerToken
+
+	url := kubeApiServerEndPoint + "/api/v1/namespaces/" + namespace + "/pods/" + podName
+	_, err := restclient.RequestDelete(url, nil, headerMap, true)
 	if err != nil {
 		log.Error(err)
 		return err
@@ -66,7 +69,7 @@ func DeletePod(kubeapiHost string, kubeapiPort int, namespace string, podName st
 	}
 }
 
-func GetAllPodNameBelongToReplicationController(kubeapiHost string, kubeapiPort int, namespace string, replicationControllerName string) (returnedNameSlice []string, returnedError error) {
+func GetAllPodNameBelongToReplicationController(kubeApiServerEndPoint string, kubeApiServerToken string, namespace string, replicationControllerName string) (returnedNameSlice []string, returnedError error) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error("GetAllPodNameBelongToReplicationController Error: %s", err)
@@ -76,9 +79,12 @@ func GetAllPodNameBelongToReplicationController(kubeapiHost string, kubeapiPort 
 		}
 	}()
 
-	result, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/"+namespace+"/pods/", nil, true)
+	headerMap := make(map[string]string)
+	headerMap["Authorization"] = kubeApiServerToken
+
+	result, err := restclient.RequestGet(kubeApiServerEndPoint+"/api/v1/namespaces/"+namespace+"/pods/", headerMap, true)
 	if err != nil {
-		log.Error("Fail to get replication controller inofrmation with host %s, port: %d, namespace: %s, replication controller name: %s, error %s", kubeapiHost, kubeapiPort, namespace, replicationControllerName, err.Error())
+		log.Error("Fail to get replication controller inofrmation with endpoint %s, token: %s, namespace: %s, replication controller name: %s, error %s", kubeApiServerEndPoint, kubeApiServerToken, namespace, replicationControllerName, err.Error())
 		return nil, err
 	}
 	jsonMap, _ := result.(map[string]interface{})
@@ -102,7 +108,7 @@ func GetAllPodNameBelongToReplicationController(kubeapiHost string, kubeapiPort 
 	return podNameSlice, nil
 }
 
-func GetAllPodBelongToReplicationController(kubeapiHost string, kubeapiPort int, namespace string, replicationControllerName string) (returnedPodSlice []Pod, returnedError error) {
+func GetAllPodBelongToReplicationController(kubeApiServerEndPoint string, kubeApiServerToken string, namespace string, replicationControllerName string) (returnedPodSlice []Pod, returnedError error) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error("GetAllPodBelongToReplicationController Error: %s", err)
@@ -112,10 +118,13 @@ func GetAllPodBelongToReplicationController(kubeapiHost string, kubeapiPort int,
 		}
 	}()
 
-	result, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/"+namespace+"/pods/", nil, true)
+	headerMap := make(map[string]string)
+	headerMap["Authorization"] = kubeApiServerToken
+
+	result, err := restclient.RequestGet(kubeApiServerEndPoint+"/api/v1/namespaces/"+namespace+"/pods/", headerMap, true)
 	jsonMap, _ := result.(map[string]interface{})
 	if err != nil {
-		log.Error("Fail to get all pod inofrmation with host %s, port: %d, namespace: %s, replication controller name: %s, error %s", kubeapiHost, kubeapiPort, namespace, replicationControllerName, err.Error())
+		log.Error("Fail to get all pod inofrmation with endpoint %s, token: %s, namespace: %s, replication controller name: %s, error %s", kubeApiServerEndPoint, kubeApiServerToken, namespace, replicationControllerName, err.Error())
 		return nil, err
 	}
 

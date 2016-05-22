@@ -19,6 +19,7 @@ import (
 	"github.com/cloudawan/cloudone/autoscaler"
 	"github.com/cloudawan/cloudone/execute"
 	"github.com/cloudawan/cloudone/monitor"
+	"github.com/cloudawan/cloudone/utility/configuration"
 	"github.com/emicklei/go-restful"
 	"net/http"
 )
@@ -98,12 +99,26 @@ func putReplicationControllerAutoScaler(request *restful.Request, response *rest
 		return
 	}
 
+	kubeApiServerEndPoint, kubeApiServerToken, err := configuration.GetAvailablekubeApiServerEndPoint()
+	if err != nil {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get kube apiserver endpoint and token failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
+		return
+	}
+
+	replicationControllerAutoScaler.KubeApiServerEndPoint = kubeApiServerEndPoint
+	replicationControllerAutoScaler.KubeApiServerToken = kubeApiServerToken
+
 	switch replicationControllerAutoScaler.Kind {
 	case "selector":
-		nameSlice, err := monitor.GetReplicationControllerNameFromSelector(replicationControllerAutoScaler.KubeapiHost, replicationControllerAutoScaler.KubeapiPort, replicationControllerAutoScaler.Namespace, replicationControllerAutoScaler.Name)
+		nameSlice, err := monitor.GetReplicationControllerNameFromSelector(replicationControllerAutoScaler.KubeApiServerEndPoint, replicationControllerAutoScaler.KubeApiServerToken, replicationControllerAutoScaler.Namespace, replicationControllerAutoScaler.Name)
 		if err != nil {
 			for _, name := range nameSlice {
-				exist, err := monitor.ExistReplicationController(replicationControllerAutoScaler.KubeapiHost, replicationControllerAutoScaler.KubeapiPort, replicationControllerAutoScaler.Namespace, name)
+				exist, err := monitor.ExistReplicationController(replicationControllerAutoScaler.KubeApiServerEndPoint, replicationControllerAutoScaler.KubeApiServerToken, replicationControllerAutoScaler.Namespace, name)
 				if err != nil {
 					jsonMap := make(map[string]interface{})
 					jsonMap["Error"] = "Check whether the replication controller exists or not failure"
@@ -127,7 +142,7 @@ func putReplicationControllerAutoScaler(request *restful.Request, response *rest
 			}
 		}
 	case "replicationController":
-		exist, err := monitor.ExistReplicationController(replicationControllerAutoScaler.KubeapiHost, replicationControllerAutoScaler.KubeapiPort, replicationControllerAutoScaler.Namespace, replicationControllerAutoScaler.Name)
+		exist, err := monitor.ExistReplicationController(replicationControllerAutoScaler.KubeApiServerEndPoint, replicationControllerAutoScaler.KubeApiServerToken, replicationControllerAutoScaler.Namespace, replicationControllerAutoScaler.Name)
 		if err != nil {
 			jsonMap := make(map[string]interface{})
 			jsonMap["Error"] = "Check whether the replication controller exists or not failure"

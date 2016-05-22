@@ -18,9 +18,9 @@ import (
 	"encoding/json"
 	"github.com/cloudawan/cloudone/application"
 	"github.com/cloudawan/cloudone/monitor"
+	"github.com/cloudawan/cloudone/utility/configuration"
 	"github.com/emicklei/go-restful"
 	"net/http"
-	"strconv"
 )
 
 type StatelessSerializableDescription struct {
@@ -61,8 +61,6 @@ func registerWebServiceStatelessApplication() {
 		Doc("Launch a stateless application").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("statelessapplication", "stateless application").DataType("string")).
-		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
-		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
 		Do(returns200, returns400, returns404, returns500).
 		Reads(new(struct{})))
 }
@@ -143,29 +141,19 @@ func deleteStatelessApplication(request *restful.Request, response *restful.Resp
 }
 
 func postLaunchStatelessApplication(request *restful.Request, response *restful.Response) {
-	kubeapiHost := request.QueryParameter("kubeapihost")
-	kubeapiPortText := request.QueryParameter("kubeapiport")
 	namespace := request.PathParameter("namespace")
 	name := request.PathParameter("statelessapplication")
-	if kubeapiHost == "" || kubeapiPortText == "" {
-		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost and kubeapiport are required."
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPortText"] = kubeapiPortText
-		errorMessageByteSlice, _ := json.Marshal(jsonMap)
-		log.Error(jsonMap)
-		response.WriteErrorString(400, string(errorMessageByteSlice))
-		return
-	}
-	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
+
+	kubeApiServerEndPoint, kubeApiServerToken, err := configuration.GetAvailablekubeApiServerEndPoint()
 	if err != nil {
 		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["Error"] = "Get kube apiserver endpoint and token failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiPortText"] = kubeapiPortText
+		jsonMap["namespace"] = namespace
+		jsonMap["name"] = name
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
 		log.Error(jsonMap)
-		response.WriteErrorString(400, string(errorMessageByteSlice))
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
@@ -175,8 +163,7 @@ func postLaunchStatelessApplication(request *restful.Request, response *restful.
 		jsonMap := make(map[string]interface{})
 		jsonMap["Error"] = "Read body failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["kubeApiServerEndPoint"] = kubeApiServerEndPoint
 		jsonMap["namespace"] = namespace
 		jsonMap["name"] = name
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
@@ -185,12 +172,11 @@ func postLaunchStatelessApplication(request *restful.Request, response *restful.
 		return
 	}
 
-	exist, err := monitor.ExistReplicationController(kubeapiHost, kubeapiPort, namespace, name)
+	exist, err := monitor.ExistReplicationController(kubeApiServerEndPoint, kubeApiServerToken, namespace, name)
 	if exist {
 		jsonMap := make(map[string]interface{})
 		jsonMap["Error"] = "The replication controller to use already exists"
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["kubeApiServerEndPoint"] = kubeApiServerEndPoint
 		jsonMap["namespace"] = namespace
 		jsonMap["name"] = name
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
@@ -199,13 +185,12 @@ func postLaunchStatelessApplication(request *restful.Request, response *restful.
 		return
 	}
 
-	err = application.LaunchStatelessApplication(kubeapiHost, kubeapiPort, namespace, name, environmentSlice)
+	err = application.LaunchStatelessApplication(kubeApiServerEndPoint, kubeApiServerToken, namespace, name, environmentSlice)
 	if err != nil {
 		jsonMap := make(map[string]interface{})
 		jsonMap["Error"] = "Launch stateless application failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["kubeApiServerEndPoint"] = kubeApiServerEndPoint
 		jsonMap["namespace"] = namespace
 		jsonMap["name"] = name
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)

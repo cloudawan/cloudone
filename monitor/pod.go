@@ -19,7 +19,6 @@ import (
 	"github.com/cloudawan/cloudone_utility/jsonparse"
 	"github.com/cloudawan/cloudone_utility/logger"
 	"github.com/cloudawan/cloudone_utility/restclient"
-	"strconv"
 )
 
 type PodMetric struct {
@@ -42,7 +41,7 @@ type ContainerMetric struct {
 	NetworkTXPacketsSlice             []int64
 }
 
-func MonitorPod(kubeapiHost string, kubeapiPort int, namespace string, podName string) (returnedPodMetric *PodMetric, returnedError error) {
+func MonitorPod(kubeApiServerEndPoint string, kubeApiServerToken string, namespace string, podName string) (returnedPodMetric *PodMetric, returnedError error) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error("MonitorPod Error: %s", err)
@@ -52,10 +51,13 @@ func MonitorPod(kubeapiHost string, kubeapiPort int, namespace string, podName s
 		}
 	}()
 
-	result, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/"+namespace+"/pods/"+podName+"/", nil, true)
+	headerMap := make(map[string]string)
+	headerMap["Authorization"] = kubeApiServerToken
+
+	result, err := restclient.RequestGet(kubeApiServerEndPoint+"/api/v1/namespaces/"+namespace+"/pods/"+podName+"/", headerMap, true)
 	jsonMap, _ := result.(map[string]interface{})
 	if err != nil {
-		log.Error("Fail to get pod inofrmation with host %s, port: %d, namespace: %s, pod name: %s, error %s", kubeapiHost, kubeapiPort, namespace, podName, err.Error())
+		log.Error("Fail to get pod inofrmation with endpoint: %s, token: %s, namespace: %s, pod name: %s, error %s", kubeApiServerEndPoint, kubeApiServerToken, namespace, podName, err.Error())
 		return nil, err
 	}
 	urlSlice, containerNameSlice, kubeletHost := getContainerLocationFromPodInformation(jsonMap)
@@ -124,7 +126,7 @@ func MonitorPod(kubeapiHost string, kubeapiPort int, namespace string, podName s
 	}
 
 	if errorHappened {
-		log.Error("Fail to get all container inofrmation with host %s, port: %d, namespace: %s, pod name: %s, error %s", kubeapiHost, kubeapiPort, namespace, podName, errorMessage)
+		log.Error("Fail to get all container inofrmation with endpoint %s, token: %s, namespace: %s, pod name: %s, error %s", kubeApiServerEndPoint, kubeApiServerToken, namespace, podName, errorMessage)
 		return podMetric, errors.New(errorMessage)
 	} else {
 		return podMetric, nil

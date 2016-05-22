@@ -17,9 +17,9 @@ package restapi
 import (
 	"encoding/json"
 	"github.com/cloudawan/cloudone/deploy"
+	"github.com/cloudawan/cloudone/utility/configuration"
 	"github.com/emicklei/go-restful"
 	"net/http"
-	"strconv"
 )
 
 func registerWebServiceDeployBlueGreen() {
@@ -35,17 +35,13 @@ func registerWebServiceDeployBlueGreen() {
 
 	ws.Route(ws.PUT("/").Filter(authorize).Filter(auditLog).To(putDeployBlueGreen).
 		Doc("Update blue green dployment to switch deployment").
-		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
-		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
-		Do(returns200, returns400, returns422, returns500).
+		Do(returns200, returns400, returns404, returns422, returns500).
 		Reads(deploy.DeployBlueGreen{}))
 
 	ws.Route(ws.DELETE("/{imageinformation}").Filter(authorize).Filter(auditLog).To(deleteDeployBlueGreen).
 		Doc("Delete blue green deployment").
 		Param(ws.PathParameter("imageinformation", "Image information").DataType("string")).
-		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
-		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
-		Do(returns200, returns400, returns422, returns500))
+		Do(returns200, returns400, returns404, returns422, returns500))
 
 	ws.Route(ws.GET("/{imageinformation}").Filter(authorize).Filter(auditLog).To(getDeployBlueGreen).
 		Doc("Get the blue green deployment with the image information").
@@ -74,27 +70,14 @@ func getAllDeployBlueGreen(request *restful.Request, response *restful.Response)
 }
 
 func putDeployBlueGreen(request *restful.Request, response *restful.Response) {
-	kubeapiHost := request.QueryParameter("kubeapihost")
-	kubeapiPortText := request.QueryParameter("kubeapiport")
-	if kubeapiHost == "" || kubeapiPortText == "" {
-		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost and kubeapiport are required."
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPortText"] = kubeapiPortText
-		errorMessageByteSlice, _ := json.Marshal(jsonMap)
-		log.Error(jsonMap)
-		response.WriteErrorString(400, string(errorMessageByteSlice))
-		return
-	}
-	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
+	kubeApiServerEndPoint, kubeApiServerToken, err := configuration.GetAvailablekubeApiServerEndPoint()
 	if err != nil {
 		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["Error"] = "Get kube apiserver endpoint and token failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiPortText"] = kubeapiPortText
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
 		log.Error(jsonMap)
-		response.WriteErrorString(400, string(errorMessageByteSlice))
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
@@ -104,21 +87,19 @@ func putDeployBlueGreen(request *restful.Request, response *restful.Response) {
 		jsonMap := make(map[string]interface{})
 		jsonMap["Error"] = "Read body failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["kubeApiServerEndPoint"] = kubeApiServerEndPoint
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
 		log.Error(jsonMap)
 		response.WriteErrorString(400, string(errorMessageByteSlice))
 		return
 	}
 
-	err = deploy.UpdateDeployBlueGreen(kubeapiHost, kubeapiPort, deployBlueGreen)
+	err = deploy.UpdateDeployBlueGreen(kubeApiServerEndPoint, kubeApiServerToken, deployBlueGreen)
 	if err != nil {
 		jsonMap := make(map[string]interface{})
 		jsonMap["Error"] = "Update blue green deployment failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["kubeApiServerEndPoint"] = kubeApiServerEndPoint
 		jsonMap["deployBlueGreen"] = deployBlueGreen
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
 		log.Error(jsonMap)
@@ -128,28 +109,16 @@ func putDeployBlueGreen(request *restful.Request, response *restful.Response) {
 }
 
 func deleteDeployBlueGreen(request *restful.Request, response *restful.Response) {
-	kubeapiHost := request.QueryParameter("kubeapihost")
-	kubeapiPortText := request.QueryParameter("kubeapiport")
 	imageInformation := request.PathParameter("imageinformation")
-	if kubeapiHost == "" || kubeapiPortText == "" {
-		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost and kubeapiport are required."
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPortText"] = kubeapiPortText
-		errorMessageByteSlice, _ := json.Marshal(jsonMap)
-		log.Error(jsonMap)
-		response.WriteErrorString(400, string(errorMessageByteSlice))
-		return
-	}
-	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
+
+	kubeApiServerEndPoint, kubeApiServerToken, err := configuration.GetAvailablekubeApiServerEndPoint()
 	if err != nil {
 		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["Error"] = "Get kube apiserver endpoint and token failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiPortText"] = kubeapiPortText
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
 		log.Error(jsonMap)
-		response.WriteErrorString(400, string(errorMessageByteSlice))
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
@@ -158,8 +127,7 @@ func deleteDeployBlueGreen(request *restful.Request, response *restful.Response)
 		jsonMap := make(map[string]interface{})
 		jsonMap["Error"] = "Delete blue green deployment failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["kubeApiServerEndPoint"] = kubeApiServerEndPoint
 		jsonMap["imageInformation"] = imageInformation
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
 		log.Error(jsonMap)
@@ -167,13 +135,12 @@ func deleteDeployBlueGreen(request *restful.Request, response *restful.Response)
 		return
 	}
 
-	err = deploy.CleanAllServiceUnderBlueGreenDeployment(kubeapiHost, kubeapiPort, imageInformation)
+	err = deploy.CleanAllServiceUnderBlueGreenDeployment(kubeApiServerEndPoint, kubeApiServerToken, imageInformation)
 	if err != nil {
 		jsonMap := make(map[string]interface{})
 		jsonMap["Error"] = "Delete all services under blue green deployment failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["kubeApiServerEndPoint"] = kubeApiServerEndPoint
 		jsonMap["imageInformation"] = imageInformation
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
 		log.Error(jsonMap)

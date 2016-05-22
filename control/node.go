@@ -17,7 +17,6 @@ package control
 import (
 	"github.com/cloudawan/cloudone_utility/logger"
 	"github.com/cloudawan/cloudone_utility/restclient"
-	"strconv"
 )
 
 type Region struct {
@@ -43,7 +42,7 @@ type Capacity struct {
 	Memory string
 }
 
-func GetNodeTopology(kubeapiHost string, kubeapiPort int) (returnedRegionSlice []Region, returnedError error) {
+func GetNodeTopology(kubeApiServerEndPoint string, kubeApiServerToken string) (returnedRegionSlice []Region, returnedError error) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error("GetNodeTopology Error: %s", err)
@@ -55,8 +54,11 @@ func GetNodeTopology(kubeapiHost string, kubeapiPort int) (returnedRegionSlice [
 
 	jsonMap := make(map[string]interface{})
 
-	url := "http://" + kubeapiHost + ":" + strconv.Itoa(kubeapiPort) + "/api/v1/nodes/"
-	_, err := restclient.RequestGetWithStructure(url, &jsonMap, nil)
+	headerMap := make(map[string]string)
+	headerMap["Authorization"] = kubeApiServerToken
+
+	url := kubeApiServerEndPoint + "/api/v1/nodes/"
+	_, err := restclient.RequestGetWithStructure(url, &jsonMap, headerMap)
 	if err != nil {
 		log.Error(err)
 		return nil, err

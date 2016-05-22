@@ -17,9 +17,9 @@ package restapi
 import (
 	"encoding/json"
 	"github.com/cloudawan/cloudone/control"
+	"github.com/cloudawan/cloudone/utility/configuration"
 	"github.com/emicklei/go-restful"
 	"net/http"
-	"strconv"
 )
 
 func registerWebServicePod() {
@@ -33,53 +33,38 @@ func registerWebServicePod() {
 		Doc("Delete the pod in the namespace").
 		Param(ws.PathParameter("namespace", "Namespace name").DataType("string")).
 		Param(ws.PathParameter("pod", "Pod name").DataType("string")).
-		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
-		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
-		Do(returns200, returns400, returns422, returns500))
+		Do(returns200, returns400, returns404, returns422, returns500))
 
 	ws.Route(ws.GET("/{namespace}/{pod}/logs").Filter(authorize).Filter(auditLog).To(getPodLog).
 		Doc("Get log for pod").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("pod", "Kubernetes pod").DataType("string")).
-		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
-		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
-		Do(returns200PodLog, returns400, returns422, returns500))
+		Do(returns200PodLog, returns400, returns404, returns422, returns500))
 }
 
 func deletePod(request *restful.Request, response *restful.Response) {
-	kubeapiHost := request.QueryParameter("kubeapihost")
-	kubeapiPortText := request.QueryParameter("kubeapiport")
 	namespace := request.PathParameter("namespace")
 	pod := request.PathParameter("pod")
-	if kubeapiHost == "" || kubeapiPortText == "" {
-		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost and kubeapiport are required."
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPortText"] = kubeapiPortText
-		errorMessageByteSlice, _ := json.Marshal(jsonMap)
-		log.Error(jsonMap)
-		response.WriteErrorString(400, string(errorMessageByteSlice))
-		return
-	}
-	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
+
+	kubeApiServerEndPoint, kubeApiServerToken, err := configuration.GetAvailablekubeApiServerEndPoint()
 	if err != nil {
 		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["Error"] = "Get kube apiserver endpoint and token failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiPortText"] = kubeapiPortText
+		jsonMap["namespace"] = namespace
+		jsonMap["pod"] = pod
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
 		log.Error(jsonMap)
-		response.WriteErrorString(400, string(errorMessageByteSlice))
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
-	err = control.DeletePod(kubeapiHost, kubeapiPort, namespace, pod)
+	err = control.DeletePod(kubeApiServerEndPoint, kubeApiServerToken, namespace, pod)
 	if err != nil {
 		jsonMap := make(map[string]interface{})
 		jsonMap["Error"] = "Delete pod failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["kubeApiServerEndPoint"] = kubeApiServerEndPoint
 		jsonMap["namespace"] = namespace
 		jsonMap["pod"] = pod
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
@@ -90,40 +75,28 @@ func deletePod(request *restful.Request, response *restful.Response) {
 }
 
 func getPodLog(request *restful.Request, response *restful.Response) {
-	kubeapiHost := request.QueryParameter("kubeapihost")
-	kubeapiPortText := request.QueryParameter("kubeapiport")
 	namespace := request.PathParameter("namespace")
 	pod := request.PathParameter("pod")
-	if kubeapiHost == "" || kubeapiPortText == "" {
-		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost and kubeapiport are required."
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPortText"] = kubeapiPortText
-		errorMessageByteSlice, _ := json.Marshal(jsonMap)
-		log.Error(jsonMap)
-		response.WriteErrorString(400, string(errorMessageByteSlice))
-		return
-	}
-	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
+
+	kubeApiServerEndPoint, kubeApiServerToken, err := configuration.GetAvailablekubeApiServerEndPoint()
 	if err != nil {
 		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["Error"] = "Get kube apiserver endpoint and token failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiPortText"] = kubeapiPortText
+		jsonMap["namespace"] = namespace
+		jsonMap["pod"] = pod
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
 		log.Error(jsonMap)
-		response.WriteErrorString(400, string(errorMessageByteSlice))
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
-	logJsonMap, err := control.GetPodLog(kubeapiHost, kubeapiPort, namespace, pod)
-
+	logJsonMap, err := control.GetPodLog(kubeApiServerEndPoint, kubeApiServerToken, namespace, pod)
 	if err != nil {
 		jsonMap := make(map[string]interface{})
 		jsonMap["Error"] = "Get pod log failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["kubeApiServerEndPoint"] = kubeApiServerEndPoint
 		jsonMap["namespace"] = namespace
 		jsonMap["pod"] = pod
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)

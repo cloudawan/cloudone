@@ -18,7 +18,6 @@ import (
 	"github.com/cloudawan/cloudone_utility/jsonparse"
 	"github.com/cloudawan/cloudone_utility/logger"
 	"github.com/cloudawan/cloudone_utility/restclient"
-	"strconv"
 )
 
 type NodeMetric struct {
@@ -34,7 +33,7 @@ type NodeMetric struct {
 	NetworkTXPacketsSlice             []int64
 }
 
-func MonitorNode(kubeapiHost string, kubeapiPort int) (returnedNodeMetricSlice []NodeMetric, returnedError error) {
+func MonitorNode(kubeApiServerEndPoint string, kubeApiServerToken string) (returnedNodeMetricSlice []NodeMetric, returnedError error) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error("MonitorNode Error: %s", err)
@@ -44,10 +43,13 @@ func MonitorNode(kubeapiHost string, kubeapiPort int) (returnedNodeMetricSlice [
 		}
 	}()
 
-	result, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/nodes", nil, true)
+	headerMap := make(map[string]string)
+	headerMap["Authorization"] = kubeApiServerToken
+
+	result, err := restclient.RequestGet(kubeApiServerEndPoint+"/api/v1/nodes", headerMap, true)
 	jsonMap, _ := result.(map[string]interface{})
 	if err != nil {
-		log.Error("Fail to get node inofrmation with hos:t %s, port: %d, error %s", kubeapiHost, kubeapiPort, err.Error())
+		log.Error("Fail to get node inofrmation with endpoint: %s, token: %s, error %s", kubeApiServerEndPoint, kubeApiServerToken, err.Error())
 		return nil, err
 	}
 	urlSlice, addressSlice := getNodeLocationFromNodeInformation(jsonMap)
@@ -105,7 +107,7 @@ func MonitorNode(kubeapiHost string, kubeapiPort int) (returnedNodeMetricSlice [
 	}
 
 	if errorHappened {
-		log.Error("Fail to get all node inofrmation with host %s, port: %d, error %s", kubeapiHost, kubeapiPort, errorMessage)
+		log.Error("Fail to get all node inofrmation with endpoint %s, token: %s, error %s", kubeApiServerEndPoint, kubeApiServerToken, errorMessage)
 		return nodeMetricSlice, nil
 	} else {
 		return nodeMetricSlice, nil

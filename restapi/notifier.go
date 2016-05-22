@@ -19,6 +19,7 @@ import (
 	"github.com/cloudawan/cloudone/execute"
 	"github.com/cloudawan/cloudone/monitor"
 	"github.com/cloudawan/cloudone/notification"
+	"github.com/cloudawan/cloudone/utility/configuration"
 	"github.com/emicklei/go-restful"
 	"net/http"
 )
@@ -43,7 +44,7 @@ func registerWebServiceReplicationControllerNotifier() {
 
 	ws.Route(ws.PUT("/").Filter(authorize).Filter(auditLog).To(putReplicationControllerNotifier).
 		Doc("Add (if not existing) or update an notifier for the replication controller in the namespace").
-		Do(returns200, returns400, returns422, returns500).
+		Do(returns200, returns400, returns404, returns422, returns500).
 		Reads(notification.ReplicationControllerNotifierSerializable{}))
 
 	ws.Route(ws.DELETE("/{namespace}/{kind}/{name}").Filter(authorize).Filter(auditLog).To(deleteReplicationControllerNotifier).
@@ -161,12 +162,26 @@ func putReplicationControllerNotifier(request *restful.Request, response *restfu
 		return
 	}
 
+	kubeApiServerEndPoint, kubeApiServerToken, err := configuration.GetAvailablekubeApiServerEndPoint()
+	if err != nil {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Get kube apiserver endpoint and token failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
+		return
+	}
+
+	replicationControllerNotifierSerializable.KubeApiServerEndPoint = kubeApiServerEndPoint
+	replicationControllerNotifierSerializable.KubeApiServerToken = kubeApiServerToken
+
 	switch replicationControllerNotifierSerializable.Kind {
 	case "selector":
-		nameSlice, err := monitor.GetReplicationControllerNameFromSelector(replicationControllerNotifierSerializable.KubeapiHost, replicationControllerNotifierSerializable.KubeapiPort, replicationControllerNotifierSerializable.Namespace, replicationControllerNotifierSerializable.Name)
+		nameSlice, err := monitor.GetReplicationControllerNameFromSelector(replicationControllerNotifierSerializable.KubeApiServerEndPoint, replicationControllerNotifierSerializable.KubeApiServerToken, replicationControllerNotifierSerializable.Namespace, replicationControllerNotifierSerializable.Name)
 		if err != nil {
 			for _, name := range nameSlice {
-				exist, err := monitor.ExistReplicationController(replicationControllerNotifierSerializable.KubeapiHost, replicationControllerNotifierSerializable.KubeapiPort, replicationControllerNotifierSerializable.Namespace, name)
+				exist, err := monitor.ExistReplicationController(replicationControllerNotifierSerializable.KubeApiServerEndPoint, replicationControllerNotifierSerializable.KubeApiServerToken, replicationControllerNotifierSerializable.Namespace, name)
 				if err != nil {
 					jsonMap := make(map[string]interface{})
 					jsonMap["Error"] = "Check whether the replication controller exists or not failure"
@@ -190,7 +205,7 @@ func putReplicationControllerNotifier(request *restful.Request, response *restfu
 			}
 		}
 	case "replicationController":
-		exist, err := monitor.ExistReplicationController(replicationControllerNotifierSerializable.KubeapiHost, replicationControllerNotifierSerializable.KubeapiPort, replicationControllerNotifierSerializable.Namespace, replicationControllerNotifierSerializable.Name)
+		exist, err := monitor.ExistReplicationController(replicationControllerNotifierSerializable.KubeApiServerEndPoint, replicationControllerNotifierSerializable.KubeApiServerToken, replicationControllerNotifierSerializable.Namespace, replicationControllerNotifierSerializable.Name)
 		if err != nil {
 			jsonMap := make(map[string]interface{})
 			jsonMap["Error"] = "Check whether the replication controller exists or not failure"

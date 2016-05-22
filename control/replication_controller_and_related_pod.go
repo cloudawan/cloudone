@@ -18,7 +18,6 @@ import (
 	"github.com/cloudawan/cloudone_utility/jsonparse"
 	"github.com/cloudawan/cloudone_utility/logger"
 	"github.com/cloudawan/cloudone_utility/restclient"
-	"strconv"
 )
 
 type ReplicationControllerAndRelatedPod struct {
@@ -31,7 +30,7 @@ type ReplicationControllerAndRelatedPod struct {
 	PodSlice           []Pod
 }
 
-func GetAllReplicationControllerAndRelatedPodSlice(kubeapiHost string, kubeapiPort int, namespace string) (
+func GetAllReplicationControllerAndRelatedPodSlice(kubeApiServerEndPoint string, kubeApiServerToken string, namespace string) (
 	returnedReplicationControllerAndRelatedPodSlice []ReplicationControllerAndRelatedPod, returnedError error) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -42,16 +41,19 @@ func GetAllReplicationControllerAndRelatedPodSlice(kubeapiHost string, kubeapiPo
 		}
 	}()
 
-	result, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/"+namespace+"/replicationcontrollers/", nil, true)
+	headerMap := make(map[string]string)
+	headerMap["Authorization"] = kubeApiServerToken
+
+	result, err := restclient.RequestGet(kubeApiServerEndPoint+"/api/v1/namespaces/"+namespace+"/replicationcontrollers/", headerMap, true)
 	replicationControllerJsonMap, _ := result.(map[string]interface{})
 	if err != nil {
-		log.Error("Fail to get all replication controller inofrmation with host %s, port: %d, namespace: %s, error %s", kubeapiHost, kubeapiPort, namespace, err.Error())
+		log.Error("Fail to get all replication controller inofrmation with endpoint %s, token: %s, namespace: %s, error %s", kubeApiServerEndPoint, kubeApiServerToken, namespace, err.Error())
 		return nil, err
 	} else {
-		result, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/"+namespace+"/pods/", nil, true)
+		result, err := restclient.RequestGet(kubeApiServerEndPoint+"/api/v1/namespaces/"+namespace+"/pods/", headerMap, true)
 		podJsonMap, _ := result.(map[string]interface{})
 		if err != nil {
-			log.Error("Fail to get all pod information with host %s, port: %d, namespace: %s, error %s", kubeapiHost, kubeapiPort, namespace, err.Error())
+			log.Error("Fail to get all pod information with endpoint %s, token: %s, namespace: %s, error %s", kubeApiServerEndPoint, kubeApiServerToken, namespace, err.Error())
 			return nil, err
 		} else {
 			replicationControllerAndRelatedPodSlice := make([]ReplicationControllerAndRelatedPod, 0)

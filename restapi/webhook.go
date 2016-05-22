@@ -17,8 +17,9 @@ package restapi
 import (
 	"encoding/json"
 	"github.com/cloudawan/cloudone/webhook"
+
+	"github.com/cloudawan/cloudone/utility/configuration"
 	"github.com/emicklei/go-restful"
-	"strconv"
 )
 
 type GithubPost struct {
@@ -38,34 +39,19 @@ func registerWebServiceWebhook() {
 	// The webhook has its own verification
 	ws.Route(ws.POST("/github/").Filter(auditLog).To(postGithub).
 		Doc("Trigger image build from github webhook data").
-		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
-		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
-		Do(returns200, returns400, returns422, returns500).
+		Do(returns200, returns400, returns404, returns422, returns500).
 		Reads(Namesapce{}))
 }
 
 func postGithub(request *restful.Request, response *restful.Response) {
-	kubeapiHost := request.QueryParameter("kubeapihost")
-	kubeapiPortText := request.QueryParameter("kubeapiport")
-	if kubeapiHost == "" || kubeapiPortText == "" {
-		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost and kubeapiport are required."
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPortText"] = kubeapiPortText
-		errorMessageByteSlice, _ := json.Marshal(jsonMap)
-		log.Error(jsonMap)
-		response.WriteErrorString(400, string(errorMessageByteSlice))
-		return
-	}
-	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
+	kubeApiServerEndPoint, kubeApiServerToken, err := configuration.GetAvailablekubeApiServerEndPoint()
 	if err != nil {
 		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["Error"] = "Get kube apiserver endpoint and token failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiPortText"] = kubeapiPortText
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
 		log.Error(jsonMap)
-		response.WriteErrorString(400, string(errorMessageByteSlice))
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
@@ -81,11 +67,12 @@ func postGithub(request *restful.Request, response *restful.Response) {
 		return
 	}
 
-	err = webhook.Notify(githubPost.User, githubPost.ImageInformation, githubPost.Signature, githubPost.Payload, kubeapiHost, kubeapiPort)
+	err = webhook.Notify(githubPost.User, githubPost.ImageInformation, githubPost.Signature, githubPost.Payload, kubeApiServerEndPoint, kubeApiServerToken)
 	if err != nil {
 		jsonMap := make(map[string]interface{})
 		jsonMap["Error"] = "Notify webhook failure"
 		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["kubeApiServerEndPoint"] = kubeApiServerEndPoint
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
 		log.Error(jsonMap)
 		response.WriteErrorString(422, string(errorMessageByteSlice))

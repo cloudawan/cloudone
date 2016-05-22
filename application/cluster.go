@@ -45,7 +45,7 @@ func getLockName(namespace string, name string) string {
 	return namespace + "." + name
 }
 
-func LaunchClusterApplication(kubeapiHost string, kubeapiPort int, namespace string, name string, environmentSlice []interface{}, size int, replicationControllerExtraJsonMap map[string]interface{}) error {
+func LaunchClusterApplication(kubeApiServerEndPoint string, kubeApiServerToken string, namespace string, name string, environmentSlice []interface{}, size int, replicationControllerExtraJsonMap map[string]interface{}) error {
 	if lock.AcquireLock(LockKind, getLockName(namespace, name), 0) == false {
 		return errors.New("Template is under deployment")
 	}
@@ -60,16 +60,16 @@ func LaunchClusterApplication(kubeapiHost string, kubeapiPort int, namespace str
 
 	switch cluster.ScriptType {
 	case "none":
-		return LaunchClusterApplicationNoScript(kubeapiHost, kubeapiPort, namespace, cluster, environmentSlice, size, replicationControllerExtraJsonMap)
+		return LaunchClusterApplicationNoScript(kubeApiServerEndPoint, kubeApiServerToken, namespace, cluster, environmentSlice, size, replicationControllerExtraJsonMap)
 	case "python":
-		return LaunchClusterApplicationPython(kubeapiHost, kubeapiPort, namespace, cluster, environmentSlice, size, replicationControllerExtraJsonMap)
+		return LaunchClusterApplicationPython(kubeApiServerEndPoint, kubeApiServerToken, namespace, cluster, environmentSlice, size, replicationControllerExtraJsonMap)
 	default:
 		log.Error("No such script type: %s", cluster.ScriptType)
 		return errors.New("No such script type: " + cluster.ScriptType)
 	}
 }
 
-func LaunchClusterApplicationNoScript(kubeapiHost string, kubeapiPort int, namespace string, cluster *Cluster, environmentSlice []interface{}, size int, replicationControllerExtraJsonMap map[string]interface{}) error {
+func LaunchClusterApplicationNoScript(kubeApiServerEndPoint string, kubeApiServerToken string, namespace string, cluster *Cluster, environmentSlice []interface{}, size int, replicationControllerExtraJsonMap map[string]interface{}) error {
 	replicationControllerJsonMap := make(map[string]interface{})
 	err := json.Unmarshal([]byte(cluster.ReplicationControllerJson), &replicationControllerJsonMap)
 	if err != nil {
@@ -140,12 +140,12 @@ func LaunchClusterApplicationNoScript(kubeapiHost string, kubeapiPort int, names
 		specJsonMap["replicas"] = size
 	}
 
-	err = control.CreateReplicationControllerWithJson(kubeapiHost, kubeapiPort, namespace, replicationControllerJsonMap)
+	err = control.CreateReplicationControllerWithJson(kubeApiServerEndPoint, kubeApiServerToken, namespace, replicationControllerJsonMap)
 	if err != nil {
 		log.Error("CreateReplicationControllerWithJson error %s", err)
 		return err
 	}
-	err = control.CreateServiceWithJson(kubeapiHost, kubeapiPort, namespace, serviceJsonMap)
+	err = control.CreateServiceWithJson(kubeApiServerEndPoint, kubeApiServerToken, namespace, serviceJsonMap)
 	if err != nil {
 		log.Error("CreateReplicationControllerWithJson error %s", err)
 		return err
@@ -154,7 +154,7 @@ func LaunchClusterApplicationNoScript(kubeapiHost string, kubeapiPort int, names
 	return nil
 }
 
-func LaunchClusterApplicationPython(kubeapiHost string, kubeapiPort int, namespace string, cluster *Cluster, environmentSlice []interface{}, size int, replicationControllerExtraJsonMap map[string]interface{}) error {
+func LaunchClusterApplicationPython(kubeApiServerEndPoint string, kubeApiServerToken string, namespace string, cluster *Cluster, environmentSlice []interface{}, size int, replicationControllerExtraJsonMap map[string]interface{}) error {
 	replicationControllerJsonMap := make(map[string]interface{})
 	err := json.Unmarshal([]byte(cluster.ReplicationControllerJson), &replicationControllerJsonMap)
 	if err != nil {
@@ -266,7 +266,8 @@ func LaunchClusterApplicationPython(kubeapiHost string, kubeapiPort int, namespa
 
 	command := exec.Command("python", scriptFileName,
 		"--application_name="+cluster.Name,
-		"--kubeapi_host_and_port=http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort),
+		"--kube_apiserver_endpoint="+kubeApiServerEndPoint,
+		"--kube_apiserver_token="+kubeApiServerToken,
 		"--namespace="+namespace,
 		"--size="+strconv.Itoa(size),
 		"--service_file_name="+serviceFileName,

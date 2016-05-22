@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"github.com/cloudawan/cloudone/control"
 	"github.com/cloudawan/cloudone/deploy"
+	"github.com/cloudawan/cloudone/utility/configuration"
 	"github.com/emicklei/go-restful"
 	"net/http"
 	"strconv"
@@ -68,34 +69,26 @@ func registerWebServiceDeploy() {
 		Doc("Delete deploy information").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("imageinformation", "Image information").DataType("string")).
-		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
-		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
-		Do(returns200, returns400, returns422, returns500))
+		Do(returns200, returns400, returns404, returns422, returns500))
 
 	ws.Route(ws.POST("/create/{namespace}").Filter(authorize).Filter(auditLog).To(postDeployCreate).
 		Doc("Create dployment from selected image build and version").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
-		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
-		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
-		Do(returns200, returns400, returns422, returns500).
+		Do(returns200, returns400, returns404, returns422, returns500).
 		Reads(DeployCreateInput{}))
 
 	ws.Route(ws.PUT("/update/{namespace}").Filter(authorize).Filter(auditLog).To(putDeployUpdate).
 		Doc("Update dployment from selected image build and version").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
-		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
-		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
-		Do(returns200, returns400, returns422, returns500).
+		Do(returns200, returns400, returns404, returns422, returns500).
 		Reads(DeployUpdateInput{}))
 
 	ws.Route(ws.PUT("/resize/{namespace}/{imageinformation}").Filter(authorize).Filter(auditLog).To(putDeployResize).
 		Doc("Resize dployment from selected image build and version").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("imageinformation", "Image information").DataType("string")).
-		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
-		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
 		Param(ws.QueryParameter("size", "Size").DataType("int")).
-		Do(returns200, returns400, returns422, returns500))
+		Do(returns200, returns400, returns404, returns422, returns500))
 }
 
 func getAllDeployInformation(request *restful.Request, response *restful.Response) {
@@ -152,39 +145,28 @@ func getDeployInformation(request *restful.Request, response *restful.Response) 
 }
 
 func deleteDeployInformation(request *restful.Request, response *restful.Response) {
-	kubeapiHost := request.QueryParameter("kubeapihost")
-	kubeapiPortText := request.QueryParameter("kubeapiport")
 	namespace := request.PathParameter("namespace")
 	imageInformation := request.PathParameter("imageinformation")
-	if kubeapiHost == "" || kubeapiPortText == "" {
-		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost and kubeapiport are required."
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPortText"] = kubeapiPortText
-		errorMessageByteSlice, _ := json.Marshal(jsonMap)
-		log.Error(jsonMap)
-		response.WriteErrorString(400, string(errorMessageByteSlice))
-		return
-	}
-	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
+
+	kubeApiServerEndPoint, kubeApiServerToken, err := configuration.GetAvailablekubeApiServerEndPoint()
 	if err != nil {
 		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["Error"] = "Get kube apiserver endpoint and token failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiPortText"] = kubeapiPortText
+		jsonMap["namespace"] = namespace
+		jsonMap["imageInformation"] = imageInformation
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
 		log.Error(jsonMap)
-		response.WriteErrorString(400, string(errorMessageByteSlice))
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
-	err = deploy.DeployDelete(kubeapiHost, kubeapiPort, namespace, imageInformation)
+	err = deploy.DeployDelete(kubeApiServerEndPoint, kubeApiServerToken, namespace, imageInformation)
 	if err != nil {
 		jsonMap := make(map[string]interface{})
 		jsonMap["Error"] = "Delete deployment failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["kubeApiServerEndPoint"] = kubeApiServerEndPoint
 		jsonMap["namespace"] = namespace
 		jsonMap["imageInformation"] = imageInformation
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
@@ -195,28 +177,17 @@ func deleteDeployInformation(request *restful.Request, response *restful.Respons
 }
 
 func postDeployCreate(request *restful.Request, response *restful.Response) {
-	kubeapiHost := request.QueryParameter("kubeapihost")
-	kubeapiPortText := request.QueryParameter("kubeapiport")
 	namespace := request.PathParameter("namespace")
-	if kubeapiHost == "" || kubeapiPortText == "" {
-		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost and kubeapiport are required."
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPortText"] = kubeapiPortText
-		errorMessageByteSlice, _ := json.Marshal(jsonMap)
-		log.Error(jsonMap)
-		response.WriteErrorString(400, string(errorMessageByteSlice))
-		return
-	}
-	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
+
+	kubeApiServerEndPoint, kubeApiServerToken, err := configuration.GetAvailablekubeApiServerEndPoint()
 	if err != nil {
 		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["Error"] = "Get kube apiserver endpoint and token failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiPortText"] = kubeapiPortText
+		jsonMap["namespace"] = namespace
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
 		log.Error(jsonMap)
-		response.WriteErrorString(400, string(errorMessageByteSlice))
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
@@ -226,8 +197,7 @@ func postDeployCreate(request *restful.Request, response *restful.Response) {
 		jsonMap := make(map[string]interface{})
 		jsonMap["Error"] = "Read body failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["kubeApiServerEndPoint"] = kubeApiServerEndPoint
 		jsonMap["namespace"] = namespace
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
 		log.Error(jsonMap)
@@ -236,8 +206,8 @@ func postDeployCreate(request *restful.Request, response *restful.Response) {
 	}
 
 	err = deploy.DeployCreate(
-		kubeapiHost,
-		kubeapiPort,
+		kubeApiServerEndPoint,
+		kubeApiServerToken,
 		namespace,
 		deployCreateInput.ImageInformationName,
 		deployCreateInput.Version,
@@ -254,8 +224,7 @@ func postDeployCreate(request *restful.Request, response *restful.Response) {
 		jsonMap := make(map[string]interface{})
 		jsonMap["Error"] = "Update deployment failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["kubeApiServerToken"] = kubeApiServerToken
 		jsonMap["namespace"] = namespace
 		jsonMap["deployCreateInput"] = deployCreateInput
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
@@ -266,28 +235,17 @@ func postDeployCreate(request *restful.Request, response *restful.Response) {
 }
 
 func putDeployUpdate(request *restful.Request, response *restful.Response) {
-	kubeapiHost := request.QueryParameter("kubeapihost")
-	kubeapiPortText := request.QueryParameter("kubeapiport")
 	namespace := request.PathParameter("namespace")
-	if kubeapiHost == "" || kubeapiPortText == "" {
-		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost and kubeapiport are required."
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPortText"] = kubeapiPortText
-		errorMessageByteSlice, _ := json.Marshal(jsonMap)
-		log.Error(jsonMap)
-		response.WriteErrorString(400, string(errorMessageByteSlice))
-		return
-	}
-	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
+
+	kubeApiServerEndPoint, kubeApiServerToken, err := configuration.GetAvailablekubeApiServerEndPoint()
 	if err != nil {
 		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["Error"] = "Get kube apiserver endpoint and token failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiPortText"] = kubeapiPortText
+		jsonMap["namespace"] = namespace
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
 		log.Error(jsonMap)
-		response.WriteErrorString(400, string(errorMessageByteSlice))
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
@@ -297,8 +255,7 @@ func putDeployUpdate(request *restful.Request, response *restful.Response) {
 		jsonMap := make(map[string]interface{})
 		jsonMap["Error"] = "Read body failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["kubeApiServerEndPoint"] = kubeApiServerEndPoint
 		jsonMap["namespace"] = namespace
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
 		log.Error(jsonMap)
@@ -307,8 +264,8 @@ func putDeployUpdate(request *restful.Request, response *restful.Response) {
 	}
 
 	err = deploy.DeployUpdate(
-		kubeapiHost,
-		kubeapiPort,
+		kubeApiServerEndPoint,
+		kubeApiServerToken,
 		namespace,
 		deployUpdateInput.ImageInformationName,
 		deployUpdateInput.Version,
@@ -320,8 +277,7 @@ func putDeployUpdate(request *restful.Request, response *restful.Response) {
 		jsonMap := make(map[string]interface{})
 		jsonMap["Error"] = "Update deployment failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["kubeApiServerEndPoint"] = kubeApiServerEndPoint
 		jsonMap["namespace"] = namespace
 		jsonMap["deployUpdateInput"] = deployUpdateInput
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
@@ -332,28 +288,27 @@ func putDeployUpdate(request *restful.Request, response *restful.Response) {
 }
 
 func putDeployResize(request *restful.Request, response *restful.Response) {
-	kubeapiHost := request.QueryParameter("kubeapihost")
-	kubeapiPortText := request.QueryParameter("kubeapiport")
 	sizeText := request.QueryParameter("size")
 	namespace := request.PathParameter("namespace")
 	imageinformation := request.PathParameter("imageinformation")
-	if kubeapiHost == "" || kubeapiPortText == "" || sizeText == "" {
-		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost, kubeapiport, and sizeText are required."
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPortText"] = kubeapiPortText
-		jsonMap["sizeText"] = sizeText
-		errorMessageByteSlice, _ := json.Marshal(jsonMap)
-		log.Error(jsonMap)
-		response.WriteErrorString(400, string(errorMessageByteSlice))
-		return
-	}
-	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
+
+	kubeApiServerEndPoint, kubeApiServerToken, err := configuration.GetAvailablekubeApiServerEndPoint()
 	if err != nil {
 		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["Error"] = "Get kube apiserver endpoint and token failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiPortText"] = kubeapiPortText
+		jsonMap["namespace"] = namespace
+		jsonMap["imageinformation"] = imageinformation
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
+		return
+	}
+
+	if sizeText == "" {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Input is incorrect. The fields sizeText is required."
+		jsonMap["sizeText"] = sizeText
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
 		log.Error(jsonMap)
 		response.WriteErrorString(400, string(errorMessageByteSlice))
@@ -371,13 +326,12 @@ func putDeployResize(request *restful.Request, response *restful.Response) {
 		return
 	}
 
-	err = deploy.DeployResize(kubeapiHost, kubeapiPort, namespace, imageinformation, size)
+	err = deploy.DeployResize(kubeApiServerEndPoint, kubeApiServerToken, namespace, imageinformation, size)
 	if err != nil {
 		jsonMap := make(map[string]interface{})
 		jsonMap["Error"] = "Resize deployment failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["kubeApiServerEndPoint"] = kubeApiServerEndPoint
 		jsonMap["namespace"] = namespace
 		jsonMap["imageinformation"] = imageinformation
 		jsonMap["size"] = size

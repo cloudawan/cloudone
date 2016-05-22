@@ -17,10 +17,9 @@ package control
 import (
 	"github.com/cloudawan/cloudone_utility/logger"
 	"github.com/cloudawan/cloudone_utility/restclient"
-	"strconv"
 )
 
-func GetAllNamespaceName(kubeapiHost string, kubeapiPort int) (returnedNameSlice []string, returnedError error) {
+func GetAllNamespaceName(kubeApiServerEndPoint string, kubeApiServerToken string) (returnedNameSlice []string, returnedError error) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error("GetAllNamespaceName Error: %s", err)
@@ -30,9 +29,12 @@ func GetAllNamespaceName(kubeapiHost string, kubeapiPort int) (returnedNameSlice
 		}
 	}()
 
-	result, err := restclient.RequestGet("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/", nil, true)
+	headerMap := make(map[string]string)
+	headerMap["Authorization"] = kubeApiServerToken
+
+	result, err := restclient.RequestGet(kubeApiServerEndPoint+"/api/v1/namespaces/", headerMap, true)
 	if err != nil {
-		log.Error("Fail to get all namespace name with host: %s, port: %d, error: %s", kubeapiHost, kubeapiPort, err.Error())
+		log.Error("Fail to get all namespace name with endpoint: %s, token: %s, error: %s", kubeApiServerEndPoint, kubeApiServerToken, err.Error())
 		return nil, err
 	}
 	jsonMap, _ := result.(map[string]interface{})
@@ -53,7 +55,7 @@ func GetAllNamespaceName(kubeapiHost string, kubeapiPort int) (returnedNameSlice
 	return nameSlice, nil
 }
 
-func CreateNamespace(kubeapiHost string, kubeapiPort int, name string) (returnedError error) {
+func CreateNamespace(kubeApiServerEndPoint string, kubeApiServerToken string, name string) (returnedError error) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error("CreateNamespace Error: %s", err)
@@ -66,16 +68,19 @@ func CreateNamespace(kubeapiHost string, kubeapiPort int, name string) (returned
 	jsonMap["metadata"] = make(map[string]interface{})
 	jsonMap["metadata"].(map[string]interface{})["name"] = name
 
-	_, err := restclient.RequestPost("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/", jsonMap, nil, true)
+	headerMap := make(map[string]string)
+	headerMap["Authorization"] = kubeApiServerToken
+
+	_, err := restclient.RequestPost(kubeApiServerEndPoint+"/api/v1/namespaces/", jsonMap, headerMap, true)
 	if err != nil {
-		log.Error("Fail to create namespace with host: %s, port: %d, name: %s, error: %s", kubeapiHost, kubeapiPort, name, err.Error())
+		log.Error("Fail to create namespace with endpoint: %s, token: %s, name: %s, error: %s", kubeApiServerEndPoint, kubeApiServerToken, name, err.Error())
 		return err
 	}
 
 	return nil
 }
 
-func DeleteNamespace(kubeapiHost string, kubeapiPort int, name string) (returnedError error) {
+func DeleteNamespace(kubeApiServerEndPoint string, kubeApiServerToken string, name string) (returnedError error) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Error("DeleteNamespace Error: %s", err)
@@ -84,9 +89,12 @@ func DeleteNamespace(kubeapiHost string, kubeapiPort int, name string) (returned
 		}
 	}()
 
-	_, err := restclient.RequestDelete("http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort)+"/api/v1/namespaces/"+name, nil, nil, true)
+	headerMap := make(map[string]string)
+	headerMap["Authorization"] = kubeApiServerToken
+
+	_, err := restclient.RequestDelete(kubeApiServerEndPoint+"/api/v1/namespaces/"+name, nil, headerMap, true)
 	if err != nil {
-		log.Error("Fail to delete namespace with host: %s, port: %d, name: %s, error: %s", kubeapiHost, kubeapiPort, name, err.Error())
+		log.Error("Fail to delete namespace with endpoint: %s, token: %s, name: %s, error: %s", kubeApiServerEndPoint, kubeApiServerToken, name, err.Error())
 		return err
 	}
 

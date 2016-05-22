@@ -39,7 +39,7 @@ func getBlueGreenServiceName(imageInformation string) string {
 	return blueGreenServiceNamePrefix + imageInformation
 }
 
-func UpdateDeployBlueGreen(kubeapiHost string, kubeapiPort int, deployBlueGreen *DeployBlueGreen) error {
+func UpdateDeployBlueGreen(kubeApiServerEndPoint string, kubeApiServerToken string, deployBlueGreen *DeployBlueGreen) error {
 	deployInformation, err := GetStorage().LoadDeployInformation(
 		deployBlueGreen.Namespace, deployBlueGreen.ImageInformation)
 	if err != nil {
@@ -49,7 +49,7 @@ func UpdateDeployBlueGreen(kubeapiHost string, kubeapiPort int, deployBlueGreen 
 	}
 
 	replicationController, err := control.GetReplicationController(
-		kubeapiHost, kubeapiPort, deployBlueGreen.Namespace,
+		kubeApiServerEndPoint, kubeApiServerToken, deployBlueGreen.Namespace,
 		getBlueGreenReplicationControllerName(deployInformation.ImageInformationName, deployInformation.CurrentVersion))
 	if err != nil {
 		log.Error("Fail to load target replication controller information %s in namespace %s with error %s",
@@ -62,7 +62,7 @@ func UpdateDeployBlueGreen(kubeapiHost string, kubeapiPort int, deployBlueGreen 
 	containerPort := replicationController.ContainerSlice[0].PortSlice[0].ContainerPort
 
 	// Clean all the previous blue green deployment
-	CleanAllServiceUnderBlueGreenDeployment(kubeapiHost, kubeapiPort, deployBlueGreen.ImageInformation)
+	CleanAllServiceUnderBlueGreenDeployment(kubeApiServerEndPoint, kubeApiServerToken, deployBlueGreen.ImageInformation)
 
 	selector := make(map[string]interface{})
 	selector["name"] = deployBlueGreen.ImageInformation
@@ -83,7 +83,7 @@ func UpdateDeployBlueGreen(kubeapiHost string, kubeapiPort int, deployBlueGreen 
 		labelMap,
 		deployBlueGreen.SessionAffinity,
 	}
-	err = control.CreateService(kubeapiHost, kubeapiPort, deployBlueGreen.Namespace, service)
+	err = control.CreateService(kubeApiServerEndPoint, kubeApiServerToken, deployBlueGreen.Namespace, service)
 	if err != nil {
 		log.Error("Create target service failure service %s with error %s",
 			service, err)
@@ -101,17 +101,17 @@ func UpdateDeployBlueGreen(kubeapiHost string, kubeapiPort int, deployBlueGreen 
 	return nil
 }
 
-func CleanAllServiceUnderBlueGreenDeployment(kubeapiHost string, kubeapiPort int, imageInformationName string) error {
+func CleanAllServiceUnderBlueGreenDeployment(kubeApiServerEndPoint string, kubeApiServerToken string, imageInformationName string) error {
 	// Clean all service with this deployment name
-	namespaceSlice, err := control.GetAllNamespaceName(kubeapiHost, kubeapiPort)
+	namespaceSlice, err := control.GetAllNamespaceName(kubeApiServerEndPoint, kubeApiServerToken)
 	if err != nil {
 		log.Error("Fail to get all namesapce with error %s", err)
 		return err
 	}
 	for _, namespace := range namespaceSlice {
-		service, _ := control.GetService(kubeapiHost, kubeapiPort, namespace, getBlueGreenServiceName(imageInformationName))
+		service, _ := control.GetService(kubeApiServerEndPoint, kubeApiServerToken, namespace, getBlueGreenServiceName(imageInformationName))
 		if service != nil {
-			err := control.DeleteService(kubeapiHost, kubeapiPort, namespace, service.Name)
+			err := control.DeleteService(kubeApiServerEndPoint, kubeApiServerToken, namespace, service.Name)
 			if err != nil {
 				log.Error("Fail to delete service %s in namesapce %s with error %s", imageInformationName, namespace, err)
 				return err

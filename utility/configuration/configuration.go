@@ -16,34 +16,38 @@ package configuration
 
 import (
 	"errors"
-	"github.com/cloudawan/cloudone/utility/logger"
+	selfLogger "github.com/cloudawan/cloudone/utility/logger"
 	"github.com/cloudawan/cloudone_utility/configuration"
+	"github.com/cloudawan/cloudone_utility/logger"
+	"github.com/cloudawan/cloudone_utility/restclient"
+	"io/ioutil"
+	"time"
 )
 
-var log = logger.GetLogManager().GetLogger("utility")
+var log = selfLogger.GetLogManager().GetLogger("utility")
 
 var configurationContent = `
 {
 	"certificate": "/etc/cloudone/development_cert.pem",
 	"key": "/etc/cloudone/development_key.pem",
 	"restapiPort": 8081,
-	"emailSenderAccount": "cloudawanemailtest@gmail.com",
-	"emailSenderPassword": "cloudawan4test",
-	"emailSenderHost": "smtp.gmail.com",
-	"emailSenderPort": 587,
-	"smsNexmoURL": "https://rest.nexmo.com/sms/json",
-	"smsNexmoAPIKey": "2045d69e",
-	"smsNexmoAPISecret": "fcaf0b59",
 	"etcdEndpoints": ["http://127.0.0.1:4001"],
 	"etcdHeaderTimeoutPerRequestInMilliSecond": 2000,
 	"etcdBasePath": "/cloudawan/cloudone",
 	"storageTypeDefault": 3,
 	"cloudoneAnalysisHost": "127.0.0.1",
-	"cloudoneAnalysisPort": 8082
+	"cloudoneAnalysisPort": 8082,
+	"kubeApiServerEndPoints": ["https://kubernetes.default.svc.cluster.local:443"],
+	"kubeApiServerHealthCheckTimeoutInMilliSecond": 1000,
+	"kubeApiServerTokenPath": "/var/run/secrets/kubernetes.io/serviceaccount/token"
 }
 `
 
 var LocalConfiguration *configuration.Configuration
+
+const (
+	KubeApiServerHealthCheckTimeoutInMilliSecond = 1000
+)
 
 func init() {
 	err := Reload()
@@ -76,4 +80,61 @@ func GetStorageTypeDefault() (int, error) {
 		return 0, errors.New("Can't load storageTypeDefault")
 	}
 	return value, nil
+}
+
+func GetAvailablekubeApiServerEndPoint() (returnedEndPoint string, returnedToken string, returnedError error) {
+	defer func() {
+		if err := recover(); err != nil {
+			returnedEndPoint = ""
+			returnedToken = ""
+			returnedError = err.(error)
+			log.Error("GetAvailablekubeApiServerEndPoint Error: %s", err)
+			log.Error(logger.GetStackTrace(4096, false))
+		}
+	}()
+
+	kubeApiServerEndPointSlice, ok := LocalConfiguration.GetStringSlice("kubeApiServerEndPoints")
+	if ok == false {
+		log.Error("Fail to get configuration kubeApiServerEndPoints")
+		return "", "", errors.New("Fail to get configuration kubeApiServerEndPoints")
+	}
+
+	kubeApiServerTokenPath, ok := LocalConfiguration.GetString("kubeApiServerTokenPath")
+	if ok == false {
+		log.Error("Fail to get configuration kubeApiServerTokenPath")
+		return "", "", errors.New("Fail to get configuration kubeApiServerTokenPath")
+	}
+
+	fileContent, err := ioutil.ReadFile(kubeApiServerTokenPath)
+	if err != nil {
+		log.Error("Fail to get the file content of kubeApiServerTokenPath %s", kubeApiServerTokenPath)
+		return "", "", errors.New("Fail to get the file content of kubeApiServerTokenPath " + kubeApiServerTokenPath)
+	}
+
+	kubeApiServerHealthCheckTimeoutInMilliSecond, ok := LocalConfiguration.GetInt("kubeApiServerHealthCheckTimeoutInMilliSecond")
+	if ok == false {
+		kubeApiServerHealthCheckTimeoutInMilliSecond = KubeApiServerHealthCheckTimeoutInMilliSecond
+	}
+
+	token := "Bearer " + string(fileContent)
+	headerMap := make(map[string]string)
+	headerMap["Authorization"] = token
+
+	for _, kubeApiServerEndPoint := range kubeApiServerEndPointSlice {
+		result, err := restclient.HealthCheck(
+			kubeApiServerEndPoint,
+			headerMap,
+			time.Duration(kubeApiServerHealthCheckTimeoutInMilliSecond)*time.Millisecond)
+
+		if result {
+			return kubeApiServerEndPoint, token, nil
+		} else {
+			if err != nil {
+				log.Error(err)
+			}
+		}
+	}
+
+	log.Error("No available kube apiserver endpoint")
+	return "", "", errors.New("No available kube apiserver endpoint")
 }

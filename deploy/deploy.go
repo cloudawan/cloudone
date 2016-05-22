@@ -70,7 +70,8 @@ func getLockName(namespace string, imageInformationName string) string {
 }
 
 func DeployCreate(
-	kubeapiHost string, kubeapiPort int, namespace string, imageInformationName string,
+	kubeApiServerEndPoint string, kubeApiServerToken string,
+	namespace string, imageInformationName string,
 	version string, description string, replicaAmount int,
 	deployContainerPortSlice []DeployContainerPort,
 	replicationControllerContainerEnvironmentSlice []control.ReplicationControllerContainerEnvironment,
@@ -119,7 +120,7 @@ func DeployCreate(
 		serviceLabelMap,
 		"",
 	}
-	err = control.CreateService(kubeapiHost, kubeapiPort, namespace, service)
+	err = control.CreateService(kubeApiServerEndPoint, kubeApiServerToken, namespace, service)
 	if err != nil {
 		log.Error("Create service error: %s", err)
 		return err
@@ -157,7 +158,7 @@ func DeployCreate(
 		extraJsonMap,
 	}
 
-	err = control.CreateReplicationController(kubeapiHost, kubeapiPort,
+	err = control.CreateReplicationController(kubeApiServerEndPoint, kubeApiServerToken,
 		namespace, replicationController)
 	if err != nil {
 		log.Error("Create replication controller error: %s", err)
@@ -188,7 +189,8 @@ func DeployCreate(
 	return nil
 }
 
-func DeployUpdate(kubeapiHost string, kubeapiPort int, namespace string,
+func DeployUpdate(
+	kubeApiServerEndPoint string, kubeApiServerToken string, namespace string,
 	imageInformationName string, version string, description string,
 	environmentSlice []control.ReplicationControllerContainerEnvironment) error {
 	if lock.AcquireLock(LockKind, getLockName(namespace, imageInformationName), 0) == false {
@@ -219,7 +221,7 @@ func DeployUpdate(kubeapiHost string, kubeapiPort int, namespace string,
 	newReplicationControllerName := deployInformation.ImageInformationName + version
 
 	err = control.RollingUpdateReplicationControllerWithSingleContainer(
-		kubeapiHost, kubeapiPort, namespace,
+		kubeApiServerEndPoint, kubeApiServerToken, namespace,
 		oldReplicationControllerName, newReplicationControllerName,
 		imageRecord.Path, imageRecord.Version, waitingDuration, environmentSlice)
 	if err != nil {
@@ -236,7 +238,7 @@ func DeployUpdate(kubeapiHost string, kubeapiPort int, namespace string,
 	return nil
 }
 
-func DeployDelete(kubeapiHost string, kubeapiPort int, namespace string, imageInformation string) error {
+func DeployDelete(kubeApiServerEndPoint string, kubeApiServerToken string, namespace string, imageInformation string) error {
 	deployInformation, err := GetStorage().LoadDeployInformation(namespace, imageInformation)
 	if err != nil {
 		log.Error(err)
@@ -251,13 +253,13 @@ func DeployDelete(kubeapiHost string, kubeapiPort int, namespace string, imageIn
 
 	replicationControllerName := deployInformation.ImageInformationName + deployInformation.CurrentVersion
 
-	err = control.DeleteReplicationControllerAndRelatedPod(kubeapiHost, kubeapiPort, namespace, replicationControllerName)
+	err = control.DeleteReplicationControllerAndRelatedPod(kubeApiServerEndPoint, kubeApiServerToken, namespace, replicationControllerName)
 	if err != nil {
 		log.Error(err)
 		return err
 	}
 
-	err = control.DeleteService(kubeapiHost, kubeapiPort, namespace, deployInformation.ImageInformationName)
+	err = control.DeleteService(kubeApiServerEndPoint, kubeApiServerToken, namespace, deployInformation.ImageInformationName)
 	if err != nil {
 		log.Error(err)
 		return err
@@ -266,7 +268,7 @@ func DeployDelete(kubeapiHost string, kubeapiPort int, namespace string, imageIn
 	return nil
 }
 
-func DeployResize(kubeapiHost string, kubeapiPort int, namespace string, imageInformation string, size int) error {
+func DeployResize(kubeApiServerEndPoint string, kubeApiServerToken string, namespace string, imageInformation string, size int) error {
 	deployInformation, err := GetStorage().LoadDeployInformation(namespace, imageInformation)
 	if err != nil {
 		log.Error(err)
@@ -277,7 +279,7 @@ func DeployResize(kubeapiHost string, kubeapiPort int, namespace string, imageIn
 
 	delta := size - deployInformation.ReplicaAmount
 
-	_, _, err = control.ResizeReplicationController(kubeapiHost, kubeapiPort, namespace, replicationControllerName, delta, deployInformation.ReplicaAmount+delta, 1)
+	_, _, err = control.ResizeReplicationController(kubeApiServerEndPoint, kubeApiServerToken, namespace, replicationControllerName, delta, deployInformation.ReplicaAmount+delta, 1)
 	if err != nil {
 		log.Error(err)
 		return err

@@ -19,12 +19,19 @@ import (
 )
 
 func TestRequestGet(t *testing.T) {
-	value := LocalConfiguration.GetNative("cassandraClusterIp")
+	value := LocalConfiguration.GetNative("etcdEndpoints")
 	if value == nil {
-		t.Errorf("Should be nil")
+		t.Errorf("Should not be nil")
 	}
 	value = LocalConfiguration.GetNative("aa")
 	if value != nil {
-		t.Errorf("Should not be nil")
+		t.Errorf("Should be nil")
+	}
+}
+
+func TestGetAvailableKubeapiHostAndPort(t *testing.T) {
+	_, _, err := GetAvailablekubeApiServerEndPoint()
+	if err != nil {
+		t.Errorf("Should not be error")
 	}
 }

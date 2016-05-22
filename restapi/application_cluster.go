@@ -18,9 +18,9 @@ import (
 	"encoding/json"
 	"github.com/cloudawan/cloudone/application"
 	"github.com/cloudawan/cloudone/deploy"
+	"github.com/cloudawan/cloudone/utility/configuration"
 	"github.com/emicklei/go-restful"
 	"net/http"
-	"strconv"
 )
 
 type ClusterDescription struct {
@@ -69,10 +69,8 @@ func registerWebServiceClusterApplication() {
 		Doc("Launch a cluster application").
 		Param(ws.PathParameter("namespace", "Kubernetes namespace").DataType("string")).
 		Param(ws.PathParameter("clusterapplication", "cluster application").DataType("string")).
-		Param(ws.QueryParameter("kubeapihost", "Kubernetes host").DataType("string")).
-		Param(ws.QueryParameter("kubeapiport", "Kubernetes port").DataType("int")).
 		Param(ws.QueryParameter("size", "How many instances to launch").DataType("int")).
-		Do(returns200, returns400, returns409, returns422, returns500).
+		Do(returns200, returns400, returns404, returns409, returns422, returns500).
 		Reads(ClusterLaunch{}))
 }
 
@@ -177,30 +175,19 @@ func deleteClusterApplication(request *restful.Request, response *restful.Respon
 }
 
 func postLaunchClusterApplication(request *restful.Request, response *restful.Response) {
-	kubeapiHost := request.QueryParameter("kubeapihost")
-	kubeapiPortText := request.QueryParameter("kubeapiport")
 	namespace := request.PathParameter("namespace")
 	name := request.PathParameter("clusterapplication")
-	if kubeapiHost == "" || kubeapiPortText == "" {
-		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Input is incorrect. The fields kubeapihost and kubeapiport are required."
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPortText"] = kubeapiPortText
-		errorMessageByteSlice, _ := json.Marshal(jsonMap)
-		log.Error(jsonMap)
-		response.WriteErrorString(400, string(errorMessageByteSlice))
-		return
-	}
-	kubeapiPort, err := strconv.Atoi(kubeapiPortText)
+
+	kubeApiServerEndPoint, kubeApiServerToken, err := configuration.GetAvailablekubeApiServerEndPoint()
 	if err != nil {
 		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Could not parse kubeapiPortText"
+		jsonMap["Error"] = "Get kube apiserver endpoint and token failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiPortText"] = kubeapiPortText
+		jsonMap["namespace"] = namespace
 		jsonMap["name"] = name
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
 		log.Error(jsonMap)
-		response.WriteErrorString(400, string(errorMessageByteSlice))
+		response.WriteErrorString(404, string(errorMessageByteSlice))
 		return
 	}
 
@@ -210,8 +197,7 @@ func postLaunchClusterApplication(request *restful.Request, response *restful.Re
 		jsonMap := make(map[string]interface{})
 		jsonMap["Error"] = "Read body failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["kubeApiServerEndPoint"] = kubeApiServerEndPoint
 		jsonMap["namespace"] = namespace
 		jsonMap["name"] = name
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
@@ -224,8 +210,7 @@ func postLaunchClusterApplication(request *restful.Request, response *restful.Re
 	if oldDeployClusterApplication != nil {
 		jsonMap := make(map[string]interface{})
 		jsonMap["Error"] = "The cluster application already exists"
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["kubeApiServerEndPoint"] = kubeApiServerEndPoint
 		jsonMap["namespace"] = namespace
 		jsonMap["name"] = name
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
@@ -234,13 +219,12 @@ func postLaunchClusterApplication(request *restful.Request, response *restful.Re
 		return
 	}
 
-	err = application.LaunchClusterApplication(kubeapiHost, kubeapiPort, namespace, name, clusterLaunch.EnvironmentSlice, clusterLaunch.Size, clusterLaunch.ReplicationControllerExtraJsonMap)
+	err = application.LaunchClusterApplication(kubeApiServerEndPoint, kubeApiServerToken, namespace, name, clusterLaunch.EnvironmentSlice, clusterLaunch.Size, clusterLaunch.ReplicationControllerExtraJsonMap)
 	if err != nil {
 		jsonMap := make(map[string]interface{})
 		jsonMap["Error"] = "Launch cluster application deployment failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["kubeApiServerEndPoint"] = kubeApiServerEndPoint
 		jsonMap["namespace"] = namespace
 		jsonMap["name"] = name
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
@@ -249,13 +233,12 @@ func postLaunchClusterApplication(request *restful.Request, response *restful.Re
 		return
 	}
 
-	err = deploy.InitializeDeployClusterApplication(kubeapiHost, kubeapiPort, namespace, name, clusterLaunch.EnvironmentSlice, clusterLaunch.Size, clusterLaunch.ReplicationControllerExtraJsonMap)
+	err = deploy.InitializeDeployClusterApplication(kubeApiServerEndPoint, kubeApiServerToken, namespace, name, clusterLaunch.EnvironmentSlice, clusterLaunch.Size, clusterLaunch.ReplicationControllerExtraJsonMap)
 	if err != nil {
 		jsonMap := make(map[string]interface{})
 		jsonMap["Error"] = "Create cluster application deployment failure"
 		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["kubeapiHost"] = kubeapiHost
-		jsonMap["kubeapiPort"] = kubeapiPort
+		jsonMap["kubeApiServerEndPoint"] = kubeApiServerEndPoint
 		jsonMap["namespace"] = namespace
 		jsonMap["name"] = name
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)

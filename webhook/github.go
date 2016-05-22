@@ -34,7 +34,7 @@ func getGitHashSignature(secret string, message string) string {
 	return "sha1=" + hex.EncodeToString(hash.Sum(nil))
 }
 
-func Notify(username string, imageInformationName string, signature string, payload string, kubeapiHost string, kubeapiPort int) error {
+func Notify(username string, imageInformationName string, signature string, payload string, kubeApiServerEndPoint string, kubeApiServerToken string) error {
 	if len(username) == 0 {
 		log.Error("User couldn't be empty. Signature %s", signature)
 		log.Debug(payload)
@@ -127,8 +127,8 @@ func Notify(username string, imageInformationName string, signature string, payl
 					for _, deployInformation := range deployInformationSlice {
 						description := "Trigged by version " + imageInformation.CurrentVersion
 						err := deploy.DeployUpdate(
-							kubeapiHost,
-							kubeapiPort,
+							kubeApiServerEndPoint,
+							kubeApiServerToken,
 							deployInformation.Namespace,
 							imageInformation.Name,
 							imageInformation.CurrentVersion,

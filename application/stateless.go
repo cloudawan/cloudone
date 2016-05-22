@@ -86,7 +86,7 @@ func RetrieveStatelessApplication(name string) (*StatelessSerializable, error) {
 	return statelessSerializable, nil
 }
 
-func LaunchStatelessApplication(kubeapiHost string, kubeapiPort int, namespace string, name string, environmentSlice []interface{}) error {
+func LaunchStatelessApplication(kubeApiServerEndPoint string, kubeApiServerToken string, namespace string, name string, environmentSlice []interface{}) error {
 	stateless, err := GetStorage().LoadStatelessApplication(name)
 	if err != nil {
 		log.Error("Load stateless application error %s", err)
@@ -121,12 +121,12 @@ func LaunchStatelessApplication(kubeapiHost string, kubeapiPort int, namespace s
 		}
 	}
 
-	err = control.CreateReplicationControllerWithJson(kubeapiHost, kubeapiPort, namespace, replicationControllerJsonMap)
+	err = control.CreateReplicationControllerWithJson(kubeApiServerEndPoint, kubeApiServerToken, namespace, replicationControllerJsonMap)
 	if err != nil {
 		log.Error("CreateReplicationControllerWithJson error %s", err)
 		return err
 	}
-	err = control.CreateServiceWithJson(kubeapiHost, kubeapiPort, namespace, serviceJsonMap)
+	err = control.CreateServiceWithJson(kubeApiServerEndPoint, kubeApiServerToken, namespace, serviceJsonMap)
 	if err != nil {
 		log.Error("CreateReplicationControllerWithJson error %s", err)
 		return err

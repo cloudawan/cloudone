@@ -29,16 +29,16 @@ type NotifierSerializable struct {
 }
 
 type ReplicationControllerNotifierSerializable struct {
-	Check             bool
-	CoolDownDuration  int64
-	RemainingCoolDown int64
-	KubeapiHost       string
-	KubeapiPort       int
-	Namespace         string
-	Kind              string
-	Name              string
-	NotifierSlice     []NotifierSerializable
-	IndicatorSlice    []Indicator
+	Check                 bool
+	CoolDownDuration      int64
+	RemainingCoolDown     int64
+	KubeApiServerEndPoint string
+	KubeApiServerToken    string
+	Namespace             string
+	Kind                  string
+	Name                  string
+	NotifierSlice         []NotifierSerializable
+	IndicatorSlice        []Indicator
 }
 
 type Notifier interface {
@@ -46,16 +46,16 @@ type Notifier interface {
 }
 
 type ReplicationControllerNotifier struct {
-	Check             bool
-	CoolDownDuration  time.Duration
-	RemainingCoolDown time.Duration
-	KubeapiHost       string
-	KubeapiPort       int
-	Namespace         string
-	Kind              string
-	Name              string
-	NotifierSlice     []Notifier
-	IndicatorSlice    []Indicator
+	Check                 bool
+	CoolDownDuration      time.Duration
+	RemainingCoolDown     time.Duration
+	KubeApiServerEndPoint string
+	KubeApiServerToken    string
+	Namespace             string
+	Kind                  string
+	Name                  string
+	NotifierSlice         []Notifier
+	IndicatorSlice        []Indicator
 }
 
 type Indicator struct {
@@ -72,8 +72,8 @@ func CheckAndExecuteNotifier(replicationControllerNotifier *ReplicationControlle
 	switch replicationControllerNotifier.Kind {
 	case "selector":
 		nameSlice, err := monitor.GetReplicationControllerNameFromSelector(
-			replicationControllerNotifier.KubeapiHost,
-			replicationControllerNotifier.KubeapiPort,
+			replicationControllerNotifier.KubeApiServerEndPoint,
+			replicationControllerNotifier.KubeApiServerToken,
 			replicationControllerNotifier.Namespace,
 			replicationControllerNotifier.Name)
 		if err != nil {
@@ -105,7 +105,7 @@ func CheckAndExecuteNotifier(replicationControllerNotifier *ReplicationControlle
 }
 
 func CheckAndExecuteNotifierOnReplicationController(replicationControllerNotifier *ReplicationControllerNotifier, replicationControllerName string) (bool, error) {
-	replicationControllerMetric, err := monitor.MonitorReplicationController(replicationControllerNotifier.KubeapiHost, replicationControllerNotifier.KubeapiPort, replicationControllerNotifier.Namespace, replicationControllerName)
+	replicationControllerMetric, err := monitor.MonitorReplicationController(replicationControllerNotifier.KubeApiServerEndPoint, replicationControllerNotifier.KubeApiServerToken, replicationControllerNotifier.Namespace, replicationControllerName)
 	if err != nil {
 		log.Error("Get ReplicationController data failure: %s where replicationControllerNotifier %s", err.Error(), replicationControllerNotifier)
 		return false, err
@@ -184,8 +184,8 @@ func ConvertToSerializable(replicationControllerNotifier ReplicationControllerNo
 		replicationControllerNotifier.Check,
 		int64(replicationControllerNotifier.CoolDownDuration),
 		int64(replicationControllerNotifier.RemainingCoolDown),
-		replicationControllerNotifier.KubeapiHost,
-		replicationControllerNotifier.KubeapiPort,
+		replicationControllerNotifier.KubeApiServerEndPoint,
+		replicationControllerNotifier.KubeApiServerToken,
 		replicationControllerNotifier.Namespace,
 		replicationControllerNotifier.Kind,
 		replicationControllerNotifier.Name,
@@ -222,8 +222,8 @@ func ConvertFromSerializable(replicationControllerNotifierSerializable Replicati
 		replicationControllerNotifierSerializable.Check,
 		time.Duration(replicationControllerNotifierSerializable.CoolDownDuration),
 		time.Duration(replicationControllerNotifierSerializable.RemainingCoolDown),
-		replicationControllerNotifierSerializable.KubeapiHost,
-		replicationControllerNotifierSerializable.KubeapiPort,
+		replicationControllerNotifierSerializable.KubeApiServerEndPoint,
+		replicationControllerNotifierSerializable.KubeApiServerToken,
 		replicationControllerNotifierSerializable.Namespace,
 		replicationControllerNotifierSerializable.Kind,
 		replicationControllerNotifierSerializable.Name,

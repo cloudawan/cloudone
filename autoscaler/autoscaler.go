@@ -23,17 +23,17 @@ import (
 )
 
 type ReplicationControllerAutoScaler struct {
-	Check             bool
-	CoolDownDuration  time.Duration
-	RemainingCoolDown time.Duration
-	KubeapiHost       string
-	KubeapiPort       int
-	Namespace         string
-	Kind              string
-	Name              string
-	MaximumReplica    int
-	MinimumReplica    int
-	IndicatorSlice    []Indicator
+	Check                 bool
+	CoolDownDuration      time.Duration
+	RemainingCoolDown     time.Duration
+	KubeApiServerEndPoint string
+	KubeApiServerToken    string
+	Namespace             string
+	Kind                  string
+	Name                  string
+	MaximumReplica        int
+	MinimumReplica        int
+	IndicatorSlice        []Indicator
 }
 
 type Indicator struct {
@@ -50,8 +50,8 @@ func CheckAndExecuteAutoScaler(replicationControllerAutoScaler *ReplicationContr
 	switch replicationControllerAutoScaler.Kind {
 	case "selector":
 		nameSlice, err := monitor.GetReplicationControllerNameFromSelector(
-			replicationControllerAutoScaler.KubeapiHost,
-			replicationControllerAutoScaler.KubeapiPort,
+			replicationControllerAutoScaler.KubeApiServerEndPoint,
+			replicationControllerAutoScaler.KubeApiServerToken,
 			replicationControllerAutoScaler.Namespace,
 			replicationControllerAutoScaler.Name)
 		if err != nil {
@@ -85,7 +85,7 @@ func CheckAndExecuteAutoScaler(replicationControllerAutoScaler *ReplicationContr
 }
 
 func CheckAndExecuteAutoScalerOnReplicationController(replicationControllerAutoScaler *ReplicationControllerAutoScaler, replicationControllerName string) (bool, int, error) {
-	replicationControllerMetric, err := monitor.MonitorReplicationController(replicationControllerAutoScaler.KubeapiHost, replicationControllerAutoScaler.KubeapiPort, replicationControllerAutoScaler.Namespace, replicationControllerName)
+	replicationControllerMetric, err := monitor.MonitorReplicationController(replicationControllerAutoScaler.KubeApiServerEndPoint, replicationControllerAutoScaler.KubeApiServerToken, replicationControllerAutoScaler.Namespace, replicationControllerName)
 	if err != nil {
 		log.Error("Get ReplicationController data failure: %s where replicationControllerAutoScaler %v", err.Error(), replicationControllerAutoScaler)
 		return false, -1, err
@@ -103,13 +103,13 @@ func CheckAndExecuteAutoScalerOnReplicationController(replicationControllerAutoS
 	}
 
 	if toIncrease {
-		resized, size, err := control.ResizeReplicationController(replicationControllerAutoScaler.KubeapiHost, replicationControllerAutoScaler.KubeapiPort, replicationControllerAutoScaler.Namespace, replicationControllerName, 1, replicationControllerAutoScaler.MaximumReplica, replicationControllerAutoScaler.MinimumReplica)
+		resized, size, err := control.ResizeReplicationController(replicationControllerAutoScaler.KubeApiServerEndPoint, replicationControllerAutoScaler.KubeApiServerToken, replicationControllerAutoScaler.Namespace, replicationControllerName, 1, replicationControllerAutoScaler.MaximumReplica, replicationControllerAutoScaler.MinimumReplica)
 		if err != nil {
 			log.Error("ResizeReplicationController failure: %s where ReplicationControllerAutoScaler %v", err.Error(), replicationControllerAutoScaler)
 		}
 		return resized, size, err
 	} else if toDecrease {
-		resized, size, err := control.ResizeReplicationController(replicationControllerAutoScaler.KubeapiHost, replicationControllerAutoScaler.KubeapiPort, replicationControllerAutoScaler.Namespace, replicationControllerName, -1, replicationControllerAutoScaler.MaximumReplica, replicationControllerAutoScaler.MinimumReplica)
+		resized, size, err := control.ResizeReplicationController(replicationControllerAutoScaler.KubeApiServerEndPoint, replicationControllerAutoScaler.KubeApiServerToken, replicationControllerAutoScaler.Namespace, replicationControllerName, -1, replicationControllerAutoScaler.MaximumReplica, replicationControllerAutoScaler.MinimumReplica)
 		if err != nil {
 			log.Error("ResizeReplicationController failure: %s where ReplicationControllerAutoScaler %v", err.Error(), replicationControllerAutoScaler)
 		}

@@ -38,14 +38,14 @@ type DeployClusterApplication struct {
 	CreatedTime                       time.Time
 }
 
-func getServiceNameAndReplicationControllerNameSlice(kubeapiHost string, kubeapiPort int, namespace string, name string) (bool, string, []string, error) {
-	replicationControllerAndRelatedPodSlice, err := control.GetAllReplicationControllerAndRelatedPodSlice(kubeapiHost, kubeapiPort, namespace)
+func getServiceNameAndReplicationControllerNameSlice(kubeApiServerEndPoint string, kubeApiServerToken string, namespace string, name string) (bool, string, []string, error) {
+	replicationControllerAndRelatedPodSlice, err := control.GetAllReplicationControllerAndRelatedPodSlice(kubeApiServerEndPoint, kubeApiServerToken, namespace)
 	if err != nil {
 		log.Error("Fail to get all replication controller name error %s", err)
 		return false, "", nil, err
 	}
 
-	serviceSlice, err := control.GetAllService(kubeapiHost, kubeapiPort, namespace)
+	serviceSlice, err := control.GetAllService(kubeApiServerEndPoint, kubeApiServerToken, namespace)
 	if err != nil {
 		log.Error("Fail to get all service error %s", err)
 		return false, "", nil, err
@@ -85,8 +85,8 @@ func getServiceNameAndReplicationControllerNameSlice(kubeapiHost string, kubeapi
 	return serviceExist, serviceName, replicationControllerNameSlice, nil
 }
 
-func InitializeDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespace string, name string, environmentSlice []interface{}, size int, replicationControllerExtraJsonMap map[string]interface{}) error {
-	serviceExist, serviceName, replicationControllerNameSlice, err := getServiceNameAndReplicationControllerNameSlice(kubeapiHost, kubeapiPort, namespace, name)
+func InitializeDeployClusterApplication(kubeApiServerEndPoint string, kubeApiServerToken string, namespace string, name string, environmentSlice []interface{}, size int, replicationControllerExtraJsonMap map[string]interface{}) error {
+	serviceExist, serviceName, replicationControllerNameSlice, err := getServiceNameAndReplicationControllerNameSlice(kubeApiServerEndPoint, kubeApiServerToken, namespace, name)
 	if err != nil {
 		log.Error(err)
 		return err
@@ -137,7 +137,7 @@ func GetDeployClusterApplication(namespace string, name string) (*DeployClusterA
 	return GetStorage().LoadDeployClusterApplication(namespace, name)
 }
 
-func ResizeDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespace string, name string, environmentSlice []interface{}, size int) error {
+func ResizeDeployClusterApplication(kubeApiServerEndPoint string, kubeApiServerToken string, namespace string, name string, environmentSlice []interface{}, size int) error {
 	cluster, err := application.GetStorage().LoadClusterApplication(name)
 	if err != nil {
 		log.Error("Load cluster application error %s", err)
@@ -221,7 +221,7 @@ func ResizeDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespa
 			return err
 		}
 		for _, replicationControllerName := range deployClusterApplication.ReplicationControllerNameSlice {
-			err := control.UpdateReplicationControllerSize(kubeapiHost, kubeapiPort, namespace, replicationControllerName, size)
+			err := control.UpdateReplicationControllerSize(kubeApiServerEndPoint, kubeApiServerToken, namespace, replicationControllerName, size)
 			if err != nil {
 				log.Error("Resize replication controller %s error %s", replicationControllerName, err)
 				return err
@@ -230,7 +230,8 @@ func ResizeDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespa
 	case "python":
 		command := exec.Command("python", scriptFileName,
 			"--application_name="+name,
-			"--kubeapi_host_and_port=http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort),
+			"--kube_apiserver_endpoint="+kubeApiServerEndPoint,
+			"--kube_apiserver_token="+kubeApiServerToken,
 			"--namespace="+namespace,
 			"--size="+strconv.Itoa(size),
 			"--replication_controller_file_name="+replicationControllerFileName,
@@ -262,7 +263,7 @@ func ResizeDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespa
 		log.Error("Update the deploy cluster application with error %s", err)
 		return err
 	}
-	_, serviceName, replicationControllerNameSlice, err := getServiceNameAndReplicationControllerNameSlice(kubeapiHost, kubeapiPort, namespace, name)
+	_, serviceName, replicationControllerNameSlice, err := getServiceNameAndReplicationControllerNameSlice(kubeApiServerEndPoint, kubeApiServerToken, namespace, name)
 	if err != nil {
 		log.Error(err)
 		return err
@@ -281,7 +282,7 @@ func ResizeDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespa
 	return nil
 }
 
-func DeleteDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespace string, name string) error {
+func DeleteDeployClusterApplication(kubeApiServerEndPoint string, kubeApiServerToken string, namespace string, name string) error {
 	deployClusterApplication, err := GetDeployClusterApplication(namespace, name)
 	if err != nil {
 		log.Error("Get deploy cluster application error %s", err)
@@ -323,14 +324,14 @@ func DeleteDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespa
 	switch cluster.ScriptType {
 	case "none":
 		for _, replicationControllerName := range deployClusterApplication.ReplicationControllerNameSlice {
-			err := control.DeleteReplicationControllerAndRelatedPod(kubeapiHost, kubeapiPort, namespace, replicationControllerName)
+			err := control.DeleteReplicationControllerAndRelatedPod(kubeApiServerEndPoint, kubeApiServerToken, namespace, replicationControllerName)
 			if err != nil {
 				log.Error("Delete replication controller %s error %s", replicationControllerName, err)
 				return err
 			}
 		}
 
-		err = control.DeleteService(kubeapiHost, kubeapiPort, namespace, deployClusterApplication.ServiceName)
+		err = control.DeleteService(kubeApiServerEndPoint, kubeApiServerToken, namespace, deployClusterApplication.ServiceName)
 		if err != nil {
 			log.Error("Delete service %s error %s", deployClusterApplication.ServiceName, err)
 			return err
@@ -338,7 +339,8 @@ func DeleteDeployClusterApplication(kubeapiHost string, kubeapiPort int, namespa
 	case "python":
 		command := exec.Command("python", scriptFileName,
 			"--application_name="+name,
-			"--kubeapi_host_and_port=http://"+kubeapiHost+":"+strconv.Itoa(kubeapiPort),
+			"--kube_apiserver_endpoint="+kubeApiServerEndPoint,
+			"--kube_apiserver_token="+kubeApiServerToken,
 			"--namespace="+namespace,
 			"--timeout_in_second=120",
 			"--action=delete")
