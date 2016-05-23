@@ -340,3 +340,37 @@ func GetDeployInformationWithAutoUpdateForNewBuild(imageInformationName string) 
 	}
 	return fileteredDeployInformationSlice, nil
 }
+
+func GetDeployInformationOwningReplicationController(namespace string, replicationControllerName string) (*DeployInformation, error) {
+	deployInformation, err := GetStorage().LoadDeployInformation(namespace, replicationControllerName)
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	return deployInformation, nil
+}
+
+func ChangeDeployInformationReplicaAmount(namespace string, replicationControllerName string, size int) error {
+	deployInformationSlice, err := GetStorage().LoadAllDeployInformation()
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	for _, deployInformation := range deployInformationSlice {
+		if deployInformation.Namespace == namespace && deployInformation.ImageInformationName+deployInformation.CurrentVersion == replicationControllerName {
+			deployInformation.ReplicaAmount = size
+			err = GetStorage().saveDeployInformation(&deployInformation)
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+
+			return nil
+		}
+	}
+
+	// No deploy information owning this replication controller
+	return nil
+}

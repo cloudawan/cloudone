@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"errors"
 	"github.com/cloudawan/cloudone/control"
+	"github.com/cloudawan/cloudone/deploy"
 	"github.com/cloudawan/cloudone/monitor"
 	"time"
 )
@@ -107,12 +108,28 @@ func CheckAndExecuteAutoScalerOnReplicationController(replicationControllerAutoS
 		if err != nil {
 			log.Error("ResizeReplicationController failure: %s where ReplicationControllerAutoScaler %v", err.Error(), replicationControllerAutoScaler)
 		}
+
+		// Change deployment data
+		if resized {
+			if err := deploy.ChangeDeployInformationReplicaAmount(replicationControllerAutoScaler.Namespace, replicationControllerName, size); err != nil {
+				log.Error(err)
+			}
+		}
+
 		return resized, size, err
 	} else if toDecrease {
 		resized, size, err := control.ResizeReplicationController(replicationControllerAutoScaler.KubeApiServerEndPoint, replicationControllerAutoScaler.KubeApiServerToken, replicationControllerAutoScaler.Namespace, replicationControllerName, -1, replicationControllerAutoScaler.MaximumReplica, replicationControllerAutoScaler.MinimumReplica)
 		if err != nil {
 			log.Error("ResizeReplicationController failure: %s where ReplicationControllerAutoScaler %v", err.Error(), replicationControllerAutoScaler)
 		}
+
+		// Change deployment data
+		if resized {
+			if err := deploy.ChangeDeployInformationReplicaAmount(replicationControllerAutoScaler.Namespace, replicationControllerName, size); err != nil {
+				log.Error(err)
+			}
+		}
+
 		return resized, size, err
 	} else {
 		return false, replicationControllerMetric.Size, nil
