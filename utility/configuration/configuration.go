@@ -61,6 +61,9 @@ func Reload() error {
 	localConfiguration, err := configuration.CreateConfiguration("cloudone", configurationContent)
 	if err == nil {
 		LocalConfiguration = localConfiguration
+		if err := reloadFile(); err != nil {
+			return err
+		}
 	}
 
 	return err
@@ -82,6 +85,24 @@ func GetStorageTypeDefault() (int, error) {
 	return value, nil
 }
 
+func reloadFile() error {
+	// Token
+	kubeApiServerTokenPath, ok := LocalConfiguration.GetString("kubeApiServerTokenPath")
+	if ok == false {
+		log.Error("Fail to get configuration kubeApiServerTokenPath")
+		return errors.New("Fail to get configuration kubeApiServerTokenPath")
+	}
+
+	fileContent, err := ioutil.ReadFile(kubeApiServerTokenPath)
+	if err != nil {
+		log.Error("Fail to get the file content of kubeApiServerTokenPath %s", kubeApiServerTokenPath)
+		return errors.New("Fail to get the file content of kubeApiServerTokenPath " + kubeApiServerTokenPath)
+	}
+	LocalConfiguration.SetNative("kubeApiServerToken", string(fileContent))
+
+	return nil
+}
+
 func GetAvailablekubeApiServerEndPoint() (returnedEndPoint string, returnedToken string, returnedError error) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -99,24 +120,18 @@ func GetAvailablekubeApiServerEndPoint() (returnedEndPoint string, returnedToken
 		return "", "", errors.New("Fail to get configuration kubeApiServerEndPoints")
 	}
 
-	kubeApiServerTokenPath, ok := LocalConfiguration.GetString("kubeApiServerTokenPath")
-	if ok == false {
-		log.Error("Fail to get configuration kubeApiServerTokenPath")
-		return "", "", errors.New("Fail to get configuration kubeApiServerTokenPath")
-	}
-
-	fileContent, err := ioutil.ReadFile(kubeApiServerTokenPath)
-	if err != nil {
-		log.Error("Fail to get the file content of kubeApiServerTokenPath %s", kubeApiServerTokenPath)
-		return "", "", errors.New("Fail to get the file content of kubeApiServerTokenPath " + kubeApiServerTokenPath)
-	}
-
 	kubeApiServerHealthCheckTimeoutInMilliSecond, ok := LocalConfiguration.GetInt("kubeApiServerHealthCheckTimeoutInMilliSecond")
 	if ok == false {
 		kubeApiServerHealthCheckTimeoutInMilliSecond = KubeApiServerHealthCheckTimeoutInMilliSecond
 	}
 
-	token := "Bearer " + string(fileContent)
+	kubeApiServerToken, ok := LocalConfiguration.GetString("kubeApiServerToken")
+	if ok == false {
+		log.Error("Fail to get configuration kubeApiServerToken")
+		return "", "", errors.New("Fail to get configuration kubeApiServerToken")
+	}
+
+	token := "Bearer " + kubeApiServerToken
 	headerMap := make(map[string]string)
 	headerMap["Authorization"] = token
 
