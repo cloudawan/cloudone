@@ -205,6 +205,20 @@ func postDeployCreate(request *restful.Request, response *restful.Response) {
 		return
 	}
 
+	deploymentInformation, _ := deploy.GetStorage().LoadDeployInformation(namespace, deployCreateInput.ImageInformationName)
+	if deploymentInformation != nil {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Duplicate deployment error"
+		jsonMap["ErrorMessage"] = "Already exists"
+		jsonMap["kubeApiServerToken"] = kubeApiServerToken
+		jsonMap["namespace"] = namespace
+		jsonMap["deployCreateInput"] = deployCreateInput
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
+		return
+	}
+
 	err = deploy.DeployCreate(
 		kubeApiServerEndPoint,
 		kubeApiServerToken,
@@ -222,7 +236,7 @@ func postDeployCreate(request *restful.Request, response *restful.Response) {
 
 	if err != nil {
 		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Update deployment failure"
+		jsonMap["Error"] = "Create deployment failure"
 		jsonMap["ErrorMessage"] = err.Error()
 		jsonMap["kubeApiServerToken"] = kubeApiServerToken
 		jsonMap["namespace"] = namespace
