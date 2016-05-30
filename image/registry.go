@@ -210,26 +210,28 @@ func RemoveImageFromAllHost(imageIdentifierSlice []ImageIdentifier) error {
 	hasError := false
 	buffer := bytes.Buffer{}
 	for _, credential := range credentialSlice {
-		interactiveMap := make(map[string]string)
-		interactiveMap["[sudo]"] = credential.SSH.Password + "\n"
+		if credential.Disabled == false {
+			interactiveMap := make(map[string]string)
+			interactiveMap["[sudo]"] = credential.SSH.Password + "\n"
 
-		resultSlice, err := sshclient.InteractiveSSH(
-			2*time.Second,
-			time.Duration(amount)*time.Minute,
-			credential.IP,
-			credential.SSH.Port,
-			credential.SSH.User,
-			credential.SSH.Password,
-			commandSlice,
-			interactiveMap)
+			resultSlice, err := sshclient.InteractiveSSH(
+				2*time.Second,
+				time.Duration(amount)*time.Minute,
+				credential.IP,
+				credential.SSH.Port,
+				credential.SSH.User,
+				credential.SSH.Password,
+				commandSlice,
+				interactiveMap)
 
-		log.Info("Issue command via ssh with result:\n %v", resultSlice)
+			log.Info("Issue command via ssh with result:\n %v", resultSlice)
 
-		if err != nil {
-			hasError = true
-			errorMessage := fmt.Sprintf("Error message: %v Result Output: %v .", err, resultSlice)
-			log.Error(errorMessage)
-			buffer.WriteString(errorMessage)
+			if err != nil {
+				hasError = true
+				errorMessage := fmt.Sprintf("Error message: %v Result Output: %v .", err, resultSlice)
+				log.Error(errorMessage)
+				buffer.WriteString(errorMessage)
+			}
 		}
 	}
 

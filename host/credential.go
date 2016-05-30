@@ -15,8 +15,9 @@
 package host
 
 type Credential struct {
-	IP  string
-	SSH SSH
+	IP       string
+	SSH      SSH
+	Disabled bool
 }
 
 type SSH struct {
