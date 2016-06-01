@@ -20,12 +20,61 @@ import (
 	"github.com/cloudawan/cloudone_utility/restclient"
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 )
 
 type PrivateRegistry struct {
 	Name string
 	Host string
 	Port int
+}
+
+const (
+	AvailableTimeoutDuration = time.Second * 1
+)
+
+func GetPrivateRegistryFromPathAndTestAvailable(path string) (*PrivateRegistry, error) {
+	splitSlice := strings.Split(path, "/")
+	if len(splitSlice) != 2 {
+		return nil, errors.New("Invalid path format: " + path)
+	}
+	registry := splitSlice[0]
+	splitSlice = strings.Split(registry, ":")
+	if len(splitSlice) != 2 {
+		return nil, errors.New("Invalid registry format: " + registry)
+	}
+	host := splitSlice[0]
+	portText := splitSlice[1]
+
+	port, err := strconv.Atoi(portText)
+	if err != nil {
+		log.Error(err)
+		return nil, errors.New("Can't parse port: " + portText)
+	}
+
+	privateRegistry := &PrivateRegistry{
+		"",
+		host,
+		port,
+	}
+
+	err = privateRegistry.IsAvailable()
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	return privateRegistry, nil
+}
+
+func (privateRegistry *PrivateRegistry) IsAvailable() error {
+	_, err := restclient.HealthCheck(privateRegistry.getPrivateRegistryEndpoint()+"/v2/", nil, AvailableTimeoutDuration)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+	return nil
 }
 
 func (privateRegistry *PrivateRegistry) GetRepositoryPath(repositoryName string) string {
@@ -138,10 +187,31 @@ func (privateRegistry *PrivateRegistry) DeleteImageInRepository(repositoryName s
 	}
 
 	_, err = restclient.RequestDelete(privateRegistry.getPrivateRegistryEndpoint()+"/v2/"+repositoryName+"/manifests/"+digest, nil, nil, false)
+	requestError, _ := err.(restclient.RequestError)
+	if requestError.StatusCode == 404 {
+		// Not found so the target doesn't exist
+		return nil
+	}
 	if err != nil {
 		log.Error(err)
 		return err
 	}
 
 	return nil
+}
+
+func (privateRegistry *PrivateRegistry) IsImageTagAvailable(repositoryName string, targetTag string) bool {
+	tagSlice, err := privateRegistry.GetAllImageTag(repositoryName)
+	if err != nil {
+		log.Error(err)
+		return false
+	}
+
+	for _, tag := range tagSlice {
+		if tag == targetTag {
+			return true
+		}
+	}
+
+	return false
 }

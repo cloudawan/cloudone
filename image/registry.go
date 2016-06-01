@@ -20,19 +20,13 @@ import (
 	"fmt"
 	"github.com/cloudawan/cloudone/authorization"
 	"github.com/cloudawan/cloudone/host"
+	"github.com/cloudawan/cloudone/registry"
 	"github.com/cloudawan/cloudone/utility/configuration"
 	"github.com/cloudawan/cloudone_utility/restclient"
 	"github.com/cloudawan/cloudone_utility/sshclient"
-	"net/http"
 	"strconv"
-	"strings"
 	"time"
 )
-
-type ImageIdentifier struct {
-	Repository string
-	Tag        string
-}
 
 func DeleteImageInformationAndRelatedRecord(imageInformationName string) error {
 	imageRecordSlice, err := GetStorage().LoadImageRecordWithImageInformationName(imageInformationName)
@@ -41,28 +35,32 @@ func DeleteImageInformationAndRelatedRecord(imageInformationName string) error {
 		return err
 	}
 
-	imageIdentifierSlice := make([]ImageIdentifier, 0)
+	filteredImageRecordSlice := make([]ImageRecord, 0)
 	for _, imageRecord := range imageRecordSlice {
+		// Image is successfully built before
 		if imageRecord.Failure == false {
-			repository := imageRecord.Path[:len(imageRecord.Path)-(len(imageRecord.Version)+1)] // Remove :version. +1 due to :
-			imageIdentifierSlice = append(imageIdentifierSlice, ImageIdentifier{
-				repository,
-				imageRecord.Version,
-			})
+			filteredImageRecordSlice = append(filteredImageRecordSlice, imageRecord)
 		}
 	}
 
 	hasError := false
 	buffer := bytes.Buffer{}
 
-	if len(imageIdentifierSlice) > 0 {
-		err = RemoveImageFromPrivateRegistry(imageIdentifierSlice)
+	if len(filteredImageRecordSlice) > 0 {
+		imageRecord := filteredImageRecordSlice[0]
+		privateRegistry, err := registry.GetPrivateRegistryFromPathAndTestAvailable(imageRecord.Path)
 		if err != nil {
 			hasError = true
 			buffer.WriteString(err.Error())
+		} else {
+			err := privateRegistry.DeleteAllImageInRepository(imageRecord.ImageInformation)
+			if err != nil {
+				hasError = true
+				buffer.WriteString(err.Error())
+			}
 		}
 
-		err = RemoveImageFromAllHost(imageIdentifierSlice)
+		err = RemoveImageFromAllHost(filteredImageRecordSlice)
 		if err != nil {
 			hasError = true
 			buffer.WriteString(err.Error())
@@ -96,35 +94,57 @@ func DeleteImageRecord(imageInformationName string, imageRecordVersion string) e
 		return err
 	}
 
-	repository := imageRecord.Path[:len(imageRecord.Path)-(len(imageRecord.Version)+1)] // Remove :version. +1 due to :
-
-	imageIdentifierSlice := make([]ImageIdentifier, 0)
-	imageIdentifierSlice = append(imageIdentifierSlice, ImageIdentifier{
-		repository,
-		imageRecord.Version,
-	})
-
 	hasError := false
 	buffer := bytes.Buffer{}
 
+	deletedTagSlice := make([]string, 0)
+	// Image is successfully built before
 	if imageRecord.Failure == false {
-		err = RemoveImageFromPrivateRegistry(imageIdentifierSlice)
+		privateRegistry, err := registry.GetPrivateRegistryFromPathAndTestAvailable(imageRecord.Path)
 		if err != nil {
 			hasError = true
 			buffer.WriteString(err.Error())
+		} else {
+			beforeDeleteTagSlice, err := privateRegistry.GetAllImageTag(imageRecord.ImageInformation)
+			if err != nil {
+				hasError = true
+				buffer.WriteString(err.Error())
+			} else {
+				err := privateRegistry.DeleteImageInRepository(imageRecord.ImageInformation, imageRecord.Version)
+				if err != nil {
+					hasError = true
+					buffer.WriteString(err.Error())
+				} else {
+					afterDeleteTagSlice, err := privateRegistry.GetAllImageTag(imageRecord.ImageInformation)
+					if err != nil {
+						hasError = true
+						buffer.WriteString(err.Error())
+					} else {
+						for _, beforeDeleteTag := range beforeDeleteTagSlice {
+							if isTagInSlice(beforeDeleteTag, afterDeleteTagSlice) == false {
+								deletedTagSlice = append(deletedTagSlice, beforeDeleteTag)
+							}
+						}
+					}
+				}
+			}
 		}
 
-		err = RemoveImageFromAllHost(imageIdentifierSlice)
+		imageRecordSlice := make([]ImageRecord, 0)
+		imageRecordSlice = append(imageRecordSlice, *imageRecord)
+		err = RemoveImageFromAllHost(imageRecordSlice)
 		if err != nil {
 			hasError = true
 			buffer.WriteString(err.Error())
 		}
 	}
 
-	err = GetStorage().DeleteImageRecord(imageInformationName, imageRecordVersion)
-	if err != nil {
-		hasError = true
-		buffer.WriteString(err.Error())
+	for _, deletedTag := range deletedTagSlice {
+		err = GetStorage().DeleteImageRecord(imageInformationName, deletedTag)
+		if err != nil {
+			hasError = true
+			buffer.WriteString(err.Error())
+		}
 	}
 
 	err = RequestDeleteBuildLog(imageInformationName, imageRecordVersion)
@@ -141,70 +161,20 @@ func DeleteImageRecord(imageInformationName string, imageRecordVersion string) e
 	}
 }
 
-// Due to the docker registry API, the delete is only make it unavailable but the image is not removed from storage.
-func RemoveImageFromPrivateRegistry(imageIdentifierSlice []ImageIdentifier) error {
-	hasError := false
-	buffer := bytes.Buffer{}
-	for _, imageIdentifier := range imageIdentifierSlice {
-		splitSlice := strings.Split(imageIdentifier.Repository, "/")
-		if len(splitSlice) != 2 {
-			hasError = true
-			errorMessage := fmt.Sprintf("Invalid repository format %v.", imageIdentifier.Repository)
-			log.Error(errorMessage)
-			buffer.WriteString(errorMessage)
-		} else {
-			hostAndPort := splitSlice[0]
-			repositoryName := splitSlice[1]
-
-			request, err := http.NewRequest("GET", "https://"+hostAndPort+"/v2/"+repositoryName+"/manifests/"+imageIdentifier.Tag, nil)
-			if err != nil {
-				hasError = true
-				errorMessage := fmt.Sprintf("Error during creating the request with imageIdentifier %v error %v.", imageIdentifier, err)
-				log.Error(errorMessage)
-				buffer.WriteString(errorMessage)
-			} else {
-				// For registry version 2.3 and later
-				request.Header.Add("Accept", "application/vnd.docker.distribution.manifest.v2+json")
-				response, err := restclient.GetInsecureHTTPSClient().Do(request)
-				if err != nil {
-					hasError = true
-					errorMessage := fmt.Sprintf("Error during the request with imageIdentifier %v error %v.", imageIdentifier, err)
-					log.Error(errorMessage)
-					buffer.WriteString(errorMessage)
-				} else {
-					digest := response.Header.Get("Docker-Content-Digest")
-
-					_, err := restclient.RequestDelete("https://"+hostAndPort+"/v2/"+repositoryName+"/manifests/"+digest, nil, nil, false)
-					if err != nil {
-						hasError = true
-						errorMessage := fmt.Sprintf("Delete imageIdentifier %v error %v.", imageIdentifier, err)
-						log.Error(errorMessage)
-						buffer.WriteString(errorMessage)
-					}
-				}
-			}
-		}
-	}
-
-	if hasError {
-		return errors.New(buffer.String())
-	} else {
-		return nil
-	}
-}
-
-func RemoveImageFromAllHost(imageIdentifierSlice []ImageIdentifier) error {
+func RemoveImageFromAllHost(imageRecordSlcie []ImageRecord) error {
 	credentialSlice, err := host.GetStorage().LoadAllCredential()
 	if err != nil {
 		log.Error(err)
 		return err
 	}
 
-	amount := len(imageIdentifierSlice)
+	amount := len(imageRecordSlcie)
 
 	commandSlice := make([]string, 0)
-	for _, imageIdentifier := range imageIdentifierSlice {
-		commandSlice = append(commandSlice, "sudo docker rmi -f "+imageIdentifier.Repository+":"+imageIdentifier.Tag+"\n")
+	// Delete all stopped instance so image could be removed
+	commandSlice = append(commandSlice, "sudo docker rm $(sudo docker ps -aqf status=exited | xargs)\n")
+	for _, imageRecord := range imageRecordSlcie {
+		commandSlice = append(commandSlice, "sudo docker rmi "+imageRecord.Path+"\n")
 	}
 
 	hasError := false
@@ -290,4 +260,13 @@ func RequestDeleteBuildLog(imageInformationName string, imageRecordVersion strin
 	}
 
 	return err
+}
+
+func isTagInSlice(targetTag string, tagSlice []string) bool {
+	for _, tag := range tagSlice {
+		if tag == targetTag {
+			return true
+		}
+	}
+	return false
 }
