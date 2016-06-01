@@ -88,7 +88,7 @@ func GetNodeTopology(kubeApiServerEndPoint string, kubeApiServerToken string) (r
 		}
 
 		if ready == false {
-			// Skip the non-ready node
+			// Skip the non ready node
 			continue
 		}
 
@@ -110,6 +110,11 @@ func GetNodeTopology(kubeApiServerEndPoint string, kubeApiServerToken string) (r
 		zoneName, zoneOk := labelJsonMap["zone"].(string)
 		nodeName, nodeOk := labelJsonMap["kubernetes.io/hostname"].(string)
 
+		if nodeOk == false {
+			log.Error("Node host name is not found where jsonMap: %v", item)
+			continue
+		}
+
 		node := Node{
 			nodeName,
 			address,
@@ -117,11 +122,6 @@ func GetNodeTopology(kubeApiServerEndPoint string, kubeApiServerToken string) (r
 				cpu,
 				memory,
 			},
-		}
-
-		if nodeOk == false {
-			log.Error("Node host name is not found where jsonMap: %v", item)
-			continue
 		}
 
 		if regionOk && zoneOk {
