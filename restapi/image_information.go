@@ -54,7 +54,7 @@ func registerWebServiceImageInformation() {
 
 	ws.Route(ws.POST("/create").Filter(authorize).Filter(auditLog).To(postImageInformationCreate).
 		Doc("Create image build from source code").
-		Do(returns200, returns400, returns422, returns500).
+		Do(returns200, returns400, returns403, returns422, returns500).
 		Reads(ImageInformationCreateInput{}))
 
 	ws.Route(ws.PUT("/upgrade").Filter(authorize).Filter(auditLog).To(putImageInformationUpgrade).
@@ -125,6 +125,18 @@ func postImageInformationCreate(request *restful.Request, response *restful.Resp
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
 		log.Error(jsonMap)
 		response.WriteErrorString(400, string(errorMessageByteSlice))
+		return
+	}
+
+	oldImageInformation, _ := image.GetStorage().LoadImageInformation(imageInformation.Name)
+	if oldImageInformation != nil {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Duplicated repository error"
+		jsonMap["ErrorMessage"] = "Already exists"
+		jsonMap["imageInformation"] = imageInformation
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(401, string(errorMessageByteSlice))
 		return
 	}
 
