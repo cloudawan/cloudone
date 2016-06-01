@@ -76,6 +76,22 @@ func GetNodeTopology(kubeApiServerEndPoint string, kubeApiServerToken string) (r
 		labelJsonMap, _ := metadataJsonMap["labels"].(map[string]interface{})
 		statusJsonMap, _ := itemJsonMap["status"].(map[string]interface{})
 		capacityJsonMap, _ := statusJsonMap["capacity"].(map[string]interface{})
+		conditionJsonSlice, _ := statusJsonMap["conditions"].([]interface{})
+		ready := false
+		for _, value := range conditionJsonSlice {
+			conditionJsonMap, _ := value.(map[string]interface{})
+			conditionType, _ := conditionJsonMap["type"].(string)
+			conditionStatus, _ := conditionJsonMap["status"].(string)
+			if conditionType == "Ready" && conditionStatus == "True" {
+				ready = true
+			}
+		}
+
+		if ready == false {
+			// Skip the non-ready node
+			continue
+		}
+
 		cpu, _ := capacityJsonMap["cpu"].(string)
 		memory, _ := capacityJsonMap["memory"].(string)
 		addressesJsonSlice, _ := statusJsonMap["addresses"].([]interface{})
