@@ -18,6 +18,7 @@ import (
 	"errors"
 	"github.com/cloudawan/cloudone/control"
 	"github.com/cloudawan/cloudone/image"
+	"github.com/cloudawan/cloudone/registry"
 	"github.com/cloudawan/cloudone/utility/lock"
 	"strconv"
 	"time"
@@ -88,6 +89,16 @@ func DeployCreate(
 	if err != nil {
 		log.Error("Load image record error: %s imageInformationName %s version %s", err, imageInformationName, version)
 		return err
+	}
+
+	// Check whether the image in the private-registry
+	privateRegistry, err := registry.GetPrivateRegistryFromPathAndTestAvailable(imageRecord.Path)
+	if err != nil {
+		log.Error("Get private registry access error: " + err.Error())
+		return err
+	}
+	if privateRegistry.IsImageTagAvailable(imageRecord.ImageInformation, imageRecord.Version) == false {
+		return errors.New("The image is not in the private-registry")
 	}
 
 	selectorName := imageInformationName
@@ -203,6 +214,16 @@ func DeployUpdate(
 	if err != nil {
 		log.Error("Load image record error: %s imageInformationName %s version %s", err, imageInformationName, version)
 		return err
+	}
+
+	// Check whether the image in the private-registry
+	privateRegistry, err := registry.GetPrivateRegistryFromPathAndTestAvailable(imageRecord.Path)
+	if err != nil {
+		log.Error("Get private registry access error: " + err.Error())
+		return err
+	}
+	if privateRegistry.IsImageTagAvailable(imageRecord.ImageInformation, imageRecord.Version) == false {
+		return errors.New("The image is not in the private-registry")
 	}
 
 	deployInformation, err := GetStorage().LoadDeployInformation(namespace, imageInformationName)
