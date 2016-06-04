@@ -88,7 +88,7 @@ func BuildCreate(imageInformation *ImageInformation) (returnedOutputMessage stri
 		return outputMessage, err
 	}
 
-	// Update image information with version
+	// Save image information with version
 	imageInformation.CurrentVersion = imageRecord.Version
 	err = GetStorage().SaveImageInformation(imageInformation)
 	if err != nil {
@@ -161,9 +161,9 @@ func BuildUpgrade(imageInformationName string, description string) (returnedOutp
 
 func Build(imageInformation *ImageInformation, description string) (*ImageRecord, string, error) {
 	if lock.AcquireLock(LockKind, imageInformation.Name, 0) == false {
+		log.Error("Image %s is under building", imageInformation.Name)
 		return nil, "", errors.New("Image is under building")
 	}
-
 	defer lock.ReleaseLock(LockKind, imageInformation.Name)
 
 	switch imageInformation.Kind {
@@ -183,6 +183,13 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 	// OutputFile for external tail
 	outputBuffer := &bytes.Buffer{}
 	outputFile, err := os.Create(GetProcessingOutMessageFilePathAndName(imageInformation.Name))
+	defer func() {
+		outputFile.Close()
+		// For websocket to have time to read
+		time.Sleep(time.Second)
+		// Remove the output file used for tail during the process
+		os.Remove(GetProcessingOutMessageFilePathAndName(imageInformation.Name))
+	}()
 
 	imageRecord := &ImageRecord{}
 	imageRecord.ImageInformation = imageInformation.Name
@@ -210,18 +217,33 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 		err := os.MkdirAll(workingDirectory, os.ModePerm)
 		if err != nil {
 			log.Error("Create non-existing directory %s error: %s", workingDirectory, err)
+			outputBuffer.WriteString("The error phase: Check working space\n")
+			outputBuffer.WriteString("Create non-existing directory " + workingDirectory + " error: " + err.Error() + "\n")
+			outputFile.WriteString("The error phase: Check working space\n")
+			outputFile.WriteString("Create non-existing directory " + workingDirectory + " error: " + err.Error() + "\n")
 			return imageRecord, outputBuffer.String(), err
 		}
 	}
+	// Remove working space
+	defer os.RemoveAll(workingDirectory)
 
 	// First time
-	command := exec.Command("git", "clone", sourceCodeURL)
+	sourceCodeURLWithUserAndPasword := ""
+	if strings.Contains(sourceCodeURL, "@") {
+		// If already containing user and password
+	} else {
+		// If the repository doesn't exist or authorized, git clone will prompt for password and suspend the command so use fake user and password to fail it.
+		sourceCodeURLWithUserAndPasword = "https://username:password@" + sourceCodeURL[len("https://"):]
+	}
+	command := exec.Command("git", "clone", sourceCodeURLWithUserAndPasword)
 	command.Dir = workingDirectory
-	_, statusCode, err := executeCommandAndTailTheOutput(command, outputBuffer, outputFile)
-	if statusCode == 128 {
-		// Already cloned
-	} else if err != nil {
-		log.Error("Git clone %s error: %s", imageInformation, err)
+	_, _, err = executeCommandAndTailTheOutput(command, outputBuffer, outputFile)
+	if err != nil {
+		log.Error("Git clone %s error: %s", sourceCodeURL, err)
+		outputBuffer.WriteString("The error phase: Git clone\n")
+		outputBuffer.WriteString("Git clone " + sourceCodeURL + " error: " + err.Error() + "\n")
+		outputFile.WriteString("The error phase: Git clone\n")
+		outputFile.WriteString("Git clone " + sourceCodeURL + " error: " + err.Error() + "\n")
 		return imageRecord, outputBuffer.String(), err
 	}
 
@@ -229,7 +251,11 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 	command.Dir = workingDirectory + string(os.PathSeparator) + sourceCodeProject
 	_, _, err = executeCommandAndTailTheOutput(command, outputBuffer, outputFile)
 	if err != nil {
-		log.Error("Git pull %s error: %s", imageInformation, err)
+		log.Error("Git pull %s error: %s", sourceCodeURL, err)
+		outputBuffer.WriteString("The error phase: Git pull\n")
+		outputBuffer.WriteString("Git pull " + sourceCodeURL + " error: " + err.Error() + "\n")
+		outputFile.WriteString("The error phase: Git pull\n")
+		outputFile.WriteString("Git pull " + sourceCodeURL + " error: " + err.Error() + "\n")
 		return imageRecord, outputBuffer.String(), err
 	}
 
@@ -239,6 +265,10 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 	outputText, _, err := executeCommandAndTailTheOutput(command, outputBuffer, outputFile)
 	if err != nil {
 		log.Error("Git log %s -l error: %s", imageInformation, err)
+		outputBuffer.WriteString("The error phase: Git log\n")
+		outputBuffer.WriteString("Git log " + sourceCodeURL + " error: " + err.Error() + "\n")
+		outputFile.WriteString("The error phase: Git log\n")
+		outputFile.WriteString("Git log " + sourceCodeURL + " error: " + err.Error() + "\n")
 		return imageRecord, outputBuffer.String(), err
 	}
 
@@ -260,7 +290,11 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 		command.Dir = workingDirectory + string(os.PathSeparator) + sourceCodeProject
 		_, _, err = executeCommandAndTailTheOutput(command, outputBuffer, outputFile)
 		if err != nil {
-			log.Error("Run make script %s error: %s", imageInformation, err)
+			log.Error("Run make script %s error: %s", sourceCodeMakeScript, err)
+			outputBuffer.WriteString("The error phase: Run make script\n")
+			outputBuffer.WriteString("Run make script " + sourceCodeMakeScript + " error: " + err.Error() + "\n")
+			outputFile.WriteString("The error phase: Run make script\n")
+			outputFile.WriteString("Run make script " + sourceCodeMakeScript + " error: " + err.Error() + "\n")
 			return imageRecord, outputBuffer.String(), err
 		}
 	}
@@ -272,7 +306,11 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 		inputFile, err := os.Open(workingDirectory + string(os.PathSeparator) +
 			sourceCodeProject + string(os.PathSeparator) + versionFile)
 		if err != nil {
-			log.Error("Open version file error: %s", err)
+			log.Error("Open version file %s error: %s", versionFile, err)
+			outputBuffer.WriteString("The error phase: Open version file\n")
+			outputBuffer.WriteString("Open version file " + versionFile + " error: " + err.Error() + "\n")
+			outputFile.WriteString("The error phase: Open version file\n")
+			outputFile.WriteString("Open version file " + versionFile + " error: " + err.Error() + "\n")
 			return imageRecord, outputBuffer.String(), err
 		}
 		defer inputFile.Close()
@@ -283,7 +321,11 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 			// read a chunk
 			n, err := inputFile.Read(buffer)
 			if err != nil && err != io.EOF {
-				log.Error("Read version file error: %s", err)
+				log.Error("Read version file %s error: %s", versionFile, err)
+				outputBuffer.WriteString("The error phase: Read version file\n")
+				outputBuffer.WriteString("Read version file " + versionFile + " error: " + err.Error() + "\n")
+				outputFile.WriteString("The error phase: Read version file\n")
+				outputFile.WriteString("Read version file " + versionFile + " error: " + err.Error() + "\n")
 				return imageRecord, outputBuffer.String(), err
 			}
 			if n == 0 {
@@ -304,7 +346,11 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 		inputFile, err := os.Open(workingDirectory + string(os.PathSeparator) +
 			sourceCodeProject + string(os.PathSeparator) + environmentFile)
 		if err != nil {
-			log.Error("Open environment file error: %s", err)
+			log.Error("Open environment file %s error: %s", environmentFile, err)
+			outputBuffer.WriteString("The error phase: Open environment file\n")
+			outputBuffer.WriteString("Open environment file " + environmentFile + " error: " + err.Error() + "\n")
+			outputFile.WriteString("The error phase: Open environment file\n")
+			outputFile.WriteString("Open environment file " + environmentFile + " error: " + err.Error() + "\n")
 			return imageRecord, outputBuffer.String(), err
 		}
 		defer inputFile.Close()
@@ -315,7 +361,11 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 			// read a chunk
 			n, err := inputFile.Read(buffer)
 			if err != nil && err != io.EOF {
-				log.Error("Read version file error: %s", err)
+				log.Error("Read environment file %s error: %s", environmentFile, err)
+				outputBuffer.WriteString("The error phase: Read environment file\n")
+				outputBuffer.WriteString("Read environment file " + environmentFile + " error: " + err.Error() + "\n")
+				outputFile.WriteString("The error phase: Read environment file\n")
+				outputFile.WriteString("Read environment file " + environmentFile + " error: " + err.Error() + "\n")
 				return imageRecord, outputBuffer.String(), err
 			}
 			if n == 0 {
@@ -328,7 +378,11 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 		jsonMap := make(map[string]interface{})
 		err = json.Unmarshal(byteSlice, &jsonMap)
 		if err != nil {
-			log.Error("Unmarshal environment file error: %s", err)
+			log.Error("Unmarshal environment file %s error: %s", environmentFile, err)
+			outputBuffer.WriteString("The error phase: Unmarshal environment file\n")
+			outputBuffer.WriteString("Unmarshal environment file " + environmentFile + " error: " + err.Error() + "\n")
+			outputFile.WriteString("The error phase: Unmarshal environment file\n")
+			outputFile.WriteString("Unmarshal environment file " + environmentFile + " error: " + err.Error() + "\n")
 			return imageRecord, outputBuffer.String(), err
 		}
 
@@ -345,7 +399,11 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 	command.Dir = workingDirectory + string(os.PathSeparator) + sourceCodeProject
 	_, _, err = executeCommandAndTailTheOutput(command, outputBuffer, outputFile)
 	if err != nil {
-		log.Error("Docker build %s error: %s", imageInformation, err)
+		log.Error("Docker build %s error: %s", imageRecord.Path, err)
+		outputBuffer.WriteString("The error phase: Docker build\n")
+		outputBuffer.WriteString("Docker build " + imageRecord.Path + " error: " + err.Error() + "\n")
+		outputFile.WriteString("The error phase: Docker build\n")
+		outputFile.WriteString("Docker build " + imageRecord.Path + " error: " + err.Error() + "\n")
 		return imageRecord, outputBuffer.String(), err
 	}
 
@@ -353,15 +411,13 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 	command.Dir = workingDirectory + string(os.PathSeparator) + sourceCodeProject
 	_, _, err = executeCommandAndTailTheOutput(command, outputBuffer, outputFile)
 	if err != nil {
-		log.Error("Docker push %s error: %s", imageInformation, err)
+		log.Error("Docker push %s error: %s", imageRecord.Path, err)
+		outputBuffer.WriteString("The error phase: Docker push\n")
+		outputBuffer.WriteString("Docker push " + imageRecord.Path + " error: " + err.Error() + "\n")
+		outputFile.WriteString("The error phase: Docker push\n")
+		outputFile.WriteString("Docker push " + imageRecord.Path + " error: " + err.Error() + "\n")
 		return imageRecord, outputBuffer.String(), err
 	}
-
-	// Remove working space
-	os.RemoveAll(workingDirectory)
-
-	// Remove the output file used for tail during the process
-	os.Remove(GetProcessingOutMessageFilePathAndName(imageInformation.Name))
 
 	// Success
 	imageRecord.Failure = false
@@ -410,6 +466,13 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 	// OutputFile for external tail
 	outputBuffer := &bytes.Buffer{}
 	outputFile, err := os.Create(GetProcessingOutMessageFilePathAndName(imageInformation.Name))
+	defer func() {
+		outputFile.Close()
+		// For websocket to have time to read
+		time.Sleep(time.Second)
+		// Remove the output file used for tail during the process
+		os.Remove(GetProcessingOutMessageFilePathAndName(imageInformation.Name))
+	}()
 
 	imageRecord := &ImageRecord{}
 	imageRecord.ImageInformation = imageInformation.Name
@@ -442,13 +505,23 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 		err := os.MkdirAll(workingDirectory, os.ModePerm)
 		if err != nil {
 			log.Error("Create non-existing directory %s error: %s", workingDirectory, err)
+			outputBuffer.WriteString("The error phase: Check working space\n")
+			outputBuffer.WriteString("Create non-existing directory " + workingDirectory + " error: " + err.Error() + "\n")
+			outputFile.WriteString("The error phase: Check working space\n")
+			outputFile.WriteString("Create non-existing directory " + workingDirectory + " error: " + err.Error() + "\n")
 			return imageRecord, outputBuffer.String(), err
 		}
 	}
+	// Remove working space
+	defer os.RemoveAll(workingDirectory)
 
 	client, err := simplessh.ConnectWithPasswordTimeout(hostAndPort, username, password, scpTimeout)
 	if err != nil {
 		log.Error("Login scp hostAndPort %s, username %s, password %s error: %s", hostAndPort, username, password, err)
+		outputBuffer.WriteString("The error phase: Login scp\n")
+		outputBuffer.WriteString("Login scp " + hostAndPort + " error: " + err.Error() + "\n")
+		outputFile.WriteString("The error phase: Login scp\n")
+		outputFile.WriteString("Login scp " + hostAndPort + " error: " + err.Error() + "\n")
 		return imageRecord, outputBuffer.String(), err
 	}
 	defer client.Close()
@@ -457,6 +530,10 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 	localFilePath := workingDirectory + string(os.PathSeparator) + compressFileName
 	if err := client.Download(remoteFilePath, localFilePath); err != nil {
 		log.Error("Download remoteFilePath %s localFilePath %s with scp error: %s", remoteFilePath, localFilePath, err)
+		outputBuffer.WriteString("The error phase: Download\n")
+		outputBuffer.WriteString("Download " + remoteFilePath + " error: " + err.Error() + "\n")
+		outputFile.WriteString("The error phase: Download\n")
+		outputFile.WriteString("Download " + remoteFilePath + " error: " + err.Error() + "\n")
 		return imageRecord, outputBuffer.String(), err
 	}
 
@@ -468,6 +545,10 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 	_, _, err = executeCommandAndTailTheOutput(command, outputBuffer, outputFile)
 	if err != nil {
 		log.Error("Unpackage compress file %s error: %s", unpackageCommand, err)
+		outputBuffer.WriteString("The error phase: Unpackage compress\n")
+		outputBuffer.WriteString("Unpackage compress " + unpackageCommand + " error: " + err.Error() + "\n")
+		outputFile.WriteString("The error phase: Unpackage compress\n")
+		outputFile.WriteString("Unpackage compress " + unpackageCommand + " error: " + err.Error() + "\n")
 		return imageRecord, outputBuffer.String(), err
 	}
 
@@ -476,7 +557,11 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 		command.Dir = workingDirectory + string(os.PathSeparator) + sourceCodeProject
 		_, _, err = executeCommandAndTailTheOutput(command, outputBuffer, outputFile)
 		if err != nil {
-			log.Error("Run make script %s error: %s", imageInformation, err)
+			log.Error("Run make script %s error: %s", sourceCodeMakeScript, err)
+			outputBuffer.WriteString("The error phase: Run make script\n")
+			outputBuffer.WriteString("Run make script " + sourceCodeMakeScript + " error: " + err.Error() + "\n")
+			outputFile.WriteString("The error phase: Run make script\n")
+			outputFile.WriteString("Run make script " + sourceCodeMakeScript + " error: " + err.Error() + "\n")
 			return imageRecord, outputBuffer.String(), err
 		}
 	}
@@ -488,7 +573,11 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 		inputFile, err := os.Open(workingDirectory + string(os.PathSeparator) +
 			sourceCodeProject + string(os.PathSeparator) + versionFile)
 		if err != nil {
-			log.Error("Open version file error: %s", err)
+			log.Error("Open version file %s error: %s", versionFile, err)
+			outputBuffer.WriteString("The error phase: Open version file\n")
+			outputBuffer.WriteString("Open version file " + versionFile + " error: " + err.Error() + "\n")
+			outputFile.WriteString("The error phase: Open version file\n")
+			outputFile.WriteString("Open version file " + versionFile + " error: " + err.Error() + "\n")
 			return imageRecord, outputBuffer.String(), err
 		}
 		defer inputFile.Close()
@@ -499,7 +588,11 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 			// read a chunk
 			n, err := inputFile.Read(buffer)
 			if err != nil && err != io.EOF {
-				log.Error("Read version file error: %s", err)
+				log.Error("Read version file %s error: %s", versionFile, err)
+				outputBuffer.WriteString("The error phase: Read version file\n")
+				outputBuffer.WriteString("Read version file " + versionFile + " error: " + err.Error() + "\n")
+				outputFile.WriteString("The error phase: Read version file\n")
+				outputFile.WriteString("Read version file " + versionFile + " error: " + err.Error() + "\n")
 				return imageRecord, outputBuffer.String(), err
 			}
 			if n == 0 {
@@ -520,7 +613,11 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 		inputFile, err := os.Open(workingDirectory + string(os.PathSeparator) +
 			sourceCodeProject + string(os.PathSeparator) + environmentFile)
 		if err != nil {
-			log.Error("Open environment file error: %s", err)
+			log.Error("Open environment file %s error: %s", environmentFile, err)
+			outputBuffer.WriteString("The error phase: Open environment file\n")
+			outputBuffer.WriteString("Open environment file " + environmentFile + " error: " + err.Error() + "\n")
+			outputFile.WriteString("The error phase: Open environment file\n")
+			outputFile.WriteString("Open environment file " + environmentFile + " error: " + err.Error() + "\n")
 			return imageRecord, outputBuffer.String(), err
 		}
 		defer inputFile.Close()
@@ -531,7 +628,11 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 			// read a chunk
 			n, err := inputFile.Read(buffer)
 			if err != nil && err != io.EOF {
-				log.Error("Read environment file error: %s", err)
+				log.Error("Read environment file %s error: %s", environmentFile, err)
+				outputBuffer.WriteString("The error phase: Read environment file\n")
+				outputBuffer.WriteString("Read environment file " + environmentFile + " error: " + err.Error() + "\n")
+				outputFile.WriteString("The error phase: Read environment file\n")
+				outputFile.WriteString("Read environment file " + environmentFile + " error: " + err.Error() + "\n")
 				return imageRecord, outputBuffer.String(), err
 			}
 			if n == 0 {
@@ -544,7 +645,11 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 		jsonMap := make(map[string]interface{})
 		err = json.Unmarshal(byteSlice, &jsonMap)
 		if err != nil {
-			log.Error("Unmarshal environment file error: %s", err)
+			log.Error("Unmarshal environment file %s error: %s", environmentFile, err)
+			outputBuffer.WriteString("The error phase: Unmarshal environment file\n")
+			outputBuffer.WriteString("Unmarshal environment file " + environmentFile + " error: " + err.Error() + "\n")
+			outputFile.WriteString("The error phase: Unmarshal environment file\n")
+			outputFile.WriteString("Unmarshal environment file " + environmentFile + " error: " + err.Error() + "\n")
 			return imageRecord, outputBuffer.String(), err
 		}
 
@@ -561,7 +666,11 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 	command.Dir = workingDirectory + string(os.PathSeparator) + sourceCodeProject
 	_, _, err = executeCommandAndTailTheOutput(command, outputBuffer, outputFile)
 	if err != nil {
-		log.Error("Docker build %s error: %s", imageInformation, err)
+		log.Error("Docker build %s error: %s", imageRecord.Path, err)
+		outputBuffer.WriteString("The error phase: Docker build\n")
+		outputBuffer.WriteString("Docker build " + imageRecord.Path + " error: " + err.Error() + "\n")
+		outputFile.WriteString("The error phase: Docker build\n")
+		outputFile.WriteString("Docker build " + imageRecord.Path + " error: " + err.Error() + "\n")
 		return imageRecord, outputBuffer.String(), err
 	}
 
@@ -569,15 +678,13 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 	command.Dir = workingDirectory + string(os.PathSeparator) + sourceCodeProject
 	_, _, err = executeCommandAndTailTheOutput(command, outputBuffer, outputFile)
 	if err != nil {
-		log.Error("Docker push %s error: %s", imageInformation, err)
+		log.Error("Docker push %s error: %s", imageRecord.Path, err)
+		outputBuffer.WriteString("The error phase: Docker push\n")
+		outputBuffer.WriteString("Docker push " + imageRecord.Path + " error: " + err.Error() + "\n")
+		outputFile.WriteString("The error phase: Docker push\n")
+		outputFile.WriteString("Docker push " + imageRecord.Path + " error: " + err.Error() + "\n")
 		return imageRecord, outputBuffer.String(), err
 	}
-
-	// Remove working space
-	os.RemoveAll(workingDirectory)
-
-	// Remove the output file used for tail during the process
-	os.Remove(GetProcessingOutMessageFilePathAndName(imageInformation.Name))
 
 	// Success
 	imageRecord.Failure = false
@@ -590,6 +697,13 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 	// OutputFile for external tail
 	outputBuffer := &bytes.Buffer{}
 	outputFile, err := os.Create(GetProcessingOutMessageFilePathAndName(imageInformation.Name))
+	defer func() {
+		outputFile.Close()
+		// For websocket to have time to read
+		time.Sleep(time.Second)
+		// Remove the output file used for tail during the process
+		os.Remove(GetProcessingOutMessageFilePathAndName(imageInformation.Name))
+	}()
 
 	imageRecord := &ImageRecord{}
 	imageRecord.ImageInformation = imageInformation.Name
@@ -620,14 +734,24 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 		err := os.MkdirAll(workingDirectory, os.ModePerm)
 		if err != nil {
 			log.Error("Create non-existing directory %s error: %s", workingDirectory, err)
+			outputBuffer.WriteString("The error phase: Check working space\n")
+			outputBuffer.WriteString("Create non-existing directory " + workingDirectory + " error: " + err.Error() + "\n")
+			outputFile.WriteString("The error phase: Check working space\n")
+			outputFile.WriteString("Create non-existing directory " + workingDirectory + " error: " + err.Error() + "\n")
 			return imageRecord, outputBuffer.String(), err
 		}
 	}
+	// Remove working space
+	defer os.RemoveAll(workingDirectory)
 
 	if err := sftp.DownLoadDirectoryRecurrsively(hostAndPort, username,
 		password, sourcePath, workingDirectory); err != nil {
 		log.Error("Download from sftp hostAndPort %s, username %s, password %s, sourcePath %s, workingDirectory %s error: %s",
 			hostAndPort, username, password, sourcePath, workingDirectory, err)
+		outputBuffer.WriteString("The error phase: Download from sftp\n")
+		outputBuffer.WriteString("Download from sftp " + hostAndPort + " error: " + err.Error() + "\n")
+		outputFile.WriteString("The error phase: Download from sftp\n")
+		outputFile.WriteString("Download from sftp " + hostAndPort + " error: " + err.Error() + "\n")
 		return imageRecord, "", err
 	}
 
@@ -636,7 +760,11 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 		command.Dir = workingDirectory + string(os.PathSeparator) + sourceCodeProject
 		_, _, err = executeCommandAndTailTheOutput(command, outputBuffer, outputFile)
 		if err != nil {
-			log.Error("Run make script %s error: %s", imageInformation, err)
+			log.Error("Run make script %s error: %s", sourceCodeMakeScript, err)
+			outputBuffer.WriteString("The error phase: Run make script\n")
+			outputBuffer.WriteString("Run make script " + sourceCodeMakeScript + " error: " + err.Error() + "\n")
+			outputFile.WriteString("The error phase: Run make script\n")
+			outputFile.WriteString("Run make script " + sourceCodeMakeScript + " error: " + err.Error() + "\n")
 			return imageRecord, outputBuffer.String(), err
 		}
 	}
@@ -648,7 +776,11 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 		inputFile, err := os.Open(workingDirectory + string(os.PathSeparator) +
 			sourceCodeProject + string(os.PathSeparator) + versionFile)
 		if err != nil {
-			log.Error("Open version file error: %s", err)
+			log.Error("Open version file %s error: %s", versionFile, err)
+			outputBuffer.WriteString("The error phase: Open version file\n")
+			outputBuffer.WriteString("Open version file " + versionFile + " error: " + err.Error() + "\n")
+			outputFile.WriteString("The error phase: Open version file\n")
+			outputFile.WriteString("Open version file " + versionFile + " error: " + err.Error() + "\n")
 			return imageRecord, outputBuffer.String(), err
 		}
 		defer inputFile.Close()
@@ -659,7 +791,11 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 			// read a chunk
 			n, err := inputFile.Read(buffer)
 			if err != nil && err != io.EOF {
-				log.Error("Read version file error: %s", err)
+				log.Error("Read version file %s error: %s", versionFile, err)
+				outputBuffer.WriteString("The error phase: Read version file\n")
+				outputBuffer.WriteString("Read version file " + versionFile + " error: " + err.Error() + "\n")
+				outputFile.WriteString("The error phase: Read version file\n")
+				outputFile.WriteString("Read version file " + versionFile + " error: " + err.Error() + "\n")
 				return imageRecord, outputBuffer.String(), err
 			}
 			if n == 0 {
@@ -680,7 +816,11 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 		inputFile, err := os.Open(workingDirectory + string(os.PathSeparator) +
 			sourceCodeProject + string(os.PathSeparator) + environmentFile)
 		if err != nil {
-			log.Error("Open environment file error: %s", err)
+			log.Error("Open environment file %s error: %s", environmentFile, err)
+			outputBuffer.WriteString("The error phase: Open environment file\n")
+			outputBuffer.WriteString("Open environment file " + environmentFile + " error: " + err.Error() + "\n")
+			outputFile.WriteString("The error phase: Open environment file\n")
+			outputFile.WriteString("Open environment file " + environmentFile + " error: " + err.Error() + "\n")
 			return imageRecord, outputBuffer.String(), err
 		}
 		defer inputFile.Close()
@@ -691,7 +831,11 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 			// read a chunk
 			n, err := inputFile.Read(buffer)
 			if err != nil && err != io.EOF {
-				log.Error("Read environment file error: %s", err)
+				log.Error("Read environment file %s error: %s", environmentFile, err)
+				outputBuffer.WriteString("The error phase: Read environment file\n")
+				outputBuffer.WriteString("Read environment file " + environmentFile + " error: " + err.Error() + "\n")
+				outputFile.WriteString("The error phase: Read environment file\n")
+				outputFile.WriteString("Read environment file " + environmentFile + " error: " + err.Error() + "\n")
 				return imageRecord, outputBuffer.String(), err
 			}
 			if n == 0 {
@@ -704,7 +848,11 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 		jsonMap := make(map[string]interface{})
 		err = json.Unmarshal(byteSlice, &jsonMap)
 		if err != nil {
-			log.Error("Unmarshal environment file error: %s", err)
+			log.Error("Unmarshal environment file %s error: %s", environmentFile, err)
+			outputBuffer.WriteString("The error phase: Unmarshal environment file\n")
+			outputBuffer.WriteString("Unmarshal environment file " + environmentFile + " error: " + err.Error() + "\n")
+			outputFile.WriteString("The error phase: Unmarshal environment file\n")
+			outputFile.WriteString("Unmarshal environment file " + environmentFile + " error: " + err.Error() + "\n")
 			return imageRecord, outputBuffer.String(), err
 		}
 
@@ -721,7 +869,11 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 	command.Dir = workingDirectory + string(os.PathSeparator) + sourceCodeProject
 	_, _, err = executeCommandAndTailTheOutput(command, outputBuffer, outputFile)
 	if err != nil {
-		log.Error("Docker build %s error: %s", imageInformation, err)
+		log.Error("Docker build %s error: %s", imageRecord.Path, err)
+		outputBuffer.WriteString("The error phase: Docker build\n")
+		outputBuffer.WriteString("Docker build " + imageRecord.Path + " error: " + err.Error() + "\n")
+		outputFile.WriteString("The error phase: Docker build\n")
+		outputFile.WriteString("Docker build " + imageRecord.Path + " error: " + err.Error() + "\n")
 		return imageRecord, outputBuffer.String(), err
 	}
 
@@ -729,15 +881,13 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 	command.Dir = workingDirectory + string(os.PathSeparator) + sourceCodeProject
 	_, _, err = executeCommandAndTailTheOutput(command, outputBuffer, outputFile)
 	if err != nil {
-		log.Error("Docker push %s error: %s", imageInformation, err)
+		log.Error("Docker push %s error: %s", imageRecord.Path, err)
+		outputBuffer.WriteString("The error phase: Docker push\n")
+		outputBuffer.WriteString("Docker push " + imageRecord.Path + " error: " + err.Error() + "\n")
+		outputFile.WriteString("The error phase: Docker push\n")
+		outputFile.WriteString("Docker push " + imageRecord.Path + " error: " + err.Error() + "\n")
 		return imageRecord, outputBuffer.String(), err
 	}
-
-	// Remove working space
-	os.RemoveAll(workingDirectory)
-
-	// Remove the output file used for tail during the process
-	os.Remove(GetProcessingOutMessageFilePathAndName(imageInformation.Name))
 
 	// Success
 	imageRecord.Failure = false

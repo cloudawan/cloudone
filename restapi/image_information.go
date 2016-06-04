@@ -140,19 +140,6 @@ func postImageInformationCreate(request *restful.Request, response *restful.Resp
 		return
 	}
 
-	// Save image information before finish the building
-	err = image.GetStorage().SaveImageInformation(imageInformation)
-	if err != nil {
-		jsonMap := make(map[string]interface{})
-		jsonMap["Error"] = "Save image information failure"
-		jsonMap["ErrorMessage"] = err.Error()
-		jsonMap["imageInformation"] = imageInformation
-		errorMessageByteSlice, _ := json.Marshal(jsonMap)
-		log.Error(jsonMap)
-		response.WriteErrorString(422, string(errorMessageByteSlice))
-		return
-	}
-
 	// Initialize the output file for websocket
 	image.TouchOutMessageFile(imageInformation.Name)
 
