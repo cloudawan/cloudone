@@ -69,7 +69,7 @@ func (storageEtcd *StorageEtcd) saveLock(lock *Lock) error {
 		return err
 	}
 
-	response, err := keysAPI.Set(context.Background(), etcd.EtcdClient.EtcdBasePath+"/lock/"+lock.Name, string(byteSlice), nil)
+	response, err := keysAPI.Set(context.Background(), etcd.EtcdClient.EtcdBasePath+"/lock/"+lock.Name, string(byteSlice), &client.SetOptions{TTL: lock.Timeout})
 	if err != nil {
 		log.Error("Save lock %v error: %s", lock, err)
 		log.Error(response)
@@ -86,7 +86,7 @@ func (storageEtcd *StorageEtcd) loadLock(name string) (*Lock, error) {
 		return nil, err
 	}
 
-	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/lock/"+name, nil)
+	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/lock/"+name, &client.GetOptions{Quorum: true})
 	etcdError, _ := err.(client.Error)
 	if etcdError.Code == client.ErrorCodeKeyNotFound {
 		return nil, etcdError
@@ -114,7 +114,7 @@ func (storageEtcd *StorageEtcd) LoadAllLock() ([]Lock, error) {
 		return nil, err
 	}
 
-	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/lock", nil)
+	response, err := keysAPI.Get(context.Background(), etcd.EtcdClient.EtcdBasePath+"/lock", &client.GetOptions{Quorum: true})
 	if err != nil {
 		log.Error("Load all lock error: %s", err)
 		log.Error(response)

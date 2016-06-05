@@ -19,19 +19,17 @@ import (
 )
 
 func TestLock(t *testing.T) {
-	if AcquireLock("build", "aaa", 0) == false {
-		t.Error("The first time acquire lock should not be false")
-	}
+	for i := 0; i < 10000; i++ {
+		if AcquireLock("build", "aaa", 0) == false {
+			t.Errorf("Iteration %d. The first time acquire lock should not be false", i)
+		}
 
-	if AcquireLock("build", "aaa", 0) == true {
-		t.Error("The second time acquire lock should not be true")
-	}
+		if AcquireLock("build", "aaa", 0) == true {
+			t.Errorf("Iteration %d. The second time acquire lock should not be true", i)
+		}
 
-	if ReleaseLock("build", "aaa") != nil {
-		t.Error("The first time release lock should be nil")
-	}
-
-	if ReleaseLock("build", "aaa") == nil {
-		t.Error("The second time release lock should be error")
+		if ReleaseLock("build", "aaa") != nil {
+			t.Errorf("Iteration %d. The first time release lock should be nil", i)
+		}
 	}
 }
