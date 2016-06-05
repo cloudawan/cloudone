@@ -80,7 +80,7 @@ func DeployCreate(
 	extraJsonMap map[string]interface{},
 	autoUpdateForNewBuild bool) error {
 	if lock.AcquireLock(LockKind, getLockName(namespace, imageInformationName), 0) == false {
-		return errors.New("Application is under deployment")
+		return errors.New("Deployment is controlled by the other command")
 	}
 
 	defer lock.ReleaseLock(LockKind, getLockName(namespace, imageInformationName))
@@ -205,7 +205,7 @@ func DeployUpdate(
 	imageInformationName string, version string, description string,
 	environmentSlice []control.ReplicationControllerContainerEnvironment) error {
 	if lock.AcquireLock(LockKind, getLockName(namespace, imageInformationName), 0) == false {
-		return errors.New("Application is under deployment")
+		return errors.New("Deployment is controlled by the other command")
 	}
 
 	defer lock.ReleaseLock(LockKind, getLockName(namespace, imageInformationName))
@@ -260,6 +260,12 @@ func DeployUpdate(
 }
 
 func DeployDelete(kubeApiServerEndPoint string, kubeApiServerToken string, namespace string, imageInformation string) error {
+	if lock.AcquireLock(LockKind, getLockName(namespace, imageInformation), 0) == false {
+		return errors.New("Deployment is controlled by the other command")
+	}
+
+	defer lock.ReleaseLock(LockKind, getLockName(namespace, imageInformation))
+
 	deployInformation, err := GetStorage().LoadDeployInformation(namespace, imageInformation)
 	if err != nil {
 		log.Error(err)
@@ -290,6 +296,12 @@ func DeployDelete(kubeApiServerEndPoint string, kubeApiServerToken string, names
 }
 
 func DeployResize(kubeApiServerEndPoint string, kubeApiServerToken string, namespace string, imageInformation string, size int) error {
+	if lock.AcquireLock(LockKind, getLockName(namespace, imageInformation), 0) == false {
+		return errors.New("Deployment is controlled by the other command")
+	}
+
+	defer lock.ReleaseLock(LockKind, getLockName(namespace, imageInformation))
+
 	deployInformation, err := GetStorage().LoadDeployInformation(namespace, imageInformation)
 	if err != nil {
 		log.Error(err)
