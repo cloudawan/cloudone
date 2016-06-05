@@ -49,6 +49,8 @@ type Indicator struct {
 
 func CheckAndExecuteAutoScaler(replicationControllerAutoScaler *ReplicationControllerAutoScaler) (bool, int, error) {
 	switch replicationControllerAutoScaler.Kind {
+	case "application":
+		return CheckAndExecuteAutoScalerOnDeployImageInformation(replicationControllerAutoScaler)
 	case "selector":
 		nameSlice, err := monitor.GetReplicationControllerNameFromSelector(
 			replicationControllerAutoScaler.KubeApiServerEndPoint,
@@ -133,5 +135,64 @@ func CheckAndExecuteAutoScalerOnReplicationController(replicationControllerAutoS
 		return resized, size, err
 	} else {
 		return false, replicationControllerMetric.Size, nil
+	}
+}
+
+func CheckAndExecuteAutoScalerOnDeployImageInformation(replicationControllerAutoScaler *ReplicationControllerAutoScaler) (bool, int, error) {
+	deployInformation, err := deploy.GetStorage().LoadDeployInformation(replicationControllerAutoScaler.Namespace, replicationControllerAutoScaler.Name)
+	if err != nil {
+		log.Error("Load deploy information failure: %s where replicationControllerAutoScaler %v", err.Error(), replicationControllerAutoScaler)
+		return false, -1, err
+	}
+
+	replicationControllerName := deployInformation.ImageInformationName + deployInformation.CurrentVersion
+
+	replicationControllerMetric, err := monitor.MonitorReplicationController(replicationControllerAutoScaler.KubeApiServerEndPoint, replicationControllerAutoScaler.KubeApiServerToken, replicationControllerAutoScaler.Namespace, replicationControllerName)
+	if err != nil {
+		log.Error("Get ReplicationController data failure: %s where replicationControllerAutoScaler %v", err.Error(), replicationControllerAutoScaler)
+		return false, -1, err
+	}
+	toIncrease, toDecrease := false, false
+	for _, indicator := range replicationControllerAutoScaler.IndicatorSlice {
+		toIncrease = monitor.CheckThresholdReplicationController(indicator.Type, true, indicator.AboveAllOrOne, replicationControllerMetric, indicator.AbovePercentageOfData, indicator.AboveThreshold)
+		if toIncrease {
+			break
+		}
+		toDecrease = monitor.CheckThresholdReplicationController(indicator.Type, false, indicator.BelowAllOrOne, replicationControllerMetric, indicator.BelowPercentageOfData, indicator.BelowThreshold)
+		if toDecrease {
+			break
+		}
+	}
+
+	if toIncrease && deployInformation.ReplicaAmount < replicationControllerAutoScaler.MaximumReplica {
+		newSize := deployInformation.ReplicaAmount + 1
+		err := deploy.DeployResize(
+			replicationControllerAutoScaler.KubeApiServerEndPoint,
+			replicationControllerAutoScaler.KubeApiServerToken,
+			replicationControllerAutoScaler.Namespace,
+			replicationControllerAutoScaler.Name,
+			newSize,
+		)
+		if err != nil {
+			return false, deployInformation.ReplicaAmount, err
+		} else {
+			return true, newSize, err
+		}
+	} else if toDecrease && deployInformation.ReplicaAmount > replicationControllerAutoScaler.MinimumReplica {
+		newSize := deployInformation.ReplicaAmount - 1
+		err := deploy.DeployResize(
+			replicationControllerAutoScaler.KubeApiServerEndPoint,
+			replicationControllerAutoScaler.KubeApiServerToken,
+			replicationControllerAutoScaler.Namespace,
+			replicationControllerAutoScaler.Name,
+			newSize,
+		)
+		if err != nil {
+			return false, deployInformation.ReplicaAmount, err
+		} else {
+			return true, newSize, err
+		}
+	} else {
+		return false, deployInformation.ReplicaAmount, nil
 	}
 }

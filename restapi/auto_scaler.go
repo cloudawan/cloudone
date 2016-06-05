@@ -17,6 +17,7 @@ package restapi
 import (
 	"encoding/json"
 	"github.com/cloudawan/cloudone/autoscaler"
+	"github.com/cloudawan/cloudone/deploy"
 	"github.com/cloudawan/cloudone/execute"
 	"github.com/cloudawan/cloudone/monitor"
 	"github.com/cloudawan/cloudone/utility/configuration"
@@ -114,6 +115,18 @@ func putReplicationControllerAutoScaler(request *restful.Request, response *rest
 	replicationControllerAutoScaler.KubeApiServerToken = kubeApiServerToken
 
 	switch replicationControllerAutoScaler.Kind {
+	case "application":
+		_, err := deploy.GetStorage().LoadDeployInformation(replicationControllerAutoScaler.Namespace, replicationControllerAutoScaler.Name)
+		if err != nil {
+			jsonMap := make(map[string]interface{})
+			jsonMap["Error"] = "Check whether the application exists or not failure"
+			jsonMap["ErrorMessage"] = err.Error()
+			jsonMap["replicationControllerAutoScaler"] = replicationControllerAutoScaler
+			errorMessageByteSlice, _ := json.Marshal(jsonMap)
+			log.Error(jsonMap)
+			response.WriteErrorString(422, string(errorMessageByteSlice))
+			return
+		}
 	case "selector":
 		nameSlice, err := monitor.GetReplicationControllerNameFromSelector(replicationControllerAutoScaler.KubeApiServerEndPoint, replicationControllerAutoScaler.KubeApiServerToken, replicationControllerAutoScaler.Namespace, replicationControllerAutoScaler.Name)
 		if err != nil {
@@ -166,7 +179,6 @@ func putReplicationControllerAutoScaler(request *restful.Request, response *rest
 	default:
 		jsonMap := make(map[string]interface{})
 		jsonMap["Error"] = "No such kind"
-		jsonMap["ErrorMessage"] = err.Error()
 		jsonMap["replicationControllerAutoScaler"] = replicationControllerAutoScaler
 		jsonMap["kind"] = replicationControllerAutoScaler.Kind
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
