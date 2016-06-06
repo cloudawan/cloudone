@@ -16,6 +16,7 @@ package restapi
 
 import (
 	"encoding/json"
+	"github.com/cloudawan/cloudone/deploy"
 	"github.com/cloudawan/cloudone/execute"
 	"github.com/cloudawan/cloudone/monitor"
 	"github.com/cloudawan/cloudone/notification"
@@ -177,6 +178,18 @@ func putReplicationControllerNotifier(request *restful.Request, response *restfu
 	replicationControllerNotifierSerializable.KubeApiServerToken = kubeApiServerToken
 
 	switch replicationControllerNotifierSerializable.Kind {
+	case "application":
+		_, err := deploy.GetStorage().LoadDeployInformation(replicationControllerNotifierSerializable.Namespace, replicationControllerNotifierSerializable.Name)
+		if err != nil {
+			jsonMap := make(map[string]interface{})
+			jsonMap["Error"] = "Check whether the application exists or not failure"
+			jsonMap["ErrorMessage"] = err.Error()
+			jsonMap["replicationControllerNotifierSerializable"] = replicationControllerNotifierSerializable
+			errorMessageByteSlice, _ := json.Marshal(jsonMap)
+			log.Error(jsonMap)
+			response.WriteErrorString(422, string(errorMessageByteSlice))
+			return
+		}
 	case "selector":
 		nameSlice, err := monitor.GetReplicationControllerNameFromSelector(replicationControllerNotifierSerializable.KubeApiServerEndPoint, replicationControllerNotifierSerializable.KubeApiServerToken, replicationControllerNotifierSerializable.Namespace, replicationControllerNotifierSerializable.Name)
 		if err != nil {
@@ -229,7 +242,6 @@ func putReplicationControllerNotifier(request *restful.Request, response *restfu
 	default:
 		jsonMap := make(map[string]interface{})
 		jsonMap["Error"] = "No such kind"
-		jsonMap["ErrorMessage"] = err.Error()
 		jsonMap["replicationControllerNotifierSerializable"] = replicationControllerNotifierSerializable
 		jsonMap["kind"] = replicationControllerNotifierSerializable.Kind
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)

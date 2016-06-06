@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"github.com/cloudawan/cloudone/deploy"
 	"github.com/cloudawan/cloudone/monitor"
 	"strconv"
 	"time"
@@ -70,6 +71,14 @@ type Indicator struct {
 
 func CheckAndExecuteNotifier(replicationControllerNotifier *ReplicationControllerNotifier) (bool, error) {
 	switch replicationControllerNotifier.Kind {
+	case "application":
+		deployInformation, err := deploy.GetStorage().LoadDeployInformation(replicationControllerNotifier.Namespace, replicationControllerNotifier.Name)
+		if err != nil {
+			log.Error("Load deploy information failure: %s where replicationControllerNotifier %v", err, replicationControllerNotifier)
+			return false, err
+		}
+		replicationControllerName := deployInformation.ImageInformationName + deployInformation.CurrentVersion
+		return CheckAndExecuteNotifierOnReplicationController(replicationControllerNotifier, replicationControllerName)
 	case "selector":
 		nameSlice, err := monitor.GetReplicationControllerNameFromSelector(
 			replicationControllerNotifier.KubeApiServerEndPoint,
@@ -107,7 +116,9 @@ func CheckAndExecuteNotifier(replicationControllerNotifier *ReplicationControlle
 func CheckAndExecuteNotifierOnReplicationController(replicationControllerNotifier *ReplicationControllerNotifier, replicationControllerName string) (bool, error) {
 	replicationControllerMetric, err := monitor.MonitorReplicationController(replicationControllerNotifier.KubeApiServerEndPoint, replicationControllerNotifier.KubeApiServerToken, replicationControllerNotifier.Namespace, replicationControllerName)
 	if err != nil {
-		log.Error("Get ReplicationController data failure: %s where replicationControllerNotifier %s", err.Error(), replicationControllerNotifier)
+		log.Error("Get ReplicationController %s data failure: %s where replicationControllerNotifier %v", replicationControllerName, err, replicationControllerNotifier)
+	}
+	if replicationControllerMetric == nil {
 		return false, err
 	}
 

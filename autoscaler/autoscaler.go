@@ -150,8 +150,11 @@ func CheckAndExecuteAutoScalerOnDeployImageInformation(replicationControllerAuto
 	replicationControllerMetric, err := monitor.MonitorReplicationController(replicationControllerAutoScaler.KubeApiServerEndPoint, replicationControllerAutoScaler.KubeApiServerToken, replicationControllerAutoScaler.Namespace, replicationControllerName)
 	if err != nil {
 		log.Error("Get ReplicationController data failure: %s where replicationControllerAutoScaler %v", err.Error(), replicationControllerAutoScaler)
+	}
+	if replicationControllerMetric == nil {
 		return false, -1, err
 	}
+
 	toIncrease, toDecrease := false, false
 	for _, indicator := range replicationControllerAutoScaler.IndicatorSlice {
 		toIncrease = monitor.CheckThresholdReplicationController(indicator.Type, true, indicator.AboveAllOrOne, replicationControllerMetric, indicator.AbovePercentageOfData, indicator.AboveThreshold)
