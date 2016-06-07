@@ -31,7 +31,7 @@ func GetAllStatus() (map[string]interface{}, error) {
 		log.Error(err)
 		return jsonMap, err
 	}
-	ipSlice, err := kubernetesNodeControl.GetHostWithinFlannelNetwork()
+	ipSlice, err := kubernetesNodeControl.GetKubernetesAllNodeIP()
 	if err != nil {
 		log.Error(err)
 		return jsonMap, err

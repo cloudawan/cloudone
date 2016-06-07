@@ -42,6 +42,54 @@ type Capacity struct {
 	Memory string
 }
 
+func GetAllNodeIP(kubeApiServerEndPoint string, kubeApiServerToken string) (returnedIpSlice []string, returnedError error) {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Error("GetAllNodeIP Error: %s", err)
+			log.Error(logger.GetStackTrace(4096, false))
+			returnedIpSlice = nil
+			returnedError = err.(error)
+		}
+	}()
+
+	jsonMap := make(map[string]interface{})
+
+	headerMap := make(map[string]string)
+	headerMap["Authorization"] = kubeApiServerToken
+
+	url := kubeApiServerEndPoint + "/api/v1/nodes/"
+	_, err := restclient.RequestGetWithStructure(url, &jsonMap, headerMap)
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	ipSlice := make([]string, 0)
+
+	itemSlice, _ := jsonMap["items"].([]interface{})
+	for _, item := range itemSlice {
+		itemJsonMap, _ := item.(map[string]interface{})
+		statusJsonMap, _ := itemJsonMap["status"].(map[string]interface{})
+		addressesJsonSlice, _ := statusJsonMap["addresses"].([]interface{})
+		address := ""
+		for _, value := range addressesJsonSlice {
+			addressJsonMap, _ := value.(map[string]interface{})
+			addressType, _ := addressJsonMap["type"].(string)
+			addressAddress, _ := addressJsonMap["address"].(string)
+			if addressType == "InternalIP" {
+				address = addressAddress
+				break
+			}
+		}
+
+		if len(address) > 0 {
+			ipSlice = append(ipSlice, address)
+		}
+	}
+
+	return ipSlice, nil
+}
+
 func GetNodeTopology(kubeApiServerEndPoint string, kubeApiServerToken string) (returnedRegionSlice []Region, returnedError error) {
 	defer func() {
 		if err := recover(); err != nil {

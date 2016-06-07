@@ -19,6 +19,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/cloudawan/cloudone/control"
+	"github.com/cloudawan/cloudone/utility/configuration"
 	"github.com/cloudawan/cloudone/utility/database/etcd"
 	"github.com/coreos/etcd/client"
 	"golang.org/x/net/context"
@@ -83,65 +85,12 @@ func (kubernetesNodeControl *KubernetesNodeControl) GetStatus() (map[string]inte
 	}
 }
 
-func (kubernetesNodeControl *KubernetesNodeControl) GetHostWithinFlannelNetwork() ([]string, error) {
-	keysAPI, err := etcd.EtcdClient.GetKeysAPI()
+func (kubernetesNodeControl *KubernetesNodeControl) GetKubernetesAllNodeIP() ([]string, error) {
+	kubeApiServerEndPoint, kubeApiServerToken, err := configuration.GetAvailablekubeApiServerEndPoint()
 	if err != nil {
-		log.Error("Get keysAPI error %s", err)
+		log.Error(err)
 		return nil, err
 	}
 
-	response, err := keysAPI.Get(context.Background(), "/coreos.com/network/subnets", nil)
-	etcdError, _ := err.(client.Error)
-	if etcdError.Code == client.ErrorCodeKeyNotFound {
-		return nil, etcdError
-	}
-	if err != nil {
-		log.Error("Load host within flannel network error: %s", err)
-		log.Error(response)
-		return nil, err
-	}
-
-	if response.Node == nil {
-		text := fmt.Sprintf("Response node is nil. Response: %v", response)
-		log.Error(text)
-		return nil, errors.New(text)
-	}
-
-	hasError := false
-	errorBuffer := bytes.Buffer{}
-	ipSlice := make([]string, 0)
-	for _, node := range response.Node.Nodes {
-		valueJsonMap := make(map[string]interface{})
-		err := json.Unmarshal([]byte(node.Value), &valueJsonMap)
-		if err != nil {
-			hasError = true
-			errorBuffer.WriteString(err.Error())
-			log.Error(err)
-		}
-
-		ip, ok := valueJsonMap["PublicIP"].(string)
-		if ok {
-			exist := false
-			for _, existingIP := range ipSlice {
-				if ip == existingIP {
-					exist = true
-					break
-				}
-			}
-			if exist == false {
-				ipSlice = append(ipSlice, ip)
-			}
-		} else {
-			hasError = true
-			text := fmt.Sprintf("Fail to convert valueJsonMap[PublicIP]: %v valueJsonMap: %v", valueJsonMap["PublicIP"], valueJsonMap)
-			errorBuffer.WriteString(text)
-			log.Error(text)
-		}
-	}
-
-	if hasError {
-		return ipSlice, errors.New(errorBuffer.String())
-	} else {
-		return ipSlice, nil
-	}
+	return control.GetAllNodeIP(kubeApiServerEndPoint, kubeApiServerToken)
 }
