@@ -137,6 +137,9 @@ func DeleteImageRecord(imageInformationName string, imageRecordVersion string) e
 			hasError = true
 			buffer.WriteString(err.Error())
 		}
+	} else {
+		// Failure means no image is created and pushed to private-registry and saved in any host
+		deletedTagSlice = append(deletedTagSlice, imageRecordVersion)
 	}
 
 	for _, deletedTag := range deletedTagSlice {
