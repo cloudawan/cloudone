@@ -212,6 +212,8 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 	// Path
 	imageRecord.Path = repositoryPath + ":" + imageRecord.Version
 
+	// Clean the previous work space if existing
+	os.RemoveAll(workingDirectory)
 	// Check working space
 	if _, err := os.Stat(workingDirectory); os.IsNotExist(err) {
 		err := os.MkdirAll(workingDirectory, os.ModePerm)
@@ -224,8 +226,6 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 			return imageRecord, outputBuffer.String(), err
 		}
 	}
-	// Remove working space
-	defer os.RemoveAll(workingDirectory)
 
 	// First time
 	sourceCodeURLWithUserAndPasword := ""
@@ -292,9 +292,9 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 		if err != nil {
 			log.Error("Run make script %s error: %s", sourceCodeMakeScript, err)
 			outputBuffer.WriteString("The error phase: Run make script\n")
-			outputBuffer.WriteString("Run make script " + sourceCodeMakeScript + " error: " + err.Error() + "\n")
+			outputBuffer.WriteString("Run make script " + sourceCodeMakeScript + " on " + command.Dir + " error: " + err.Error() + "\n")
 			outputFile.WriteString("The error phase: Run make script\n")
-			outputFile.WriteString("Run make script " + sourceCodeMakeScript + " error: " + err.Error() + "\n")
+			outputFile.WriteString("Run make script " + sourceCodeMakeScript + " on " + command.Dir + " error: " + err.Error() + "\n")
 			return imageRecord, outputBuffer.String(), err
 		}
 	}
@@ -422,6 +422,11 @@ func BuildFromGit(imageInformation *ImageInformation, description string) (*Imag
 	// Success
 	imageRecord.Failure = false
 
+	// Only remove working space if it is successful so user could check the failed data
+	if imageRecord.Failure == false {
+		os.RemoveAll(workingDirectory)
+	}
+
 	return imageRecord, outputBuffer.String(), nil
 }
 
@@ -500,6 +505,8 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 	// Path
 	imageRecord.Path = repositoryPath + ":" + imageRecord.Version
 
+	// Clean the previous work space if existing
+	os.RemoveAll(workingDirectory)
 	// Check working space
 	if _, err := os.Stat(workingDirectory); os.IsNotExist(err) {
 		err := os.MkdirAll(workingDirectory, os.ModePerm)
@@ -512,8 +519,6 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 			return imageRecord, outputBuffer.String(), err
 		}
 	}
-	// Remove working space
-	defer os.RemoveAll(workingDirectory)
 
 	client, err := simplessh.ConnectWithPasswordTimeout(hostAndPort, username, password, scpTimeout)
 	if err != nil {
@@ -559,9 +564,9 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 		if err != nil {
 			log.Error("Run make script %s error: %s", sourceCodeMakeScript, err)
 			outputBuffer.WriteString("The error phase: Run make script\n")
-			outputBuffer.WriteString("Run make script " + sourceCodeMakeScript + " error: " + err.Error() + "\n")
+			outputBuffer.WriteString("Run make script " + sourceCodeMakeScript + " on " + command.Dir + " error: " + err.Error() + "\n")
 			outputFile.WriteString("The error phase: Run make script\n")
-			outputFile.WriteString("Run make script " + sourceCodeMakeScript + " error: " + err.Error() + "\n")
+			outputFile.WriteString("Run make script " + sourceCodeMakeScript + " on " + command.Dir + " error: " + err.Error() + "\n")
 			return imageRecord, outputBuffer.String(), err
 		}
 	}
@@ -689,6 +694,11 @@ func BuildFromSCP(imageInformation *ImageInformation, description string) (*Imag
 	// Success
 	imageRecord.Failure = false
 
+	// Only remove working space if it is successful so user could check the failed data
+	if imageRecord.Failure == false {
+		os.RemoveAll(workingDirectory)
+	}
+
 	return imageRecord, outputBuffer.String(), nil
 }
 
@@ -729,6 +739,8 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 	// Path
 	imageRecord.Path = repositoryPath + ":" + imageRecord.Version
 
+	// Clean the previous work space if existing
+	os.RemoveAll(workingDirectory)
 	// Check working space
 	if _, err := os.Stat(workingDirectory); os.IsNotExist(err) {
 		err := os.MkdirAll(workingDirectory, os.ModePerm)
@@ -741,8 +753,6 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 			return imageRecord, outputBuffer.String(), err
 		}
 	}
-	// Remove working space
-	defer os.RemoveAll(workingDirectory)
 
 	if err := sftp.DownLoadDirectoryRecurrsively(hostAndPort, username,
 		password, sourcePath, workingDirectory); err != nil {
@@ -762,9 +772,9 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 		if err != nil {
 			log.Error("Run make script %s error: %s", sourceCodeMakeScript, err)
 			outputBuffer.WriteString("The error phase: Run make script\n")
-			outputBuffer.WriteString("Run make script " + sourceCodeMakeScript + " error: " + err.Error() + "\n")
+			outputBuffer.WriteString("Run make script " + sourceCodeMakeScript + " on " + command.Dir + " error: " + err.Error() + "\n")
 			outputFile.WriteString("The error phase: Run make script\n")
-			outputFile.WriteString("Run make script " + sourceCodeMakeScript + " error: " + err.Error() + "\n")
+			outputFile.WriteString("Run make script " + sourceCodeMakeScript + " on " + command.Dir + " error: " + err.Error() + "\n")
 			return imageRecord, outputBuffer.String(), err
 		}
 	}
@@ -891,6 +901,11 @@ func BuildFromSFTP(imageInformation *ImageInformation, description string) (*Ima
 
 	// Success
 	imageRecord.Failure = false
+
+	// Only remove working space if it is successful so user could check the failed data
+	if imageRecord.Failure == false {
+		os.RemoveAll(workingDirectory)
+	}
 
 	return imageRecord, outputBuffer.String(), nil
 }
