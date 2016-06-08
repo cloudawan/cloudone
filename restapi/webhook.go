@@ -16,9 +16,8 @@ package restapi
 
 import (
 	"encoding/json"
-	"github.com/cloudawan/cloudone/webhook"
-
 	"github.com/cloudawan/cloudone/utility/configuration"
+	"github.com/cloudawan/cloudone/webhook"
 	"github.com/emicklei/go-restful"
 )
 
