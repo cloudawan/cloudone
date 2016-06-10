@@ -37,13 +37,35 @@ func getLockName(kind string, name string) string {
 	return kind + "." + name
 }
 
+func LockAvailable(kind string, name string) bool {
+	lockName := getLockName(kind, name)
+	currentTime := time.Now()
+
+	oldLock, err := GetStorage().loadLock(lockName)
+	if err != nil {
+		etcdError, _ := err.(client.Error)
+		if etcdError.Code != client.ErrorCodeKeyNotFound {
+			log.Error(err)
+			return false
+		}
+	}
+	if oldLock != nil {
+		if oldLock.Deleted == false {
+			if currentTime.Before(oldLock.ExpiredTime) {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
 // timeout 0 means default time out
 func AcquireLock(kind string, name string, timeout time.Duration) bool {
 	lockName := getLockName(kind, name)
-
 	currentTime := time.Now()
-	oldLock, err := GetStorage().loadLock(lockName)
 
+	oldLock, err := GetStorage().loadLock(lockName)
 	if err != nil {
 		etcdError, _ := err.(client.Error)
 		if etcdError.Code != client.ErrorCodeKeyNotFound {
