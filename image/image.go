@@ -161,8 +161,8 @@ func BuildUpgrade(imageInformationName string, description string) (returnedOutp
 
 func Build(imageInformation *ImageInformation, description string) (*ImageRecord, string, error) {
 	if lock.AcquireLock(LockKind, imageInformation.Name, 0) == false {
-		log.Error("Image %s is under building", imageInformation.Name)
-		return nil, "", errors.New("Image is under building")
+		log.Error("Image %s is under construction", imageInformation.Name)
+		return nil, "", errors.New("Image is under construction")
 	}
 	defer lock.ReleaseLock(LockKind, imageInformation.Name)
 

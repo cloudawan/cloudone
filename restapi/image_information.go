@@ -19,6 +19,7 @@ import (
 	"github.com/cloudawan/cloudone/deploy"
 	"github.com/cloudawan/cloudone/image"
 	"github.com/cloudawan/cloudone/utility/configuration"
+	"github.com/cloudawan/cloudone/utility/lock"
 	"github.com/emicklei/go-restful"
 	"net/http"
 )
@@ -59,7 +60,7 @@ func registerWebServiceImageInformation() {
 
 	ws.Route(ws.PUT("/upgrade").Filter(authorize).Filter(auditLog).To(putImageInformationUpgrade).
 		Doc("Upgrade image build from source code").
-		Do(returns200, returns400, returns404, returns422, returns500).
+		Do(returns200, returns400, returns403, returns404, returns422, returns500).
 		Reads(ImageInformationUpgradeInput{}))
 }
 
@@ -197,6 +198,16 @@ func putImageInformationUpgrade(request *restful.Request, response *restful.Resp
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
 		log.Error(jsonMap)
 		response.WriteErrorString(400, string(errorMessageByteSlice))
+		return
+	}
+
+	if lock.LockAvailable(image.LockKind, imageInformationUpgradeInput.ImageInformationName) == false {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Duplicated command failure"
+		jsonMap["ErrorMessage"] = "Image is under construction"
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(403, string(errorMessageByteSlice))
 		return
 	}
 
