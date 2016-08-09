@@ -80,7 +80,7 @@ func addCommandFromAllDeployInformation(command *slb.Command, kubeApiServerEndPo
 				}
 			}
 			// HTTP
-			if protocol == deploy.ProtocolTypeHTTP {
+			if protocol == deploy.ProtocolTypeHTTP && servicePort.NodePort >= 0 {
 				kubernetesServiceHTTP := slb.KubernetesServiceHTTP{
 					deployInformation.Namespace,
 					deployInformation.ImageInformationName,
@@ -134,7 +134,7 @@ func addCommandFromAllBlueGreenDeployment(command *slb.Command, kubeApiServerEnd
 				}
 			}
 			// HTTP
-			if protocol == deploy.ProtocolTypeHTTP {
+			if protocol == deploy.ProtocolTypeHTTP && servicePort.NodePort >= 0 {
 				kubernetesServiceHTTP := slb.KubernetesServiceHTTP{
 					deployBlueGreen.Namespace,
 					BlueGreenDeploymentPrefix + deployBlueGreen.ImageInformation,
