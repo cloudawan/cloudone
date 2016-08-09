@@ -35,7 +35,7 @@ func getBlueGreenReplicationControllerName(imageInformation string, currentVersi
 	return imageInformation + currentVersion
 }
 
-func getBlueGreenServiceName(imageInformation string) string {
+func GetBlueGreenServiceName(imageInformation string) string {
 	return blueGreenServiceNamePrefix + imageInformation
 }
 
@@ -75,7 +75,7 @@ func UpdateDeployBlueGreen(kubeApiServerEndPoint string, kubeApiServerToken stri
 		portName, "TCP", containerPort, strconv.Itoa(containerPort), deployBlueGreen.NodePort})
 
 	service := control.Service{
-		getBlueGreenServiceName(deployBlueGreen.ImageInformation),
+		GetBlueGreenServiceName(deployBlueGreen.ImageInformation),
 		deployBlueGreen.Namespace,
 		portSlice,
 		selector,
@@ -109,7 +109,7 @@ func CleanAllServiceUnderBlueGreenDeployment(kubeApiServerEndPoint string, kubeA
 		return err
 	}
 	for _, namespace := range namespaceSlice {
-		service, _ := control.GetService(kubeApiServerEndPoint, kubeApiServerToken, namespace, getBlueGreenServiceName(imageInformationName))
+		service, _ := control.GetService(kubeApiServerEndPoint, kubeApiServerToken, namespace, GetBlueGreenServiceName(imageInformationName))
 		if service != nil {
 			err := control.DeleteService(kubeApiServerEndPoint, kubeApiServerToken, namespace, service.Name)
 			if err != nil {

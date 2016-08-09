@@ -25,14 +25,18 @@ import (
 )
 
 const (
-	LockKind        = "deploy"
-	waitingDuration = 5 * time.Second
+	LockKind          = "deploy"
+	waitingDuration   = 5 * time.Second
+	ProtocolTypeHTTP  = "http"
+	ProtocolTypeHTTPS = "https"
+	ProtocolTypeOther = "other"
 )
 
 type DeployContainerPort struct {
 	Name          string
 	ContainerPort int
 	NodePort      int
+	Protocol      string
 }
 
 type DeployInformation struct {

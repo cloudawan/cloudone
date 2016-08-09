@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"github.com/cloudawan/cloudone/control"
 	"github.com/cloudawan/cloudone/deploy"
+	"github.com/cloudawan/cloudone/slb"
 	"github.com/cloudawan/cloudone/utility/configuration"
 	"github.com/emicklei/go-restful"
 	"net/http"
@@ -174,6 +175,17 @@ func deleteDeployInformation(request *restful.Request, response *restful.Respons
 		response.WriteErrorString(422, string(errorMessageByteSlice))
 		return
 	}
+
+	err = slb.SendCommandToAllSLBDaemon()
+	if err != nil {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Configure SLB failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
+		return
+	}
 }
 
 func postDeployCreate(request *restful.Request, response *restful.Response) {
@@ -241,6 +253,17 @@ func postDeployCreate(request *restful.Request, response *restful.Response) {
 		jsonMap["kubeApiServerToken"] = kubeApiServerToken
 		jsonMap["namespace"] = namespace
 		jsonMap["deployCreateInput"] = deployCreateInput
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
+		return
+	}
+
+	err = slb.SendCommandToAllSLBDaemon()
+	if err != nil {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Configure SLB failure"
+		jsonMap["ErrorMessage"] = err.Error()
 		errorMessageByteSlice, _ := json.Marshal(jsonMap)
 		log.Error(jsonMap)
 		response.WriteErrorString(422, string(errorMessageByteSlice))

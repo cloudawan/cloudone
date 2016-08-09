@@ -47,6 +47,7 @@ func StartRestAPIServer() {
 	registerWebServiceTopology()
 	registerWebServiceWebhook()
 	registerWebServicePrivateRegistry()
+	registerWebServiceSLB()
 
 	// Place the method+path to description mapping to map for audit
 	for _, rws := range restful.DefaultContainer.RegisteredWebServices() {
