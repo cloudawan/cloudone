@@ -32,7 +32,7 @@ func registerWebServiceSLB() {
 		Doc("Get all of the slb daemon").
 		Do(returns200AllSLBDaemon, returns422, returns500))
 
-	ws.Route(ws.POST("/daemons/").Filter(authorize).Filter(auditLogWithoutBody).To(postSLBDaemon).
+	ws.Route(ws.POST("/daemons/").Filter(authorize).Filter(auditLog).To(postSLBDaemon).
 		Doc("Create the slb daemon").
 		Do(returns200, returns400, returns409, returns422, returns500).
 		Reads(slb.SLBDaemon{}))
@@ -42,7 +42,7 @@ func registerWebServiceSLB() {
 		Param(ws.PathParameter("name", "Name").DataType("string")).
 		Do(returns200, returns422, returns500))
 
-	ws.Route(ws.PUT("/daemons/{name}").Filter(authorize).Filter(auditLogWithoutBody).To(putSLBDaemon).
+	ws.Route(ws.PUT("/daemons/{name}").Filter(authorize).Filter(auditLog).To(putSLBDaemon).
 		Doc("Modify the slb daemon").
 		Param(ws.PathParameter("name", "Name").DataType("string")).
 		Do(returns200, returns400, returns404, returns422, returns500).
@@ -52,6 +52,11 @@ func registerWebServiceSLB() {
 		Doc("Get all of the slb daemons").
 		Param(ws.PathParameter("name", "Name").DataType("string")).
 		Do(returns200SLBDaemon, returns422, returns500))
+
+	ws.Route(ws.PUT("/daemons/{name}/configure").Filter(authorize).Filter(auditLog).To(putSLBDaemonConfigure).
+		Doc("Configure the slb daemon with the current status").
+		Param(ws.PathParameter("name", "Name").DataType("string")).
+		Do(returns200, returns400, returns404, returns422, returns500))
 }
 
 func getAllSLBDaemon(request *restful.Request, response *restful.Response) {
@@ -189,6 +194,45 @@ func getSLBDaemon(request *restful.Request, response *restful.Response) {
 	}
 
 	response.WriteJson(slbDaemon, "SLBDaemon")
+}
+
+func putSLBDaemonConfigure(request *restful.Request, response *restful.Response) {
+	name := request.PathParameter("name")
+
+	slbDaemon, _ := slb.GetStorage().LoadSLBDaemon(name)
+	if slbDaemon == nil {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "The slbDaemon to configre doesn't exist"
+		jsonMap["name"] = name
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(404, string(errorMessageByteSlice))
+		return
+	}
+
+	command, err := slb.CreateCommand()
+	if err != nil {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Create command for slbDaemon failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["slbDaemon"] = slbDaemon
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
+		return
+	}
+
+	err = slbDaemon.SendCommand(command)
+	if err != nil {
+		jsonMap := make(map[string]interface{})
+		jsonMap["Error"] = "Send command to slbDaemon failure"
+		jsonMap["ErrorMessage"] = err.Error()
+		jsonMap["slbDaemon"] = slbDaemon
+		errorMessageByteSlice, _ := json.Marshal(jsonMap)
+		log.Error(jsonMap)
+		response.WriteErrorString(422, string(errorMessageByteSlice))
+		return
+	}
 }
 
 func returns200AllSLBDaemon(b *restful.RouteBuilder) {

@@ -28,7 +28,7 @@ type SLBDaemon struct {
 	Description   string
 }
 
-func (slbDaemon *SLBDaemon) sendCommand(command *slb.Command) error {
+func (slbDaemon *SLBDaemon) SendCommand(command *slb.Command) error {
 	command.NodeHostSlice = slbDaemon.NodeHostSlice
 
 	buffer := bytes.Buffer{}
@@ -37,7 +37,7 @@ func (slbDaemon *SLBDaemon) sendCommand(command *slb.Command) error {
 		_, err := restclient.RequestPut(url, command, nil, false)
 		if err != nil {
 			log.Error(err)
-			buffer.WriteString("Fail to configure " + endPoint + "with error " + err.Error() + "\n")
+			buffer.WriteString("Fail to configure " + endPoint + " with error " + err.Error() + "\n")
 		}
 	}
 
@@ -63,7 +63,7 @@ func SendCommandToAllSLBDaemon() error {
 
 	buffer := bytes.Buffer{}
 	for _, slbDaemon := range slbDaemonSlice {
-		err := slbDaemon.sendCommand(command)
+		err := slbDaemon.SendCommand(command)
 		if err != nil {
 			log.Error(err)
 			buffer.WriteString(err.Error())
