@@ -20,12 +20,12 @@ import (
 	"testing"
 )
 
-func TestGetHostWithinFlannelNetwork(t *testing.T) {
-	kubernetesNodeControl, err := CreateKubernetesNodeControl()
+func TestGetKubernetesAllNodeIP(t *testing.T) {
+	hostControl, err := CreateHostControl()
 	if err != nil {
 		t.Error(err)
 	}
-	ipSlice, err := kubernetesNodeControl.GetHostWithinFlannelNetwork()
+	ipSlice, err := hostControl.GetKubernetesAllNodeIP()
 	if err != nil {
 		t.Error(err)
 	} else {
@@ -33,12 +33,38 @@ func TestGetHostWithinFlannelNetwork(t *testing.T) {
 	}
 }
 
-func TestGetStatus(t *testing.T) {
-	kubernetesNodeControl, err := CreateKubernetesNodeControl()
+func TestGetKubernetesHostStatus(t *testing.T) {
+	hostControl, err := CreateHostControl()
 	if err != nil {
 		t.Error(err)
 	}
-	jsonMap, err := kubernetesNodeControl.GetStatus()
+	jsonMap, err := hostControl.GetKubernetesHostStatus()
+	if err != nil {
+		t.Error(err)
+	} else {
+		fmt.Println(jsonMap)
+	}
+}
+
+func TestGetGlusterfsHostStatus(t *testing.T) {
+	hostControl, err := CreateHostControl()
+	if err != nil {
+		t.Error(err)
+	}
+	jsonMap, err := hostControl.GetGlusterfsHostStatus()
+	if err != nil {
+		t.Error(err)
+	} else {
+		fmt.Println(jsonMap)
+	}
+}
+
+func TestGetSLBHostStatus(t *testing.T) {
+	hostControl, err := CreateHostControl()
+	if err != nil {
+		t.Error(err)
+	}
+	jsonMap, err := hostControl.GetSLBHostStatus()
 	if err != nil {
 		t.Error(err)
 	} else {

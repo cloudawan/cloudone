@@ -20,49 +20,29 @@ import (
 
 func GetAllStatus() (map[string]interface{}, error) {
 	jsonMap := make(map[string]interface{})
+	hostControl, err := CreateHostControl()
+	if err != nil {
+		log.Error(err)
+		return jsonMap, err
+	}
 	// Kubernetes
-	kubernetesNodeControl, err := CreateKubernetesNodeControl()
+	jsonMap["kubernetes"], err = hostControl.GetKubernetesHostStatus()
 	if err != nil {
 		log.Error(err)
 		return jsonMap, err
-	}
-	jsonMap["kubernetes"], err = kubernetesNodeControl.GetStatus()
-	if err != nil {
-		log.Error(err)
-		return jsonMap, err
-	}
-	ipSlice, err := kubernetesNodeControl.GetKubernetesAllNodeIP()
-	if err != nil {
-		log.Error(err)
-		return jsonMap, err
-	}
-	for key, _ := range jsonMap["kubernetes"].(map[string]interface{}) {
-		jsonMap["kubernetes"].(map[string]interface{})[key].(map[string]interface{})["active"] = false
-	}
-	for _, ip := range ipSlice {
-		if jsonMap["kubernetes"].(map[string]interface{})[ip] == nil {
-			jsonMap["kubernetes"].(map[string]interface{})[ip] = make(map[string]interface{})
-			jsonMap["kubernetes"].(map[string]interface{})[ip].(map[string]interface{})["active"] = false
-		} else {
-			jsonMap["kubernetes"].(map[string]interface{})[ip].(map[string]interface{})["active"] = true
-		}
 	}
 	// Glusterfs
-	/*
-		glusterfsVolumeControl, err := glusterfs.CreateGlusterfsVolumeControl()
-		if err != nil {
-			log.Error(err)
-			return jsonMap, err
-		}
-		hostStatusMap := glusterfsVolumeControl.GetHostStatus()
-		jsonMap["glusterfs"] = make(map[string]interface{})
-		for key, value := range hostStatusMap {
-			jsonMap["glusterfs"].(map[string]interface{})[key] = make(map[string]interface{})
-			jsonMap["glusterfs"].(map[string]interface{})[key].(map[string]interface{})["active"] = true
-			jsonMap["glusterfs"].(map[string]interface{})[key].(map[string]interface{})["service"] = make(map[string]interface{})
-			jsonMap["glusterfs"].(map[string]interface{})[key].(map[string]interface{})["service"].(map[string]interface{})["glusterfs"] = value
-		}
-	*/
+	jsonMap["glusterfs"], err = hostControl.GetGlusterfsHostStatus()
+	if err != nil {
+		log.Error(err)
+		return jsonMap, err
+	}
+	// SLB
+	jsonMap["slb"], err = hostControl.GetSLBHostStatus()
+	if err != nil {
+		log.Error(err)
+		return jsonMap, err
+	}
 	// CloudOne
 	cloudoneControl, err := CreateCloudoneControl()
 	if err != nil {
